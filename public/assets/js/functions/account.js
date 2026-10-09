@@ -1884,10 +1884,8 @@ function accountDetailsTransactionLabelIndex() {
 	return accountDetailsHiddenIdColIndex() + 1;
 }
 
+// Display: M/D/YYYY H:mm (e.g. 9/30/2026 20:00, 10/6/2026 0:05). The filter value leads with YYYY-MM-DD for the date range search.
 function accountDetailsDateRender(data, type) {
-	if (window.DateTimeFormat && typeof window.DateTimeFormat.dataTableDateTimeRender === 'function') {
-		return window.DateTimeFormat.dataTableDateTimeRender(data, type, { utcOffset: 8 });
-	}
 	if (type === 'sort' || type === 'type') {
 		var sortM = moment.utc(data);
 		if (!sortM.isValid()) sortM = moment(data);
@@ -1898,7 +1896,10 @@ function accountDetailsDateRender(data, type) {
 		m = moment(data, ['YYYY-MM-DD HH:mm:ss', 'YYYY-MM-DD HH:mm', 'MMMM DD, YYYY HH:mm:ss', moment.ISO_8601], true);
 	}
 	if (!m.isValid()) m = moment(data);
-	return m.isValid() ? m.utcOffset(8).format('YYYY-MM-DD HH:mm') : 'Invalid Date';
+	if (!m.isValid()) return '';
+	m = m.utcOffset(8);
+	if (type === 'filter') return m.format('YYYY-MM-DD HH:mm') + ' ' + m.format('M/D/YYYY H:mm');
+	return m.format('M/D/YYYY H:mm');
 }
 
 function getOrInitAccountDetailsAltDataTable() {
@@ -2081,6 +2082,8 @@ function getOrInitAccountDetailsDataTable() {
 	return $tbl.DataTable({
 		order: [[0, 'desc']],
 		autoWidth: false,
+		pageLength: 13,
+		lengthMenu: [[13, 25, 50, 100, -1], [13, 25, 50, 100, 'All']],
 		columnDefs: [
 			{
 				targets: 0,

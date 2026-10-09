@@ -128,32 +128,27 @@
                                         </button>
                                     </div>
                                     
+                                    <!-- Balance Check hidden for now
                                     <div class="form-group mb-0">
                                         <button type="button" class="btn btn-info-subtle w-100" id="balanceCheckBtn">
                                             <i class="fa fa-exclamation-circle me-1"></i> <%= __('modal_account_details.balance_check') %>
                                         </button>
                                     </div>
+                                    -->
                                 </form>
                             </div>
                         </div>
                     </div>
                     <div class="col-xl-9 col-lg-8">
                         <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                <div class="header-title flex-grow-1 min-w-0">
-                                    <div class="d-flex flex-nowrap align-items-center gap-2 w-100" style="min-width: 0;">
-                                        <label for="agent_remarks_notice" class="mb-0 small fw-semibold text-nowrap"><%= __('modal_account_details.remarks') %></label>
-                                        <input type="text" id="agent_remarks_notice" class="form-control form-control-sm flex-grow-1 min-w-0" style="min-width: 5rem;" placeholder="<%= __('modal_account_details.remarks_placeholder') %>" autocomplete="off" maxlength="5000" aria-label="<%= __('modal_account_details.agent_remarks') %>">
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center gap-2">
-                                    <!-- Removed daterangepicker input and filter button -->
-                                </div>
-                            </div>
-                                <div class="card-body">
+                                <div class="card-body guest-portal-ledger-body">
                                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4 guest-portal-action-row">
                                     <button type="button" class="btn btn-sm btn-success" id="btn-guest-portal-game-start"><%= __('modal_account_details.game_start') %></button>
-                                    <div class="d-flex flex-wrap justify-content-end gap-2 ms-auto">
+                                    <div class="d-flex guest-portal-panel-btns">
+                                        <button type="button" class="btn btn-sm guest-portal-panel-btn" id="btn-guest-portal-guests" data-gp-panel="gp-guests-overlay">GUESTS</button>
+                                        <button type="button" class="btn btn-sm guest-portal-panel-btn" id="btn-guest-portal-memo" data-gp-panel="gp-memo-overlay">MEMO</button>
+                                    </div>
+                                    <div class="d-flex flex-wrap justify-content-end gap-2">
                                         <button type="button" class="btn btn-sm btn-success" id="btn-filter-deposit">Deposit</button>
                                         <button type="button" class="btn btn-sm btn-warning" id="btn-filter-withdraw">Withdraw</button>
                                         <button type="button" class="btn btn-sm btn-info" id="btn-filter-transfer">Transfer</button>
@@ -186,7 +181,7 @@
                                 <table id="accountDetails" class="table table-bordered" style="width: 100%;">
                                     <thead>
                                         <tr>
-                                            <th class="text-center" style="width: 122px;"><%= __('modal_account_details.date') %></th>
+                                            <th class="text-center" style="width: 1%;"><%= __('modal_account_details.date') %></th>
                                             <th class="text-center" style="width: 84px;"><%= __('modal_account_details.amount') %></th>
                                             <th class="text-center" style="width: 88px;"><%= __('modal_account_details.balance_after') %></th>
                                             <th class="text-center" style="width: 230px;"><%= __('modal_account_details.transaction') %></th>
@@ -198,13 +193,130 @@
                                     <tbody></tbody>
                                 </table>
                             </div>
+                            <div class="card-footer guest-portal-remarks-footer">
+                                <div class="guest-portal-remarks-row">
+                                    <div class="guest-portal-remarks-field">
+                                        <label for="agent_remarks_notice" class="mb-0 small fw-semibold text-nowrap"><%= __('modal_account_details.remarks') %></label>
+                                        <input type="text" id="agent_remarks_notice" class="form-control form-control-sm flex-grow-1 min-w-0" style="min-width: 5rem;" placeholder="<%= __('modal_account_details.remarks_placeholder') %>" autocomplete="off" maxlength="5000" aria-label="<%= __('modal_account_details.agent_remarks') %>">
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-alt-secondary text-nowrap guest-portal-remarks-close" data-bs-dismiss="modal">
+                                        <%= __('modal_account_details.close') %>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
-                        <%= __('modal_account_details.close') %>
-                    </button>
+            </div>
+            <!-- GUESTS panel (agent's guests) — overlays the portal, logic in agent_portal_panels.js -->
+            <div class="guest-portal-overlay d-none" id="gp-guests-overlay" role="dialog" aria-modal="true" aria-labelledby="gp-guests-title">
+                <div class="gp-panel gp-guests-panel">
+                    <div class="gp-guests-head">
+                        <span class="gp-guests-title" id="gp-guests-title">GUEST</span>
+                        <input type="search" class="form-control form-control-sm gp-guests-search" id="gp-guests-search" placeholder="Search" autocomplete="off">
+                        <button type="button" class="btn btn-sm gp-icon-btn" id="gp-guests-add" title="Add Guest" data-view-only-disable><i class="fa fa-plus"></i></button>
+                        <button type="button" class="btn-close" data-gp-close aria-label="Close"></button>
+                    </div>
+                    <!-- Add / edit guest -->
+                    <form class="gp-inline-form gp-guest-form d-none" id="gp-guest-form" autocomplete="off">
+                        <input type="hidden" id="gp-guest-id">
+                        <input type="text" class="form-control form-control-sm" id="gp-guest-name" placeholder="Guest name" maxlength="150" required>
+                        <input type="text" class="form-control form-control-sm" id="gp-guest-membership" placeholder="Membership No" inputmode="numeric" maxlength="50">
+                        <input type="text" class="form-control form-control-sm" id="gp-guest-remarks" placeholder="Remarks" maxlength="500">
+                        <button type="submit" class="btn btn-sm btn-primary" id="gp-guest-save">Save</button>
+                        <button type="button" class="btn btn-sm btn-alt-secondary" data-gp-form-cancel>Cancel</button>
+                    </form>
+                    <div class="gp-guests-table-wrap">
+                        <table class="table table-sm mb-0 gp-guests-table">
+                            <thead>
+                                <tr>
+                                    <th class="gp-sortable" data-sort-key="guest_name">Guest <span class="gp-sort-indicator"></span></th>
+                                    <th class="gp-sortable" data-sort-key="membership_no">Membership No <span class="gp-sort-indicator"></span></th>
+                                    <th class="gp-sortable" data-sort-key="guest_remarks">Remarks <span class="gp-sort-indicator"></span></th>
+                                    <th class="gp-guests-actions-col"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="gp-guests-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="gp-guests-foot">
+                        <label class="gp-guests-length">
+                            Show
+                            <select class="form-select form-select-sm" id="gp-guests-length" autocomplete="off">
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="75">75</option>
+                                <option value="100">100</option>
+                                <option value="-1">All</option>
+                            </select>
+                            entries
+                        </label>
+                        <span class="gp-guests-info" id="gp-guests-info"></span>
+                        <ul class="pagination pagination-sm mb-0 ms-auto" id="gp-guests-pages"></ul>
+                    </div>
+                </div>
+                <!-- Change Guest LINE dialog (same fields as the Agency page) -->
+                <div class="gp-dialog-backdrop d-none" id="gp-transfer-dialog">
+                    <form class="gp-dialog" id="gp-transfer-form" autocomplete="off" role="dialog" aria-modal="true" aria-labelledby="gp-transfer-title">
+                        <div class="gp-dialog-head">
+                            <span id="gp-transfer-title">Change Guest LINE</span>
+                            <button type="button" class="btn-close btn-close-white" data-gp-form-cancel aria-label="Close"></button>
+                        </div>
+                        <div class="gp-dialog-body">
+                            <input type="hidden" id="gp-transfer-guest-id">
+                            <label class="form-label" for="gp-transfer-guest">Guest</label>
+                            <input type="text" class="form-control mb-3" id="gp-transfer-guest" readonly disabled>
+                            <label class="form-label" for="gp-transfer-current">Current LINE</label>
+                            <input type="text" class="form-control mb-3" id="gp-transfer-current" readonly disabled>
+                            <label class="form-label" for="gp-transfer-agency">Transfer To LINE</label>
+                            <select class="form-select mb-3" id="gp-transfer-agency" required>
+                                <option value="">Select LINE</option>
+                            </select>
+                            <label class="form-label" for="gp-transfer-agent">Transfer To Agent</label>
+                            <select class="form-select" id="gp-transfer-agent" required disabled>
+                                <option value="">Select Agent</option>
+                            </select>
+                        </div>
+                        <div class="gp-dialog-foot">
+                            <button type="button" class="btn btn-sm btn-alt-secondary" data-gp-form-cancel>Cancel</button>
+                            <button type="submit" class="btn btn-sm btn-primary" id="gp-transfer-save">Transfer</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!-- MEMO panel (sticky note on the agent) -->
+            <div class="guest-portal-overlay d-none" id="gp-memo-overlay" role="dialog" aria-modal="true" aria-labelledby="gp-memo-title">
+                <div class="gp-panel gp-memo-panel" id="gp-memo-panel" data-color="yellow">
+                    <div class="gp-panel-head">
+                        <span class="visually-hidden" id="gp-memo-title">MEMO</span>
+                        <span class="gp-memo-status" id="gp-memo-status" aria-live="polite"></span>
+                        <button type="button" class="btn-close" data-gp-close aria-label="Close"></button>
+                    </div>
+                    <div class="gp-memo-toolbar" id="gp-memo-toolbar" aria-label="Text color">
+                        <!-- Text color: "A" button opens the palette (grid is built in agent_portal_panels.js) -->
+                        <div class="gp-color-picker">
+                            <button type="button" class="gp-color-btn" id="gp-color-btn" title="Text color" aria-haspopup="true" aria-expanded="false">
+                                <span class="gp-color-a">A</span>
+                                <span class="gp-color-bar" id="gp-color-bar"></span>
+                                <i class="fa fa-caret-down gp-color-caret"></i>
+                            </button>
+                            <div class="gp-color-pop d-none" id="gp-color-pop">
+                                <div class="gp-color-pop-title">TEXT COLOR</div>
+                                <div class="gp-color-grid" id="gp-color-grid"></div>
+                                <div class="gp-color-pop-foot">
+                                    <button type="button" class="gp-color-default" data-text-color="">Default</button>
+                                    <label class="gp-color-custom">
+                                        Custom
+                                        <input type="color" id="gp-color-custom" value="#000000">
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="gp-memo-toolbar-sep"></span>
+                        <button type="button" class="gp-fmt-btn" data-fmt="bold" title="Bold"><b>B</b></button>
+                        <button type="button" class="gp-fmt-btn" data-fmt="underline" title="Underline"><u>U</u></button>
+                    </div>
+                    <div class="gp-memo-editor" id="gp-memo-editor" contenteditable="true" spellcheck="false" data-placeholder="Write a memo…"></div>
                 </div>
             </div>
         </div>
@@ -798,6 +910,534 @@ body.guest-portal-child-open .swal2-container {
 #modal-account-details .card-body {
     padding: 1rem;
 }
+/* Left and right cards share the row height; remarks sit at the bottom of the right card */
+@media (min-width: 992px) {
+    #modal-account-details .modal-body > .row > [class*="col-"] > .card {
+        height: 100%;
+        margin-bottom: 0;
+    }
+}
+#modal-account-details .guest-portal-remarks-footer {
+    padding: 0 1rem 0.75rem;
+}
+/* Don't let the table body stretch to the card height — keeps the remarks right under the pagination */
+#modal-account-details .guest-portal-ledger-body {
+    flex: 0 0 auto;
+    background: transparent;
+    border-top: none;
+}
+/* Remarks field centered in the space left of Close; Close pinned to the right */
+#modal-account-details .guest-portal-remarks-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+#modal-account-details .guest-portal-remarks-field {
+    flex: 0 1 58rem;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+#modal-account-details .guest-portal-remarks-close {
+    flex: 0 0 auto;
+}
+/* GUESTS / MEMO buttons — dark tabs between Game Start and the filters */
+#modal-account-details .guest-portal-panel-btns {
+    gap: 4rem;
+}
+#modal-account-details .guest-portal-action-row .guest-portal-panel-btn {
+    min-width: 7.5rem;
+    padding: 0.3rem 1.2rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #fff;
+    background: #1f2430;
+    border: 2px solid #c8a24c;
+    border-radius: 4px;
+}
+#modal-account-details .guest-portal-action-row .guest-portal-panel-btn:hover,
+#modal-account-details .guest-portal-action-row .guest-portal-panel-btn.active {
+    color: #1f2430;
+    background: #f5e7bd;
+}
+
+/* GUESTS / MEMO panels: overlay inside the portal */
+#modal-account-details .modal-content {
+    position: relative;
+}
+#modal-account-details .guest-portal-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem;
+    background: rgba(15, 23, 42, 0.35);
+}
+#modal-account-details .guest-portal-overlay.d-none {
+    display: none !important;
+}
+#modal-account-details .gp-panel {
+    display: flex;
+    flex-direction: column;
+    width: min(100%, 44rem);
+    max-height: 100%;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.3);
+    overflow: hidden;
+}
+#modal-account-details .gp-panel-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.9rem;
+    background: #f5e7bd;
+    border-bottom: 1px solid rgba(200, 162, 76, 0.35);
+}
+#modal-account-details .gp-panel-title {
+    padding: 0.2rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #fff;
+    background: #1f2430;
+    border: 2px solid #c8a24c;
+    border-radius: 4px;
+}
+#modal-account-details .gp-panel-head .btn-close {
+    margin-left: auto;
+}
+/* GUESTS: same look as the Agency page GUEST card */
+#modal-account-details .gp-guests-panel {
+    /* Width follows the columns instead of stretching them apart */
+    width: fit-content;
+    min-width: min(100%, 44rem);
+    max-width: min(100%, 78rem);
+    border: 1px solid #ece6d6;
+    border-radius: 14px;
+}
+#modal-account-details .gp-guests-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 10px 12px;
+    background: #f8f1de;
+    border-bottom: 1px solid #ece6d6;
+}
+#modal-account-details .gp-guests-title {
+    margin-right: auto;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    color: #1f2937;
+}
+#modal-account-details .gp-guests-search {
+    width: 200px;
+    max-width: 42vw;
+    border-radius: 8px;
+}
+#modal-account-details .gp-icon-btn {
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    color: #fff;
+    background: #1f2430;
+    border-radius: 6px;
+}
+#modal-account-details .gp-guests-head .btn-close {
+    margin-left: 0.25rem;
+}
+#modal-account-details .gp-inline-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 12px;
+    background: #fbf5e4;
+    border-bottom: 1px solid #ece3cc;
+}
+#modal-account-details .gp-inline-form.d-none {
+    display: none !important;
+}
+#modal-account-details .gp-inline-form .form-control,
+#modal-account-details .gp-inline-form .form-select {
+    flex: 1 1 9rem;
+    width: auto;
+}
+/* Change Guest LINE dialog, on top of the GUEST popup */
+#modal-account-details .gp-dialog-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.35);
+}
+#modal-account-details .gp-dialog-backdrop.d-none {
+    display: none !important;
+}
+#modal-account-details .gp-dialog {
+    width: min(100%, 30rem);
+    overflow: hidden;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.3);
+}
+#modal-account-details .gp-dialog-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.8rem 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--bs-primary);
+}
+#modal-account-details .gp-dialog-body {
+    padding: 1rem;
+}
+#modal-account-details .gp-dialog-body #gp-transfer-guest,
+#modal-account-details .gp-dialog-body #gp-transfer-current {
+    text-transform: uppercase;
+}
+#modal-account-details .gp-dialog-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #eee;
+}
+/* Table sits in a rounded card with padding around it, like the ledger table in the portal */
+#modal-account-details .gp-guests-table-wrap {
+    flex: 0 1 auto;
+    min-height: 8rem;
+    margin: 12px 12px 0;
+    overflow-y: auto;
+    border: 1px solid #e8e2d2;
+    border-radius: 10px;
+    /* Scrollbar in the popup's cream / gold instead of the dark default */
+    scrollbar-width: thin;
+    scrollbar-color: #d9c79a #faf6ea;
+}
+#modal-account-details .gp-guests-table-wrap::-webkit-scrollbar {
+    width: 8px;
+}
+#modal-account-details .gp-guests-table-wrap::-webkit-scrollbar-track {
+    background: #faf6ea;
+}
+#modal-account-details .gp-guests-table-wrap::-webkit-scrollbar-thumb {
+    background: #d9c79a;
+    border-radius: 8px;
+}
+#modal-account-details .gp-guests-table-wrap::-webkit-scrollbar-thumb:hover {
+    background: #c8a24c;
+}
+#modal-account-details .gp-guests-panel {
+    background: #fff;
+}
+#modal-account-details .gp-guests-table {
+    border-collapse: collapse;
+}
+#modal-account-details .gp-guests-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 12px 0.8rem;
+    font-size: 13px;
+    color: #6b7280;
+}
+#modal-account-details .gp-guests-length {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+}
+#modal-account-details .gp-guests-length .form-select {
+    width: auto;
+    padding-top: 0.15rem;
+    padding-bottom: 0.15rem;
+}
+#modal-account-details #gp-guests-pages .page-link {
+    cursor: pointer;
+    color: #374151;
+}
+/* Same dark active page as the ledger table's pagination */
+#modal-account-details #gp-guests-pages .page-item.active .page-link {
+    color: #fff;
+    background: #5f6068;
+    border-color: #5f6068;
+}
+#modal-account-details #gp-guests-pages .page-item.disabled .page-link {
+    color: #9ca3af;
+}
+#modal-account-details .gp-guests-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    color: #555;
+    text-align: left;
+    white-space: nowrap;
+    background: #f5f5f5;
+    border: none;
+    border-bottom: 1px solid #e0e0e0;
+}
+#modal-account-details .gp-guests-table thead th.gp-sortable {
+    cursor: pointer;
+    user-select: none;
+}
+#modal-account-details .gp-guests-table thead th.gp-sortable:hover,
+#modal-account-details .gp-guests-table thead th.gp-sortable.is-sorted {
+    background: #ebebeb;
+}
+#modal-account-details .gp-sort-indicator {
+    margin-left: 4px;
+    font-size: 12px;
+}
+/* Compact rows */
+#modal-account-details .gp-guests-table tbody td {
+    height: 34px;
+    padding: 4px 14px;
+    font-size: 15px;
+    line-height: 1.25;
+    color: #333;
+    color: #666;
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid #eee;
+}
+#modal-account-details .gp-guests-table tbody tr:nth-child(even) td {
+    background-color: #faf9f6;
+}
+#modal-account-details .gp-guests-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+#modal-account-details .gp-guests-table tbody td:nth-child(2) {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+#modal-account-details .gp-guests-table tbody td:nth-child(1) {
+    white-space: nowrap;
+}
+#modal-account-details .gp-guests-table tbody td:nth-child(3) {
+    min-width: 10rem;
+    max-width: 22rem;
+    white-space: normal;
+    word-break: break-word;
+}
+#modal-account-details .gp-remarks-link {
+    padding: 0;
+    font: inherit;
+    color: #777;
+    text-align: left;
+    background: transparent;
+    border: 0;
+}
+#modal-account-details .gp-remarks-link:hover,
+#modal-account-details .gp-remarks-link:focus {
+    color: #555;
+}
+#modal-account-details .gp-remarks-empty {
+    color: #b7b1a4;
+}
+#modal-account-details .gp-guests-table .gp-guests-actions-col {
+    width: 1%;
+    text-align: right;
+    white-space: nowrap;
+}
+#modal-account-details .gp-row-btn {
+    margin-left: 0.6rem;
+    padding: 0;
+    font-size: 15px;
+    line-height: 1;
+    color: #777;
+    background: none;
+    border: none;
+}
+#modal-account-details .gp-row-btn:hover,
+#modal-account-details .gp-row-btn:focus {
+    color: #444;
+}
+
+/* MEMO: sticky note */
+#modal-account-details .gp-memo-panel {
+    width: min(100%, 40rem);
+    background: #fff;
+}
+/* Save state badge: grey while saving, green when saved, red on failure */
+#modal-account-details .gp-memo-panel .gp-panel-head {
+    justify-content: flex-end;
+}
+#modal-account-details .gp-memo-panel .gp-panel-head .btn-close {
+    margin-left: 0.5rem;
+}
+#modal-account-details .gp-memo-status {
+    padding: 0.2rem 0.6rem;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    border-radius: 999px;
+}
+#modal-account-details .gp-memo-status:empty {
+    display: none;
+}
+#modal-account-details .gp-memo-status.is-saving { background: #9ca3af; }
+#modal-account-details .gp-memo-status.is-saved  { background: #16a34a; }
+#modal-account-details .gp-memo-status.is-failed { background: #dc3545; }
+#modal-account-details .gp-memo-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.45rem 0.9rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+/* Text color picker */
+#modal-account-details .gp-color-picker {
+    position: relative;
+}
+#modal-account-details .gp-color-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    height: 1.6rem;
+    padding: 0 0.4rem;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+#modal-account-details .gp-color-a {
+    position: relative;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    color: #111;
+}
+#modal-account-details .gp-color-bar {
+    width: 0.9rem;
+    height: 0.9rem;
+    background: #000;
+    border: 1px solid rgba(0, 0, 0, 0.25);
+    border-radius: 2px;
+}
+#modal-account-details .gp-color-caret {
+    font-size: 11px;
+    color: #555;
+}
+#modal-account-details .gp-color-pop {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 10;
+    padding: 0.6rem;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+}
+#modal-account-details .gp-color-pop.d-none {
+    display: none !important;
+}
+#modal-account-details .gp-color-pop-title {
+    margin-bottom: 0.45rem;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #6b7280;
+}
+#modal-account-details .gp-color-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1.15rem);
+    gap: 3px;
+}
+#modal-account-details .gp-color-swatch {
+    width: 1.15rem;
+    height: 1.15rem;
+    padding: 0;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 2px;
+}
+#modal-account-details .gp-color-swatch:hover {
+    outline: 2px solid #1f2430;
+    outline-offset: 1px;
+}
+#modal-account-details .gp-color-pop-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+}
+#modal-account-details .gp-color-default {
+    flex: 1;
+    padding: 0.25rem 0.6rem;
+    font-size: 12px;
+    background: #f7f7f5;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+}
+#modal-account-details .gp-color-custom {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    font-size: 12px;
+    color: #6b7280;
+    cursor: pointer;
+}
+#modal-account-details .gp-color-custom input {
+    width: 1.4rem;
+    height: 1.4rem;
+    padding: 0;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    cursor: pointer;
+}
+#modal-account-details .gp-memo-toolbar-sep {
+    width: 1px;
+    height: 1.1rem;
+    margin: 0 0.25rem;
+    background: rgba(0, 0, 0, 0.2);
+}
+#modal-account-details .gp-fmt-btn {
+    width: 1.6rem;
+    height: 1.4rem;
+    padding: 0;
+    font-size: 13px;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+#modal-account-details .gp-memo-editor {
+    min-height: 22rem;
+    max-height: 62vh;
+    padding: 0.9rem 1.1rem;
+    overflow-y: auto;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #111;
+    outline: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+#modal-account-details .gp-memo-editor:empty::before {
+    content: attr(data-placeholder);
+    color: rgba(0, 0, 0, 0.35);
+}
+#modal-account-details .gp-memo-editor[contenteditable="false"] {
+    cursor: default;
+}
 #modal-account-details .header-title .card-title {
     color: #1e293b;
     font-weight: 700;
@@ -1297,10 +1937,6 @@ body > .flatpickr-calendar {
 }
 #modal-account-details #accountDetails_wrapper .dataTables_scrollBody {
     max-height: 56vh;
-}
-#modal-account-details .modal-footer {
-    border-top: 1px solid rgba(200, 162, 76, 0.28);
-    background: var(--dash-modal-body-bg, linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%));
 }
 .change-photo-preview {
     width: 100%;

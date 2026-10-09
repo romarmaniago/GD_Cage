@@ -11,6 +11,7 @@ const { insertCreditRecord, updateCreditFieldsByLedgerId, softDeleteCreditByLedg
 const { getCompanyCapitalBalance } = require('../utils/junketCapitalTransfer');
 const { resolveActiveServiceCategory } = require('../utils/serviceCategoryHelpers');
 const { sendLedgerEditedTelegram, sendLedgerDeletedTelegram, tgAmount } = require('../utils/accountTelegramNotice');
+const { sanitizeMemoHtml } = require('../utils/sanitizeMemoHtml');
 
 /** "* Withdrawal *" → "Withdrawal" (receipt title reused for edit / delete Telegram notices). */
 function receiptTitleText(receipt) {
@@ -4210,6 +4211,59 @@ router.put('/account/:accountId/agent_remarks', async (req, res) => {
 	} catch (error) {
 		console.error('Error updating agent remarks:', error);
 		res.status(500).json({ error: 'Error updating agent remarks' });
+	}
+});
+
+const AGENT_MEMO_COLORS = new Set(['yellow', 'pink', 'green', 'blue', 'purple', 'orange', 'white']);
+
+// AGENT MEMO (Agent Portal sticky note) — GET / PUT by account id
+router.get('/account/:accountId/agent_memo', async (req, res) => {
+	try {
+		const accountId = parseInt(req.params.accountId, 10);
+		if (Number.isNaN(accountId)) {
+			return res.status(400).json({ error: 'Invalid account id' });
+		}
+		const [[row]] = await pool.query(
+			`SELECT ag.MEMO, ag.MEMO_COLOR
+			 FROM account a
+			 INNER JOIN agent ag ON ag.IDNo = a.AGENT_ID
+			 WHERE a.IDNo = ?`,
+			[accountId]
+		);
+		if (!row) {
+			return res.status(404).json({ error: 'Account or agent not found' });
+		}
+		res.json({ memo: sanitizeMemoHtml(row.MEMO || ''), color: row.MEMO_COLOR || 'yellow' });
+	} catch (error) {
+		console.error('Error fetching agent memo:', error);
+		res.status(500).json({ error: 'Error fetching agent memo' });
+	}
+});
+
+router.put('/account/:accountId/agent_memo', async (req, res) => {
+	try {
+		if (req.session?.permissions === 2) {
+			return res.status(403).json({ error: 'Not authorized to edit the memo.' });
+		}
+		const accountId = parseInt(req.params.accountId, 10);
+		if (Number.isNaN(accountId)) {
+			return res.status(400).json({ error: 'Invalid account id' });
+		}
+		const memo = sanitizeMemoHtml(req.body && req.body.memo);
+		const colorRaw = String((req.body && req.body.color) || '').toLowerCase();
+		const color = AGENT_MEMO_COLORS.has(colorRaw) ? colorRaw : 'yellow';
+		const [[row]] = await pool.query('SELECT AGENT_ID FROM account WHERE IDNo = ?', [accountId]);
+		if (!row || row.AGENT_ID == null) {
+			return res.status(404).json({ error: 'Account or agent not found' });
+		}
+		await pool.execute(
+			'UPDATE agent SET MEMO = ?, MEMO_COLOR = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[memo || null, color, req.session.user_id, new Date(), row.AGENT_ID]
+		);
+		res.json({ success: true, memo, color });
+	} catch (error) {
+		console.error('Error updating agent memo:', error);
+		res.status(500).json({ error: 'Error updating agent memo' });
 	}
 });
 
