@@ -3,6 +3,10 @@ var creditDetailsRequestSeq = 0;
 var guestPortalDateRangeStart = null;
 var guestPortalDateRangeEnd = null;
 var guestPortalDateRangeSearchRegistered = false;
+// Yesterday / Today quick toggles on the portal ledger (same behavior as the Game Book tabs); Today is on by default.
+var guestPortalDayFilter = { yesterday: false, today: true };
+// Set when the portal opens: if the guest has nothing for today, the first load drops the Today filter and shows the recent rows.
+var guestPortalDayFilterFallbackPending = false;
 var GUEST_DEFAULT_PROFILE = '/assets/images/gd_user.jpg';
 
 function isDefaultGuestPhoto(photo) {
@@ -870,6 +874,56 @@ $(document).off('click', '#btn-filter-transfer').on('click', '#btn-filter-transf
 	applyAccountDetailsTransactionFilter('Received\\s+from|Transferred\\s+to');
 });
 
+function guestPortalTodayYmd() {
+	return guestPortalDateToYmd(new Date());
+}
+
+function guestPortalYesterdayYmd() {
+	var d = new Date();
+	d.setDate(d.getDate() - 1);
+	return guestPortalDateToYmd(d);
+}
+
+function syncGuestPortalDayFilterTabs() {
+	var $tabs = $('#modal-account-details .guest-portal-day-tab');
+	$tabs.filter('[data-day="yesterday"]').toggleClass('active', !!guestPortalDayFilter.yesterday);
+	$tabs.filter('[data-day="today"]').toggleClass('active', !!guestPortalDayFilter.today);
+}
+
+function resetGuestPortalDayFilter(today) {
+	guestPortalDayFilter = { yesterday: false, today: !!today };
+	syncGuestPortalDayFilterTabs();
+}
+
+/** A switched-on day outside the picked range would show nothing — widen the range to the cutoff period plus that day. */
+function widenGuestPortalRangeForDayFilter() {
+	var days = [];
+	if (guestPortalDayFilter.yesterday) days.push(guestPortalYesterdayYmd());
+	if (guestPortalDayFilter.today) days.push(guestPortalTodayYmd());
+	if (!days.length || !guestPortalDateRangeStart || !guestPortalDateRangeEnd) return;
+	var first = days[0];
+	var last = days[days.length - 1];
+	if (first >= guestPortalDateRangeStart && last <= guestPortalDateRangeEnd) return;
+	var period = getGuestPortalDefaultDateRange();
+	guestPortalDateRangeStart = period.startDate && period.startDate < first ? period.startDate : first;
+	guestPortalDateRangeEnd = period.endDate && period.endDate > last ? period.endDate : last;
+	var el = document.getElementById('guest-portal-daterange');
+	if (el && el._flatpickr) {
+		el._flatpickr.setDate([guestPortalDateRangeStart, guestPortalDateRangeEnd], false);
+	}
+}
+
+$(document).off('click', '#modal-account-details .guest-portal-day-tab').on('click', '#modal-account-details .guest-portal-day-tab', function () {
+	var day = $(this).data('day') === 'yesterday' ? 'yesterday' : 'today';
+	guestPortalDayFilterFallbackPending = false;
+	guestPortalDayFilter = { yesterday: !!guestPortalDayFilter.yesterday, today: !!guestPortalDayFilter.today };
+	guestPortalDayFilter[day] = !guestPortalDayFilter[day];
+	syncGuestPortalDayFilterTabs();
+	widenGuestPortalRangeForDayFilter();
+	var table = getAccountDetailsDt();
+	if (table) table.draw();
+});
+
 // Reset filter for the Account Details table
 $(document).off('click', '#btn-reset-account-details-filter').on('click', '#btn-reset-account-details-filter', function () {
 	var table = getAccountDetailsDt();
@@ -877,6 +931,7 @@ $(document).off('click', '#btn-reset-account-details-filter').on('click', '#btn-
 	table.search('');
 	table.columns().search('');
 	applyGuestPortalDefaultDateRange(false);
+	resetGuestPortalDayFilter(true);
 	table.draw();
 });
 
@@ -1559,6 +1614,9 @@ function account_details(account_id_data, agent_code, account_name) {
 		accountDetailsDataTable.search('');
 		accountDetailsDataTable.columns().search('');
 		applyGuestPortalDefaultDateRange(false);
+		resetGuestPortalDayFilter(true);
+		guestPortalDayFilterFallbackPending = true;
+		accountDetailsDataTable.page.len(-1);
 		currentAccountDetailsId = account_id_data;
 		reloadDataDetails();
 	} catch (err) {
@@ -1980,7 +2038,8 @@ function registerGuestPortalDateRangeSearch() {
 	if (!$.fn.dataTable || !$.fn.dataTable.ext || !$.fn.dataTable.ext.search) return;
 	$.fn.dataTable.ext.search.push(function (settings, data) {
 		if (!settings.nTable || settings.nTable.id !== 'accountDetails') return true;
-		if (!guestPortalDateRangeStart || !guestPortalDateRangeEnd) return true;
+		var dayOn = guestPortalDayFilter.today || guestPortalDayFilter.yesterday;
+		if (!dayOn && (!guestPortalDateRangeStart || !guestPortalDateRangeEnd)) return true;
 		var raw = String(data[0] || '').replace(/<[^>]*>/g, ' ').trim();
 		if (!raw) return false;
 		var rowDay = raw.slice(0, 10);
@@ -1990,7 +2049,11 @@ function registerGuestPortalDateRangeSearch() {
 			if (m.isValid()) rowDay = m.utcOffset(8).format('YYYY-MM-DD');
 		}
 		if (!/^\d{4}-\d{2}-\d{2}$/.test(rowDay)) return true;
-		return rowDay >= guestPortalDateRangeStart && rowDay <= guestPortalDateRangeEnd;
+		if (guestPortalDateRangeStart && guestPortalDateRangeEnd &&
+			(rowDay < guestPortalDateRangeStart || rowDay > guestPortalDateRangeEnd)) return false;
+		if (!dayOn) return true;
+		return (!!guestPortalDayFilter.today && rowDay === guestPortalTodayYmd()) ||
+			(!!guestPortalDayFilter.yesterday && rowDay === guestPortalYesterdayYmd());
 	});
 	guestPortalDateRangeSearchRegistered = true;
 }
@@ -2014,6 +2077,8 @@ function initGuestPortalDateRangePicker() {
 		showMonths: 3,
 		allowInput: false,
 		onChange: function (selectedDates) {
+			// Picking dates by hand turns the Yesterday / Today tabs off so the chosen dates show in full.
+			resetGuestPortalDayFilter(false);
 			if (selectedDates.length === 2) {
 				syncGuestPortalDateRangeFromDates(selectedDates[0], selectedDates[1]);
 				var table = getAccountDetailsDt();
@@ -2045,6 +2110,15 @@ function placeGuestPortalDateRangeControl() {
 	if (!$length.find('#guest-portal-daterange-wrap').length) {
 		$length.append($wrap);
 	}
+	if (!$length.find('.guest-portal-day-tabs').length) {
+		$length.append(
+			'<div class="guest-portal-day-tabs" role="group" aria-label="Day filter">' +
+				'<button type="button" class="guest-portal-day-tab" data-day="yesterday">Yesterday</button>' +
+				'<button type="button" class="guest-portal-day-tab" data-day="today">Today</button>' +
+			'</div>'
+		);
+	}
+	syncGuestPortalDayFilterTabs();
 	initGuestPortalDateRangePicker();
 }
 
@@ -2082,7 +2156,7 @@ function getOrInitAccountDetailsDataTable() {
 	return $tbl.DataTable({
 		order: [[0, 'desc']],
 		autoWidth: false,
-		pageLength: 13,
+		pageLength: -1,
 		lengthMenu: [[13, 25, 50, 100, -1], [13, 25, 50, 100, 'All']],
 		columnDefs: [
 			{
@@ -2300,6 +2374,16 @@ function accountDetailsRemarksColumnDefs(opts) {
 
 			Promise.all(requests).then(() => {
 				accountDetailsDataTable.rows.add(rowsToAdd).draw();
+
+				// No transactions today → turn the Today tab off and show the recent rows instead of an empty table.
+				if (guestPortalDayFilterFallbackPending && accountId === currentAccountDetailsId) {
+					guestPortalDayFilterFallbackPending = false;
+					if (guestPortalDayFilter.today && !guestPortalDayFilter.yesterday &&
+						rowsToAdd.length && !accountDetailsDataTable.rows({ search: 'applied' }).count()) {
+						resetGuestPortalDayFilter(false);
+						accountDetailsDataTable.draw();
+					}
+				}
 
 				// Total balance excludes Credit/IOU
 				const totalAmount = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return_deposit;

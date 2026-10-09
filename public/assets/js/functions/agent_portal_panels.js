@@ -559,7 +559,8 @@
 				memoSavedColor = res.color || 'yellow';
 				memoAccountId = accountId;
 				setMemoStatus('');
-				if (!viewOnly) $memoEditor.trigger('focus');
+				runMemoSearch();
+				if (!viewOnly && !$('#gp-memo-search').val()) $memoEditor.trigger('focus');
 			})
 			.fail(function (xhr) {
 				setMemoStatus('');
@@ -569,10 +570,108 @@
 
 	$(document).on('click', '#btn-guest-portal-memo', function () {
 		openOverlay($memoOverlay);
+		$('#gp-memo-search').val('');
 		loadMemo();
+		runMemoSearch();
 	});
 
-	$memoEditor.on('input', scheduleMemoSave);
+	$memoEditor.on('input', function () {
+		scheduleMemoSave();
+		runMemoSearch(true);
+	});
+
+	// ── Memo search ──
+	// Matches are painted with the CSS Custom Highlight API so the memo HTML (and what gets saved) is never touched.
+
+	var memoMatches = [];
+	var memoMatchIndex = -1;
+	var canHighlight = !!(window.CSS && CSS.highlights && window.Highlight);
+
+	function paintMemoMatches() {
+		if (canHighlight) {
+			var current = memoMatches[memoMatchIndex];
+			var others = new Highlight();
+			memoMatches.forEach(function (r) {
+				if (r !== current) others.add(r);
+			});
+			CSS.highlights.set('gp-memo-match', others);
+			if (current) CSS.highlights.set('gp-memo-current', new Highlight(current));
+			else CSS.highlights['delete']('gp-memo-current');
+		}
+		var $count = $('#gp-memo-search-count');
+		if (!$.trim($('#gp-memo-search').val())) $count.text('');
+		else $count.text(memoMatches.length ? (memoMatchIndex + 1) + '/' + memoMatches.length : '0');
+		$('#gp-memo-search-prev, #gp-memo-search-next').prop('disabled', !memoMatches.length);
+	}
+
+	function scrollToMemoMatch() {
+		var range = memoMatches[memoMatchIndex];
+		if (!range) return;
+		var editor = $memoEditor[0];
+		var box = range.getBoundingClientRect();
+		var view = editor.getBoundingClientRect();
+		if (box.top < view.top || box.bottom > view.bottom) {
+			editor.scrollTop += box.top - view.top - editor.clientHeight / 3;
+		}
+	}
+
+	// keepPosition: re-run after an edit without jumping the editor around.
+	function runMemoSearch(keepPosition) {
+		var term = $.trim($('#gp-memo-search').val() || '').toLowerCase();
+		memoMatches = [];
+		if (term) {
+			var walker = document.createTreeWalker($memoEditor[0], NodeFilter.SHOW_TEXT, null);
+			var node;
+			while ((node = walker.nextNode())) {
+				var text = node.nodeValue.toLowerCase();
+				var at = text.indexOf(term);
+				while (at !== -1) {
+					var range = document.createRange();
+					range.setStart(node, at);
+					range.setEnd(node, at + term.length);
+					memoMatches.push(range);
+					at = text.indexOf(term, at + term.length);
+				}
+			}
+		}
+		if (!memoMatches.length) memoMatchIndex = -1;
+		else if (!keepPosition || memoMatchIndex < 0) memoMatchIndex = 0;
+		else memoMatchIndex = Math.min(memoMatchIndex, memoMatches.length - 1);
+		paintMemoMatches();
+		if (!keepPosition) scrollToMemoMatch();
+	}
+
+	function stepMemoMatch(dir) {
+		if (!memoMatches.length) return;
+		memoMatchIndex = (memoMatchIndex + dir + memoMatches.length) % memoMatches.length;
+		paintMemoMatches();
+		scrollToMemoMatch();
+	}
+
+	$(document).on('input', '#gp-memo-search', function () {
+		runMemoSearch();
+	});
+
+	$(document).on('click', '#gp-memo-search-prev', function () {
+		stepMemoMatch(-1);
+	});
+
+	$(document).on('click', '#gp-memo-search-next', function () {
+		stepMemoMatch(1);
+	});
+
+	// Enter = next match, Shift+Enter = previous; Escape clears the search before it closes the panel.
+	$(document).on('keydown', '#gp-memo-search', function (e) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			stepMemoMatch(e.shiftKey ? -1 : 1);
+		} else if (e.key === 'Escape' && this.value) {
+			e.preventDefault();
+			e.stopPropagation();
+			this.value = '';
+			runMemoSearch();
+		}
+	});
 
 	// Paste as plain text so outside formatting doesn't come along.
 	$memoEditor.on('paste', function (e) {

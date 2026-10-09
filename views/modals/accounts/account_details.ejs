@@ -144,10 +144,6 @@
                                 <div class="card-body guest-portal-ledger-body">
                                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4 guest-portal-action-row">
                                     <button type="button" class="btn btn-sm btn-success" id="btn-guest-portal-game-start"><%= __('modal_account_details.game_start') %></button>
-                                    <div class="d-flex guest-portal-panel-btns">
-                                        <button type="button" class="btn btn-sm guest-portal-panel-btn" id="btn-guest-portal-guests" data-gp-panel="gp-guests-overlay">GUESTS</button>
-                                        <button type="button" class="btn btn-sm guest-portal-panel-btn" id="btn-guest-portal-memo" data-gp-panel="gp-memo-overlay">MEMO</button>
-                                    </div>
                                     <div class="d-flex flex-wrap justify-content-end gap-2">
                                         <button type="button" class="btn btn-sm btn-success" id="btn-filter-deposit">Deposit</button>
                                         <button type="button" class="btn btn-sm btn-warning" id="btn-filter-withdraw">Withdraw</button>
@@ -155,6 +151,8 @@
                                         <button type="button" class="btn btn-sm btn-alt-secondary" id="btn-reset-account-details-filter" data-bs-toggle="tooltip" data-bs-placement="top" title="Reset filter">
                                             <i class="fa fa-refresh"></i>
                                         </button>
+                                        <button type="button" class="btn btn-sm btn-success guest-portal-panel-btn" id="btn-guest-portal-guests" data-gp-panel="gp-guests-overlay">Guests</button>
+                                        <button type="button" class="btn btn-sm btn-success guest-portal-panel-btn" id="btn-guest-portal-memo" data-gp-panel="gp-memo-overlay">Memo</button>
                                         <button class="btn btn-sm btn-success" onclick="game_history($('#account_id').val() || $('#account_id_add').val())">Game</button>
                                         <button type="button" class="btn btn-sm btn-primary" id="btn-credit">Credit</button>
                                         <button type="button" class="btn btn-sm btn-secondary" id="btn-passport-details" title="Info">
@@ -288,7 +286,16 @@
             <div class="guest-portal-overlay d-none" id="gp-memo-overlay" role="dialog" aria-modal="true" aria-labelledby="gp-memo-title">
                 <div class="gp-panel gp-memo-panel" id="gp-memo-panel" data-color="yellow">
                     <div class="gp-panel-head">
-                        <span class="visually-hidden" id="gp-memo-title">MEMO</span>
+                        <span class="gp-memo-title" id="gp-memo-title">Memo</span>
+                        <div class="gp-memo-search">
+                            <i class="fa fa-search" aria-hidden="true"></i>
+                            <input type="search" id="gp-memo-search" placeholder="Search memo…" autocomplete="off" aria-label="Search memo">
+                            <span class="gp-memo-search-count" id="gp-memo-search-count"></span>
+                        </div>
+                        <div class="gp-memo-search-nav">
+                            <button type="button" id="gp-memo-search-prev" title="Previous match (Shift+Enter)" aria-label="Previous match" disabled><i class="fa fa-arrow-up"></i></button>
+                            <button type="button" id="gp-memo-search-next" title="Next match (Enter)" aria-label="Next match" disabled><i class="fa fa-arrow-down"></i></button>
+                        </div>
                         <span class="gp-memo-status" id="gp-memo-status" aria-live="polite"></span>
                         <button type="button" class="btn-close" data-gp-close aria-label="Close"></button>
                     </div>
@@ -943,27 +950,6 @@ body.guest-portal-child-open .swal2-container {
 #modal-account-details .guest-portal-remarks-close {
     flex: 0 0 auto;
 }
-/* GUESTS / MEMO buttons — dark tabs between Game Start and the filters */
-#modal-account-details .guest-portal-panel-btns {
-    gap: 4rem;
-}
-#modal-account-details .guest-portal-action-row .guest-portal-panel-btn {
-    min-width: 7.5rem;
-    padding: 0.3rem 1.2rem;
-    font-size: 0.85rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    color: #fff;
-    background: #1f2430;
-    border: 2px solid #c8a24c;
-    border-radius: 4px;
-}
-#modal-account-details .guest-portal-action-row .guest-portal-panel-btn:hover,
-#modal-account-details .guest-portal-action-row .guest-portal-panel-btn.active {
-    color: #1f2430;
-    background: #f5e7bd;
-}
-
 /* GUESTS / MEMO panels: overlay inside the portal */
 #modal-account-details .modal-content {
     position: relative;
@@ -1276,11 +1262,81 @@ body.guest-portal-child-open .swal2-container {
     background: #fff;
 }
 /* Save state badge: grey while saving, green when saved, red on failure */
-#modal-account-details .gp-memo-panel .gp-panel-head {
-    justify-content: flex-end;
-}
 #modal-account-details .gp-memo-panel .gp-panel-head .btn-close {
     margin-left: 0.5rem;
+}
+#modal-account-details .gp-memo-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #1a1a1a;
+}
+/* Search box in the memo header; matches are painted with the CSS Highlight API (memo HTML is untouched) */
+#modal-account-details .gp-memo-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 0 1 15rem;
+    min-width: 0;
+    margin-left: auto;
+}
+#modal-account-details .gp-memo-search .fa-search {
+    position: absolute;
+    left: 0.6rem;
+    font-size: 12px;
+    color: #9a8a63;
+    pointer-events: none;
+}
+#modal-account-details .gp-memo-search input {
+    width: 100%;
+    height: 28px;
+    padding: 0 3rem 0 1.8rem;
+    font-size: 13px;
+    background: #fff;
+    border: 1px solid rgba(200, 162, 76, 0.55);
+    border-radius: 999px;
+    outline: none;
+}
+#modal-account-details .gp-memo-search input:focus {
+    border-color: #c8a24c;
+    box-shadow: 0 0 0 2px rgba(200, 162, 76, 0.2);
+}
+#modal-account-details .gp-memo-search-count {
+    position: absolute;
+    right: 0.7rem;
+    font-size: 11px;
+    color: #8a7a55;
+    pointer-events: none;
+}
+#modal-account-details .gp-memo-search-nav {
+    display: flex;
+    gap: 2px;
+}
+#modal-account-details .gp-memo-search-nav button {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    font-size: 12px;
+    color: #4a3208;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+#modal-account-details .gp-memo-search-nav button:hover:not(:disabled) {
+    background: rgba(200, 162, 76, 0.3);
+}
+#modal-account-details .gp-memo-search-nav button:disabled {
+    color: rgba(74, 50, 8, 0.3);
+    cursor: default;
+}
+::highlight(gp-memo-match) {
+    background-color: #fde68a;
+    color: inherit;
+}
+::highlight(gp-memo-current) {
+    background-color: #f59e0b;
+    color: #fff;
 }
 #modal-account-details .gp-memo-status {
     padding: 0.2rem 0.6rem;
@@ -1520,6 +1576,43 @@ body.guest-portal-child-open .swal2-container {
 #modal-account-details #guest-portal-daterange-wrap {
     display: inline-flex;
     align-items: center;
+}
+/* Yesterday / Today toggles — same segmented look as the Game Book tabs */
+#modal-account-details .guest-portal-day-tabs {
+    display: inline-flex;
+    align-items: stretch;
+    height: 1.7rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+}
+#modal-account-details .guest-portal-day-tab {
+    border: none;
+    background: transparent;
+    padding: 0 0.8rem;
+    font-size: 13px;
+    font-weight: 500;
+    color: #666;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+#modal-account-details .guest-portal-day-tab + .guest-portal-day-tab {
+    border-left: 1px solid #e0e0e0;
+}
+#modal-account-details .guest-portal-day-tab:hover:not(.active) {
+    background: #f5f2ec;
+    color: #333;
+}
+#modal-account-details .guest-portal-day-tab.active {
+    background: #c8a24c;
+    color: #fff;
+    font-weight: 600;
+}
+#modal-account-details .guest-portal-day-tab:focus {
+    outline: none;
 }
 #modal-account-details #guest-portal-daterange,
 #modal-account-details .guest-portal-daterange.input {
