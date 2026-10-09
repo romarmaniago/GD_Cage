@@ -38,7 +38,7 @@ const { ensureSoaFnbHotelSchema } = require('../utils/ensureSoaFnbHotelSchema');
 const { ensureCreditSchema, backfillCreditFromLedger } = require('../utils/ensureCreditSchema');
 const { ensureGameInformationSchema } = require('../utils/ensureGameInformationSchema');
 const { ensureGiAgentGroupSchema } = require('../utils/ensureGiAgentGroupSchema');
-const { ensureAgencyNameColorSchema } = require('../utils/ensureAgencyNameColorSchema');
+const { dropNameColorColumns } = require('../utils/dropNameColorColumns');
 const { ensureAccountLedgerServiceIdSchema } = require('../utils/ensureAccountLedgerServiceIdSchema');
 const { ensureAccountLedgerLinkedGameIdsSchema } = require('../utils/ensureAccountLedgerLinkedGameIdsSchema');
 const { ensureAccountLedgerAutoRemarksSchema } = require('../utils/ensureAccountLedgerAutoRemarksSchema');
@@ -101,7 +101,7 @@ const pool = mysql.createPool({
 		await ensureCreditSchema(pool);
 		await ensureGameInformationSchema(pool);
 		await ensureGiAgentGroupSchema(pool);
-		await ensureAgencyNameColorSchema(pool);
+		await dropNameColorColumns(pool);
 		await ensureAccountLedgerServiceIdSchema(pool);
 		await ensureAccountLedgerLinkedGameIdsSchema(pool);
 		await ensureAccountLedgerAutoRemarksSchema(pool);

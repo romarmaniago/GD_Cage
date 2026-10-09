@@ -1,7 +1,7 @@
 /**
  * Agent Portal — GUESTS and MEMO panels (overlays inside #modal-account-details).
  * GUESTS: the agent's guests (list / search / add / edit / delete) via /guest_data, /add_guest, /guest/:id.
- * MEMO: a sticky note on the agent (agent.MEMO + MEMO_COLOR), autosaved via /account/:id/agent_memo.
+ * MEMO: a sticky note on the agent (agent.MEMO), autosaved via /account/:id/agent_memo.
  */
 (function ($) {
 	if (!$ || !document.getElementById('modal-account-details')) return;
@@ -15,7 +15,6 @@
 	var guests = [];
 	var memoAccountId = null;
 	var memoSavedHtml = '';
-	var memoSavedColor = 'yellow';
 	var memoSaveTimer = null;
 
 	function permissions() {
@@ -509,8 +508,7 @@
 			url: '/account/' + encodeURIComponent(accountId) + '/agent_memo',
 			method: 'PUT',
 			contentType: 'application/json',
-			// The note color is no longer picked in the UI; send back the stored one unchanged.
-			data: JSON.stringify({ memo: html, color: memoSavedColor })
+			data: JSON.stringify({ memo: html })
 		})
 			.done(function () {
 				// Compare against what was sent, not the server copy, so typing during the save stays dirty.
@@ -541,7 +539,6 @@
 		var accountId = currentAccountId();
 		memoAccountId = null;
 		memoSavedHtml = '';
-		memoSavedColor = 'yellow';
 		$memoEditor.html('');
 		setMemoStatus('Loading…', 'saving');
 		var viewOnly = isViewOnly();
@@ -556,7 +553,6 @@
 				if (accountId !== currentAccountId()) return;
 				$memoEditor.html(res.memo || '');
 				memoSavedHtml = memoHtml();
-				memoSavedColor = res.color || 'yellow';
 				memoAccountId = accountId;
 				setMemoStatus('');
 				runMemoSearch();
