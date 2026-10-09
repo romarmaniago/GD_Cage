@@ -5357,7 +5357,10 @@ $(document).ready(function () {
 			var map = window._gameListStatusMap || {};
 			var settledMap = window._gameListSettledMap || {};
 			var tr = settings.aoData[index] && settings.aoData[index].nTr;
-			var gid = parseInt(String(searchData[3] || '').replace(/<[^>]*>/g, ' ').replace(/[^0-9]/g, ' ').trim().split(' ')[0], 10);
+			// Game # column (the map is filled before each row is added, so this is right on every draw;
+			// the row's data-game-status attribute is only set after its first draw).
+			var rowData = settings.aoData[index] && settings.aoData[index]._aData;
+			var gid = gameIdFromCell(rowData ? rowData[GAME_NO_COL] : searchData[GAME_NO_COL]);
 			if (gid && map[gid]) {
 				st = map[gid];
 				if (Object.prototype.hasOwnProperty.call(settledMap, gid)) settled = !!settledMap[gid];
@@ -5383,6 +5386,71 @@ $(document).ready(function () {
 		if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
 			$('#game_list-tbl').DataTable().draw();
 		}
+	});
+
+	// ── Frequent Recently ──
+	// Finished games only, most recently finished first, with cut-off pairs kept together
+	// (original game, then its continuation — e.g. 100015 (100016) right above 100016 (100015)).
+	// Uses window._gameListMetaMap (GAME_ENDED + cut-off links), filled per finished row in reloadData().
+	var GAME_NO_COL = 7;
+	window.gameListFrequent = false;
+
+	function gameIdFromCell(cell) {
+		return parseInt(String(cell || '').replace(/<[^>]*>/g, ' ').replace(/[^0-9]/g, ' ').trim().split(' ')[0], 10) || 0;
+	}
+
+	// Pair key: the later end time of the two games; the original (which has a continuation) sorts first.
+	function frequentSortKey(gameId) {
+		var meta = window._gameListMetaMap || {};
+		var m = meta[gameId];
+		if (!m) return 0;
+		var linked = meta[m.parent || m.continued];
+		var pairEnd = Math.max(m.ended, linked ? linked.ended : 0);
+		return pairEnd * 2 + (m.continued ? 1 : 0);
+	}
+
+	$.fn.dataTable.ext.order['game-list-frequent'] = function (settings, col) {
+		return this.api().column(col, { order: 'index' }).data().map(function (cell) {
+			return frequentSortKey(gameIdFromCell(cell));
+		});
+	};
+
+	if (!window._gameListFrequentFilterRegistered) {
+		window._gameListFrequentFilterRegistered = true;
+		$.fn.dataTable.ext.search.push(function (settings, searchData, index) {
+			if (settings.nTable.id !== 'game_list-tbl' || !window.gameListFrequent) return true;
+			var row = settings.aoData[index];
+			var gid = gameIdFromCell(row && row._aData ? row._aData[GAME_NO_COL] : searchData[GAME_NO_COL]);
+			return (window._gameListStatusMap || {})[gid] === 'finished';
+		});
+	}
+
+	var frequentColumnBackup = null;
+	function setGameListFrequent(on) {
+		window.gameListFrequent = on;
+		$('#game-frequent-filter-wrapper .game-frequent-tab').toggleClass('active', on).attr('aria-pressed', on ? 'true' : 'false');
+		if (!$.fn.DataTable.isDataTable('#game_list-tbl')) return;
+		var dt = $('#game_list-tbl').DataTable();
+		var settings = dt.settings()[0];
+		var column = settings.aoColumns[GAME_NO_COL];
+		if (on && !frequentColumnBackup) {
+			frequentColumnBackup = { sSortDataType: column.sSortDataType, sType: column.sType };
+			column.sSortDataType = 'game-list-frequent';
+			column.sType = 'num';
+		} else if (!on && frequentColumnBackup) {
+			column.sSortDataType = frequentColumnBackup.sSortDataType;
+			column.sType = frequentColumnBackup.sType;
+			frequentColumnBackup = null;
+		}
+		// Drop the cached sort values of the Game # column so it re-sorts with the current mode.
+		settings.aoData.forEach(function (r) {
+			if (r && r._aSortData) r._aSortData[GAME_NO_COL] = undefined;
+		});
+		dt.order(on ? [[GAME_NO_COL, 'desc']] : [[0, 'desc']]).draw();
+	}
+
+	$(document).off('click.gameListFrequent').on('click.gameListFrequent', '#game-frequent-filter-wrapper .game-frequent-tab', function () {
+		setGameListFrequent(!window.gameListFrequent);
 	});
 
 	function layoutGameListControls() {
@@ -5440,6 +5508,14 @@ $(document).ready(function () {
 			var $dayAnchor = $statusFilter.length ? $statusFilter : ($daterange.length ? $daterange : ($programDate.length ? $programDate : $length));
 			if ($dayFilter.parent()[0] !== $left[0] || $dayFilter.prev()[0] !== $dayAnchor[0]) {
 				$dayFilter.detach().insertAfter($dayAnchor);
+			}
+		}
+
+		var $frequentFilter = $('#game-frequent-filter-wrapper');
+		if ($frequentFilter.length && $dayFilter.length) {
+			$frequentFilter.addClass('is-placed');
+			if ($frequentFilter.parent()[0] !== $left[0] || $frequentFilter.prev()[0] !== $dayFilter[0]) {
+				$frequentFilter.detach().insertAfter($dayFilter);
 			}
 		}
 
@@ -5887,6 +5963,18 @@ $(document).ready(function () {
         $('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT, #GRAND_CHIPS_RETURN, #GRAND_TOTAL_ROLLING, #GRAND_ROLLER_CHIPS, #GRAND_COMMISSION, #GRAND_ADD_CHG, #GRAND_TOTAL_SETTLE, #GRAND_WIN_LOSS').text('0.00');
     }
 
+    // Each game's row arrives from its own /record request. Redrawing the whole table for every row
+    // (sort + filter + render of all rows, now that "All" is the default page length) blocked the page
+    // and made the Status popup stutter — draw once per burst of rows instead.
+    var gameListDrawTimer = null;
+    function scheduleGameListDraw() {
+        if (gameListDrawTimer) return;
+        gameListDrawTimer = setTimeout(function () {
+            gameListDrawTimer = null;
+            dataTable.draw();
+        }, 80);
+    }
+
     function reloadData() {
         // Skip game-list table refresh logic when this script is reused on other pages (e.g. Agency).
         if (!$('#game_list-tbl').length) {
@@ -5896,6 +5984,7 @@ $(document).ready(function () {
 		window._gameListReloadGeneration = reloadGeneration;
 		window._gameListStatusMap = {}; // reset game status classification for the new dataset
 		window._gameListSettledMap = {}; // reset settled classification for the new dataset
+		window._gameListMetaMap = {}; // reset Frequent Recently data (end time + cut-off links)
 		syncUnreturnedRollerFilterBanner();
 		// Build params; highlight id or unreturned-roller filter bypass date filtering on backend
 		const params = {};
@@ -6345,7 +6434,7 @@ $(document).ready(function () {
                                     status,
                                     roller_chips_td,
                                     actionButtons
-                                ]).draw().node();
+                                ]).node(); scheduleGameListDraw();
                                 if (rowNode) { rowNode.setAttribute('data-game-status', 'ongame'); rowNode.setAttribute('data-settled', isSettled ? '1' : '0'); }
 								
 								
@@ -6468,7 +6557,7 @@ $(document).ready(function () {
 									status,
 									roller_chips_td,
 									actionButtons
-								]).draw().node();
+								]).node(); scheduleGameListDraw();
 								if (rowNode) { rowNode.setAttribute('data-game-status', 'pending'); rowNode.setAttribute('data-settled', isSettled ? '1' : '0'); }
 
 
@@ -6565,8 +6654,13 @@ $(document).ready(function () {
 						   var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
 						   (window._gameListStatusMap || (window._gameListStatusMap = {}))[row.game_list_id] = isPendingRollerOrangeRow(row) ? 'pending' : 'finished';
 						   (window._gameListSettledMap || (window._gameListSettledMap = {}))[row.game_list_id] = isSettled;
+						   (window._gameListMetaMap || (window._gameListMetaMap = {}))[row.game_list_id] = {
+							   ended: row.GAME_ENDED ? (new Date(row.GAME_ENDED).getTime() || 0) : 0,
+							   parent: row.CUTOFF_PARENT_GAME_ID || null,
+							   continued: row.CUTOFF_CONTINUED_GAME_ID || null
+						   };
 						   captureGameListExportRow(row, { buyin: total_amount, cashout: total_cash_out_chips, winloss: WinLoss, rolling: total_rolling_chips, settlement: net, totalSettle: totalSettleValue, rollerChips: total_roller_chips });
-						   let rowNode = dataTable.row.add([buildProgramDateCell(row, userPermissions, isSettled), gameStartCellEnd, acct_no_link, buildGameGuestCell(row), buildGameMembershipCell(row), buildGameTypeCell(row, userPermissions), buildGameRateCell(row, userPermissions, isSettled), buildCutoffGameIdCell(row), buyin_td, cashout_td, winloss, total_rolling_td, formattedNet, add_chg_td, formattedTotalSettle, status, roller_chips_td, actionButtons]).draw().node();
+						   let rowNode = dataTable.row.add([buildProgramDateCell(row, userPermissions, isSettled), gameStartCellEnd, acct_no_link, buildGameGuestCell(row), buildGameMembershipCell(row), buildGameTypeCell(row, userPermissions), buildGameRateCell(row, userPermissions, isSettled), buildCutoffGameIdCell(row), buyin_td, cashout_td, winloss, total_rolling_td, formattedNet, add_chg_td, formattedTotalSettle, status, roller_chips_td, actionButtons]).node(); scheduleGameListDraw();
 						   if (rowNode) { rowNode.setAttribute('data-game-status', isPendingRollerOrangeRow(row) ? 'pending' : 'finished'); rowNode.setAttribute('data-settled', isSettled ? '1' : '0'); }
 
 							}

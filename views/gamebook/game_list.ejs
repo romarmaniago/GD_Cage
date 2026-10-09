@@ -117,6 +117,11 @@
 												</div>
 											</div>
 
+											<!-- Frequent Recently: finished games, latest first, cut-off pairs together (toggle; logic in game_list.js) -->
+											<div id="game-frequent-filter-wrapper" class="game-list-status-filter-wrap">
+												<button type="button" class="game-frequent-tab" aria-pressed="false" title="Finished games, most recently finished first — cut-off games kept next to each other">Frequent Recently</button>
+											</div>
+
 											<!-- Game Status Filter: All / On Game / Finished (+ Settled / Unsettled) -->
 											<div id="game-status-filter-wrapper" class="game-list-status-filter-wrap">
 												<div class="game-status-filter-tabs" role="tablist">
@@ -738,6 +743,38 @@ body.open-pool-select-mode .game-list-select-all-slot {
 
 #game-day-filter-wrapper .game-status-filter-tab:focus,
 #game-status-filter-wrapper .game-status-filter-tab:focus {
+	outline: none;
+}
+
+/* Frequent Recently — standalone cream / gold toggle */
+#game-frequent-filter-wrapper.is-placed {
+	position: static;
+	display: inline-flex;
+	align-items: center;
+	vertical-align: middle;
+}
+#game-frequent-filter-wrapper .game-frequent-tab {
+	height: 34px;
+	padding: 0 1rem;
+	font-size: 15px;
+	font-weight: 600;
+	color: #4a3208;
+	white-space: nowrap;
+	cursor: pointer;
+	background: #fbf3dc;
+	border: 1px solid #c8a24c;
+	border-radius: 999px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	transition: background 0.15s ease, color 0.15s ease;
+}
+#game-frequent-filter-wrapper .game-frequent-tab:hover:not(.active) {
+	background: #f5e7bd;
+}
+#game-frequent-filter-wrapper .game-frequent-tab.active {
+	color: #fff;
+	background: #c8a24c;
+}
+#game-frequent-filter-wrapper .game-frequent-tab:focus {
 	outline: none;
 }
 
@@ -1809,7 +1846,7 @@ table.dataTable tbody tr.highlight-row {
 
 
 												<script src="/assets/js/functions/num_paren_align.js"></script>
-												<script src="/assets/js/functions/game_list.js?v=11"></script>
+												<script src="/assets/js/functions/game_list.js?v=14"></script>
 												<script src="/assets/js/functions/game_group.js"></script>
 												<script src="/assets/js/functions/account.js?v=6"></script>
 												<script src="/assets/js/functions/agent_portal_panels.js?v=11"></script>
