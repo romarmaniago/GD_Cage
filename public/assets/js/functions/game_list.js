@@ -6143,6 +6143,16 @@ $(document).ready(function () {
                 let totalRealRolling = 0;
                 let totalCommission = 0;
 
+                // One request for every game's records instead of one /record request per row.
+                $.ajax({
+                    url: '/game_list/records_batch',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ ids: data.map(function (r) { return r.game_list_id; }) })
+                }).done(function (recordsByGame) {
+                if (reloadGeneration !== window._gameListReloadGeneration) {
+                    return;
+                }
                 data.forEach(function (row) {
 
 // 					let isHighlighted = highlightId && parseInt(highlightId) === row.game_list_id;
@@ -6186,9 +6196,8 @@ $(document).ready(function () {
 
                     var dateFormat = moment(row.GAME_DATE).format('YYYY-MM-DD');
 
-                    $.ajax({
-                        url: '/game_list/' + row.game_list_id + '/record',
-                        method: 'GET',
+                    // Records come from the single batch request above (was one /record request per game).
+                    (function (handlers) { handlers.success(recordsByGame[row.game_list_id] || []); })({
                         success: function (response) {
                             if (reloadGeneration !== window._gameListReloadGeneration) {
                                 return;
@@ -6670,6 +6679,9 @@ $(document).ready(function () {
                             console.error('Error fetching options:', error);
                         }
                     });
+                });
+                }).fail(function (xhr, status, error) {
+                    console.error('Error fetching game records:', error);
                 });
             },
             error: function (xhr, status, error) {

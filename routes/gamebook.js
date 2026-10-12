@@ -4104,6 +4104,34 @@ router.get('/game_list/:id/record', async (req, res) => {
     }
 });
 
+// GET GAME RECORDS FOR MANY GAMES AT ONCE (Game Book list) — one query instead of one /record request per row
+router.post('/game_list/records_batch', async (req, res) => {
+    const ids = [...new Set((Array.isArray(req.body.ids) ? req.body.ids : [])
+        .map((v) => parseInt(v, 10))
+        .filter((v) => Number.isInteger(v) && v > 0))];
+    const byGame = {};
+    ids.forEach((id) => { byGame[id] = []; });
+    if (!ids.length) return res.json(byGame);
+
+    try {
+        const CHUNK = 1000;
+        for (let i = 0; i < ids.length; i += CHUNK) {
+            const chunk = ids.slice(i, i + CHUNK);
+            const [rows] = await pool.query(
+                `SELECT IDNo, GAME_ID, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE, TRANSACTION, ENCODED_DT FROM game_record
+                 WHERE ACTIVE != 0 AND GAME_ID IN (?)
+                 ORDER BY GAME_ID ASC, IDNo ASC`,
+                [chunk]
+            );
+            rows.forEach((r) => { byGame[r.GAME_ID].push(r); });
+        }
+        res.json(byGame);
+    } catch (error) {
+        console.error('Error fetching batch game records:', error);
+        res.status(500).send('Error fetching data');
+    }
+});
+
 // GET game start receipt data (initial buy-in breakdown)
 router.get('/game_list/:id/start_receipt', async (req, res) => {
 	const data = await buildGameReceipts(parseInt(req.params.id, 10));
