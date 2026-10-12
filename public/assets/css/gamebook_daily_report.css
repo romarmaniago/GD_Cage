@@ -64,7 +64,7 @@
 }
 
 .gamebook-daily-report-main {
-  flex: 0 1 45rem;
+  flex: 0 1 52rem;
   min-width: 0;
   height: 100%;
   max-height: calc(100vh - 0.5rem);
@@ -115,7 +115,7 @@
    distribution, which browsers ignore) so <tbody> rows always stretch to
    fill the wrap's full height — no gap under the TOTAL row regardless of
    how many days are in the selected month. Column alignment is kept by
-   giving thead/tbody/tfoot rows identical flex-basis per column class. */
+   giving every thead/tbody/tfoot row the same grid-template-columns. */
 #gamebook-daily-report-table {
   display: flex;
   flex-direction: column;
@@ -136,17 +136,25 @@
   display: contents;
 }
 
+/* Each row is a grid with the same fixed template, so column widths never
+   depend on a cell's padding (gdAlignParenNumbers trims padding-right on
+   negative cells — under flex sizing that shrank those cells and bent the
+   column borders). */
 #gamebook-daily-report-table tr {
-  display: flex;
+  display: grid;
+  grid-template-columns: 5.25rem 5.25rem repeat(4, minmax(0, 1fr));
   flex: 1 1 0;
   min-height: 1.3rem;
+}
+
+#gamebook-daily-report-table td[colspan] {
+  grid-column: 1 / -1;
 }
 
 #gamebook-daily-report-table th,
 #gamebook-daily-report-table td {
   display: flex;
   align-items: center;
-  flex: 1 1 0;
   min-width: 0;
   border-right: 1px solid var(--gdr-gold-border);
   border-bottom: 1px solid var(--gdr-gold-border);
@@ -161,13 +169,6 @@
   border-bottom: none;
 }
 
-#gamebook-daily-report-table th.gdr-date-col,
-#gamebook-daily-report-table td.gdr-date-col,
-#gamebook-daily-report-table th.gdr-num-col,
-#gamebook-daily-report-table td.gdr-num-col {
-  flex: 0 0 4.5rem;
-}
-
 #gamebook-daily-report-table thead th {
   background: var(--gdr-head-grad);
   color: var(--gdr-head-text);
@@ -180,7 +181,7 @@
 }
 
 #gamebook-daily-report-table tbody td {
-  padding: 0 6px;
+  padding: 0 12px;
   color: #555;
   white-space: nowrap;
   justify-content: flex-end;
@@ -221,7 +222,7 @@
 }
 
 #gamebook-daily-report-table tfoot th {
-  padding: 2px 6px;
+  padding: 2px 12px;
   font-weight: 700;
   color: var(--gdr-head-text);
   background: var(--gdr-foot-grad);
@@ -411,7 +412,8 @@
 .gamebook-daily-report-side-card .gdrs-value {
   justify-content: flex-end;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  /* No tabular-nums: html2canvas positions text runs by the DOM's tabular widths
+     but paints proportional digits, leaving a gap before ")" in Copy images. */
   color: #222;
 }
 

@@ -504,4 +504,5 @@
 // Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
 if (window.gdAlignParenNumbers) {
 	window.gdAlignParenNumbers('#gamebook-daily-report-table', ['tbody td.gdr-amount-col', 'tfoot th.gdr-amount-col', 'tfoot td.gdr-amount-col']);
+	window.gdAlignParenNumbers('.gamebook-daily-report-side-card', ['.gdrs-value']);
 }
