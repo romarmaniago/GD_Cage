@@ -1472,8 +1472,9 @@ $(document).ready(function() {
                 }
                 return;
             }
-            if (typeof window.copyGameReceiptSlipImage === 'function') {
-                window.copyGameReceiptSlipImage(slipBody, $btn);
+            // Same card as the game receipt (game_start_receipt.ejs) so both copied images match
+            if (typeof window.copySettlementSlipAsReceiptImage === 'function') {
+                window.copySettlementSlipAsReceiptImage(slipBody, $btn);
                 return;
             }
             if (typeof Swal !== 'undefined') {
@@ -1748,8 +1749,9 @@ $(document).ready(function() {
         e.preventDefault();
         var $btn = $(this);
         var slipBody = document.getElementById('settlement-receipt-copy-area');
-        if (typeof window.copyGameReceiptSlipImage === 'function') {
-            window.copyGameReceiptSlipImage(slipBody, $btn);
+        // Same card as the game receipt (game_start_receipt.ejs) so both copied images match
+        if (typeof window.copySettlementSlipAsReceiptImage === 'function') {
+            window.copySettlementSlipAsReceiptImage(slipBody, $btn);
             return;
         }
         if (typeof Swal !== 'undefined') {

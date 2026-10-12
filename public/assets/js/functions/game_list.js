@@ -3325,7 +3325,8 @@ function getGameReceiptLines(data) {
 		account: [data.agent_code, data.group_name].filter(Boolean).join(' ').toUpperCase(),
 		guest: String(data.guest_name || data.agent_name || '').toUpperCase(),
 		gameType: String(data.game_type || '').trim().toUpperCase(),
-		gameNo: '#' + (data.game_id || '') + (data.linked_game_id ? ' (#' + data.linked_game_id + ')' : '')
+		// game_no_text: ready-made game line (merge settlement: "#101, #102")
+		gameNo: data.game_no_text || ('#' + (data.game_id || '') + (data.linked_game_id ? ' (#' + data.linked_game_id + ')' : ''))
 	};
 }
 
@@ -3350,38 +3351,45 @@ function buildGameReceiptText(data) {
 	return blocks.map(function (b) { return b.join('\n'); }).join('\n\n');
 }
 
-function buildGameReceiptSlipHtml(data, isLatest) {
+/** Receipt card body (header, account block, amount tables) — also used for the settlement modal's Copy image */
+function buildGameReceiptSlipBodyHtml(data) {
 	var l = getGameReceiptLines(data);
 	var headerClass = data.type === 'game_finish' ? ' gsr-header--finish' : '';
 	var tablesHtml = getGameReceiptSections(data).map(buildGameReceiptSectionTable).join('');
 
-	// NEW DAY badge only on START, CUT OFF badge only on SETTLEMENT
-	var cutoffTags = (Array.isArray(data.cutoff_labels) ? data.cutoff_labels : []).filter(function (label) {
-		if (label === 'CUTOFF') return data.type === 'game_finish';
-		return data.type === 'game_start';
-	}).map(function (label) {
+	// NEW DAY / CUT OFF badges show on every receipt type (START, ADD, TIP, SETTLEMENT)
+	var cutoffTags = (Array.isArray(data.cutoff_labels) ? data.cutoff_labels : []).map(function (label) {
 		var isCutoff = label === 'CUTOFF';
 		var tagClass = isCutoff ? 'gsr-cutoff-tag--cutoff' : 'gsr-cutoff-tag--new-day';
 		return '<span class="gsr-cutoff-tag ' + tagClass + '">' + (isCutoff ? 'CUT OFF' : 'NEW DAY') + '</span>';
 	}).join('');
 
+	// display_dt: an already formatted date (settlement modal), else formatted from encoded_dt
+	var dateTimeText = data.display_dt || formatGameStartReceiptDateTime(data.encoded_dt);
+
 	return (
-		'<div class="game-start-receipt-slip' + (isLatest ? ' game-start-receipt-slip--latest' : ' game-start-receipt-slip--past') + '"' +
-		' data-receipt-text="' + escapeGameReceiptHtml(encodeURIComponent(buildGameReceiptText(data))) + '">' +
 		'<div class="game-start-receipt-slip-body">' +
 		'<div class="gsr-header' + headerClass + '">' + escapeGameReceiptHtml(l.header) + '</div>' +
 		'<div class="gsr-content">' +
 		'<div class="gsr-meta-row">' +
 		'<div class="gsr-meta-tags">' + cutoffTags + '</div>' +
-		'<div class="gsr-datetime">' + formatGameStartReceiptDateTime(data.encoded_dt) + '</div>' +
+		'<div class="gsr-datetime">' + escapeGameReceiptHtml(dateTimeText) + '</div>' +
 		'<div class="gsr-meta-spacer"></div>' +
 		'</div>' +
 		'<p class="gsr-account">' + escapeGameReceiptHtml(l.account) + '</p>' +
-		'<p class="gsr-guest">' + escapeGameReceiptHtml(l.guest) + '</p>' +
+		(l.guest ? '<p class="gsr-guest">' + escapeGameReceiptHtml(l.guest) + '</p>' : '') +
 		'<p class="gsr-game-no"><span class="gsr-game-type' + (l.gameType === 'LIVE' ? ' gsr-game-type--live' : '') + '">' + escapeGameReceiptHtml(l.gameType) + '</span> ' + escapeGameReceiptHtml(l.gameNo) + '</p>' +
 		tablesHtml +
 		'</div>' +
-		'</div>' +
+		'</div>'
+	);
+}
+
+function buildGameReceiptSlipHtml(data, isLatest) {
+	return (
+		'<div class="game-start-receipt-slip' + (isLatest ? ' game-start-receipt-slip--latest' : ' game-start-receipt-slip--past') + '"' +
+		' data-receipt-text="' + escapeGameReceiptHtml(encodeURIComponent(buildGameReceiptText(data))) + '">' +
+		buildGameReceiptSlipBodyHtml(data) +
 		'<div class="game-start-receipt-slip-actions">' +
 		'<button type="button" class="btn btn-sm game-receipt-copy-btn js-copy-game-receipt-slip-image">' +
 		'Copy image</button>' +
@@ -3651,11 +3659,15 @@ function getGameReceiptCopyUiHelpers($btn) {
 	};
 }
 
-function copyGameReceiptSlipImage(slipBodyEl, $btn) {
+/** onCaptured: optional, runs once the image is rendered (success or failure) */
+function copyGameReceiptSlipImage(slipBodyEl, $btn, onCaptured) {
 	if (!slipBodyEl || !$btn || !$btn.length) return;
 
 	var ui = getGameReceiptCopyUiHelpers($btn);
 	var imageBlobPromise = buildGameReceiptSlipImageBlob(slipBodyEl);
+	if (typeof onCaptured === 'function') {
+		imageBlobPromise.then(onCaptured, onCaptured);
+	}
 
 	if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
 		// clipboard.write must start during the click gesture; the blob may resolve later.
@@ -3690,6 +3702,72 @@ function copyGameReceiptSlipImage(slipBodyEl, $btn) {
 		.finally(ui.restoreBtn);
 }
 window.copyGameReceiptSlipImage = copyGameReceiptSlipImage;
+
+/** Reads a settlement / merge settlement slip (.settlement-slip, settlement.ejs / merge_settlement.ejs) into game_finish receipt data */
+function getSettlementSlipReceiptData(ssSlipEl) {
+	var textOf = function (selector) {
+		var el = ssSlipEl.querySelector(selector);
+		return el ? String(el.textContent || '').replace(/\s+/g, ' ').trim() : '';
+	};
+	// "(50,800)" -> -50800 (the sign as shown on the slip)
+	var shownAmount = function (label) {
+		var row = ssSlipEl.querySelector('.ss-row[data-text-label="' + label + '"]');
+		if (!row) return 0;
+		var input = row.querySelector('.settlement-receipt-input');
+		var amountEl = row.querySelector('.settlement-receipt-amount');
+		var text = String(input ? input.value : (amountEl ? amountEl.textContent : '') || '').trim();
+		var num = parseFloat(text.replace(/[(),\s]/g, '')) || 0;
+		return /^\(.*\)$/.test(text) ? -Math.abs(num) : num;
+	};
+	var linkedMatch = textOf('.ss-game-linked').match(/\d+/);
+	var cutoffTagsEl = ssSlipEl.querySelector('.settlement-cutoff-tags');
+	var tagsShown = !!(cutoffTagsEl && cutoffTagsEl.style.display !== 'none');
+	var cutoffLabels = [];
+	if (tagsShown && cutoffTagsEl.querySelector('.settlement-cutoff-tag--new-day')) cutoffLabels.push('New Day');
+	if (tagsShown && cutoffTagsEl.querySelector('.settlement-cutoff-tag--cutoff')) cutoffLabels.push('CUTOFF');
+	// Merge settlement: account is a select, no guest line, the games are listed together
+	var accountSelect = ssSlipEl.querySelector('.settlement-receipt-name-select');
+	var accountText = accountSelect
+		? (accountSelect.selectedIndex >= 0 ? String(accountSelect.options[accountSelect.selectedIndex].text || '').trim() : '')
+		: textOf('.ss-account');
+
+	return {
+		type: 'game_finish',
+		display_dt: textOf('.ss-date'),
+		cutoff_labels: cutoffLabels,
+		agent_code: accountText,
+		guest_name: accountSelect ? '' : textOf('.ss-guest'),
+		game_no_text: textOf('.ss-merge-games'),
+		game_type: textOf('.settlement-game-type'),
+		game_id: textOf('.ss-game-no'),
+		linked_game_id: linkedMatch ? linkedMatch[0] : '',
+		buy_in: shownAmount('* BUY IN'),
+		total_cashout: shownAmount('* CASH OUT'),
+		win_loss: shownAmount('* WIN / LOSS'),
+		rolling: shownAmount('* ROLLING'),
+		// the receipt shows settlement / payment negated (paid out -> red)
+		settlement: -shownAmount('* SETTLEMENT'),
+		add_charge: shownAmount('* ADD CHARGE'),
+		act_settlement: -shownAmount('* PAYMENT')
+	};
+}
+
+/** Settlement modal "Copy image": renders the slip as a game receipt card so both images look the same */
+function copySettlementSlipAsReceiptImage(ssSlipEl, $btn) {
+	if (!ssSlipEl || !$btn || !$btn.length) return;
+
+	// Off screen; .game-receipt-capture-root picks up the receipt card styles (game_start_receipt.ejs)
+	var root = document.createElement('div');
+	root.className = 'game-receipt-capture-root';
+	root.setAttribute('aria-hidden', 'true');
+	root.innerHTML = '<div class="game-start-receipt-slip">' + buildGameReceiptSlipBodyHtml(getSettlementSlipReceiptData(ssSlipEl)) + '</div>';
+	document.body.appendChild(root);
+
+	copyGameReceiptSlipImage(root.querySelector('.game-start-receipt-slip-body'), $btn, function () {
+		if (root.parentNode) root.parentNode.removeChild(root);
+	});
+}
+window.copySettlementSlipAsReceiptImage = copySettlementSlipAsReceiptImage;
 
 function copyGameReceiptSlipTextButton(slipBodyEl, $btn) {
 	if (!slipBodyEl || !$btn || !$btn.length) return;
@@ -11895,13 +11973,13 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
         CUTOFF_PARENT_GAME_ID: cutoffParentGameId,
         CUTOFF_CONTINUED_GAME_ID: cutoffContinuedGameId
     });
-    // CUTOFF = game was cut off into a new game; New Day = game continues a cut off game
+    // Same tags as the game receipts: NEW DAY = game continues a cut off game; CUT OFF = game was cut off into a new game
     var settlementCutoffTags = '';
     if (parseInt(cutoffParentGameId, 10)) {
-        settlementCutoffTags += '<span class="settlement-cutoff-tag settlement-cutoff-tag--new-day">New Day</span>';
+        settlementCutoffTags += '<span class="settlement-cutoff-tag settlement-cutoff-tag--new-day">NEW DAY</span>';
     }
     if (parseInt(cutoffContinuedGameId, 10)) {
-        settlementCutoffTags += '<span class="settlement-cutoff-tag settlement-cutoff-tag--cutoff">CUTOFF</span>';
+        settlementCutoffTags += '<span class="settlement-cutoff-tag settlement-cutoff-tag--cutoff">CUT OFF</span>';
     }
     $settlementModal.find('.settlement-cutoff-tags').html(settlementCutoffTags);
     $settlementModal.find('.settlement-receipt-row--cutoff').css('display', settlementCutoffTags ? '' : 'none');
