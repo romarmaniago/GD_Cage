@@ -201,7 +201,9 @@ function addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet
 
 	const labelCell = totalRow.getCell(1);
 	labelCell.value = grandTotalLabel;
-	labelCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
+	labelCell.alignment = profile.grandTotalAlign === 'center'
+		? { vertical: 'middle', horizontal: 'center', wrapText: true }
+		: { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
 
 	for (let col1 = 1; col1 <= ncol; col1++) {
 		const cell = totalRow.getCell(col1);
@@ -360,7 +362,7 @@ async function buildTableExportXlsx(opts) {
 		const colIdx = colNumber - 1;
 		cell.font = { bold: true };
 		cell.alignment = bodyAlignment(colNumber - 1, profile, amountSet, leftSet, centerSet);
-		if (profile.zebraRows || profile.highlightTotalCol) {
+		if (profile.zebraRows || profile.highlightTotalCol || profile.centerHeaders) {
 			cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 		}
 		cell.border = THIN_BORDER;
@@ -410,7 +412,10 @@ async function buildTableExportXlsx(opts) {
 		addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet, FILL_GRAND_TOTAL, grandTotalLabel, amountNumFmt);
 	}
 
-	const colWidths = computeColumnWidths(headerStrings, rows, dataRowCount, profile, grandTotalLabel);
+	// A profile may fix the widths (balanced columns, long text wraps); otherwise size to content
+	const colWidths = profile.columnWidths && profile.columnWidths.length === ncol
+		? profile.columnWidths
+		: computeColumnWidths(headerStrings, rows, dataRowCount, profile, grandTotalLabel);
 	for (let i = 1; i <= ncol; i++) {
 		ws.getColumn(i).width = colWidths[i - 1];
 	}

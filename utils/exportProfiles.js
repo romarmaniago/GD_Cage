@@ -115,9 +115,19 @@ const PROFILES = {
 		leftAlignCols: [1, 2, 3, 4, 5, 7, 8]
 	},
 	houseExpense: {
-		amountCols: [4],
-		labelCols: 3,
-		leftAlignCols: [1, 2, 3, 5]
+		// Program Date | Date & Time | Name | In-Charge | Receiver | Description | Amount
+		amountCols: [7],
+		labelCols: 6,
+		leftAlignCols: [3, 4, 5, 6],
+		centerAlignCols: [1, 2],
+		dateCols: [1, 2],
+		amountNumFmt: ALIGNED_AMOUNT_FMT,
+		// matches the Print's total row
+		grandTotalLabel: 'TOTAL EXPENSES',
+		grandTotalAlign: 'center',
+		centerHeaders: true,
+		// Balanced like the Print (sized for wide caps such as "MINA/VINCE/YANG/JEROME") — long text wraps inside its column
+		columnWidths: [16, 17, 34, 14, 29, 40, 15]
 	},
 	markerHistory: {
 		// Date & Time | Account | Name | Credit | Credit Total | Guarantor | Balance
@@ -252,6 +262,9 @@ function resolveExportProfile(profileKey, headerCount, headers) {
 		zebraRows: resolved.zebraRows != null ? resolved.zebraRows : !!base.zebraRows,
 		highlightTotalCol: resolved.highlightTotalCol != null ? resolved.highlightTotalCol : !!base.highlightTotalCol,
 		grandTotalLabel: base.grandTotalLabel || 'GRAND TOTAL',
+		grandTotalAlign: base.grandTotalAlign || 'left',
+		centerHeaders: !!base.centerHeaders,
+		columnWidths: Array.isArray(base.columnWidths) ? base.columnWidths : null,
 		amountNumFmt: resolved.amountNumFmt || base.amountNumFmt || null,
 		// "YYYY-MM-DD" / "YYYY-MM" text → real Excel dates
 		dateCols: (resolved.dateCols || base.dateCols || []).filter((c) => c <= headerCount),

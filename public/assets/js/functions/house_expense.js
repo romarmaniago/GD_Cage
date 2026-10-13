@@ -2779,13 +2779,18 @@ $(document).ready(function () {
         if (isHouseExpenseDefaultDateSortDesc()) filtered.reverse();
         var rows = filtered.map(function (row) {
             var amount = parseFloat(row.AMOUNT) || 0;
-            var formattedAmount = amount.toLocaleString('en-US', {
+            var formattedAmount = Math.abs(amount).toLocaleString('en-US', {
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 0
             });
+            // Same as the table: an expense is money out "(x)", a return-money row is plain, zero is "0"
+            var amountText = row.record_type === 'return_money' || formattedAmount === '0'
+                ? formattedAmount
+                : '(' + formattedAmount + ')';
             var programDate = formatHouseExpenseProgramDateCell(row);
+            // The year is already in Program Date — keeps the row on one line
             var enc = row.ENCODED_DT
-                ? moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm')
+                ? moment.utc(row.ENCODED_DT).utcOffset(8).format('MM-DD HH:mm')
                 : '-';
             return [
                 programDate,
@@ -2794,7 +2799,7 @@ $(document).ready(function () {
                 row.DESCRIPTION || row.OIC || '-',
                 row.RECEIVER || '-',
                 houseExpenseItemDescriptionColumnText(row),
-                '(' + formattedAmount + ')'
+                amountText
             ];
         });
         if (rows.length) {
@@ -2810,21 +2815,37 @@ $(document).ready(function () {
                 ]);
             });
         }
-        return { headers: headers, rows: rows };
+        var footerCount = rows.length ? $('#expense-item-cat-tbl tfoot tr').length : 0;
+        return { headers: headers, rows: rows, footerCount: footerCount };
     }
 
     function getHouseExpensePrintStyles() {
         return [
             '@page{size:landscape;margin:8mm;}',
+            // print the header fill and red amounts even with "Background graphics" off
+            '*{-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
             'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
             '.print-wrap{width:100%;}',
             'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
             '.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#444;}',
-            'table{width:100%;border-collapse:collapse;font-size:10px;}',
-            'th,td{border:1px solid #777;padding:5px 7px;vertical-align:middle;text-align:left;}',
+            // Fixed, balanced column widths (see the <colgroup> in printHouseExpenseTable) so a long
+            // description wraps inside its own column instead of squeezing the font for every row.
+            'table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11.5px;}',
+            'th,td{border:1px solid #777;padding:4px 6px;vertical-align:middle;text-align:left;overflow-wrap:anywhere;}',
+            // dates and amount stay on one line; text columns may wrap
+            'td:nth-child(1),td:nth-child(2),td:nth-child(7){white-space:nowrap;}',
             'th{background:#d9e1f2;font-weight:700;}',
-            'th:nth-child(7),td:nth-child(7){text-align:right;padding-right:14px;}',
-            'tbody tr:nth-last-child(-n+3) td{font-weight:700;background:#f4f6fa;}'
+            // header labels on one line
+            // header labels on one line, centered (placed after the column rules so it wins)
+            'thead th{white-space:nowrap;font-size:10.5px;}',
+            'th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2){text-align:center;}',
+            // Amount: digits line up — a "(x)" hangs its ")" past them, other values carry an invisible ")"
+            'th:nth-child(7),td:nth-child(7){text-align:right;font-variant-numeric:tabular-nums;}',
+            '.neg{color:#dc3545;}',
+            '.paren-pad{visibility:hidden;}',
+            // only the total row(s) — tagged in printHouseExpenseTable()
+            'tr.total-row td{font-weight:700;background:#f4f6fa;}',
+            'thead th:nth-child(n){text-align:center;}'
         ].join('');
     }
 
@@ -2847,18 +2868,36 @@ $(document).ready(function () {
         var headerHtml = payload.headers.map(function (h) {
             return '<th>' + houseExpenseHtmlEscape(h) + '</th>';
         }).join('');
-        var rowsHtml = payload.rows.map(function (row) {
-            return '<tr>' + row.map(function (cell) {
-                return '<td>' + houseExpenseHtmlEscape(cell) + '</td>';
+        var AMOUNT_COL = 6;
+        var printAmountHtml = function (text) {
+            var t = String(text == null ? '' : text).trim();
+            if (!t) return '';
+            if (/^\(.*\)$/.test(t)) return '<span class="neg">' + houseExpenseHtmlEscape(t) + '</span>';
+            return houseExpenseHtmlEscape(t) + '<span class="paren-pad">)</span>';
+        };
+        // "MINA/VINCE/YANG" may wrap after a "/" instead of mid-name
+        var printTextHtml = function (text) {
+            return houseExpenseHtmlEscape(text).replace(/\//g, '/<wbr>');
+        };
+        var firstTotalRow = payload.rows.length - (payload.footerCount || 0);
+        var rowsHtml = payload.rows.map(function (row, r) {
+            if (r >= firstTotalRow) {
+                // Total: the label spans the text columns, the sum sits under Amount
+                return '<tr class="total-row"><td colspan="' + AMOUNT_COL + '">' + houseExpenseHtmlEscape(row[0]) + '</td>' +
+                    '<td>' + printAmountHtml(row[AMOUNT_COL]) + '</td></tr>';
+            }
+            return '<tr>' + row.map(function (cell, i) {
+                return '<td>' + (i === AMOUNT_COL ? printAmountHtml(cell) : printTextHtml(cell)) + '</td>';
             }).join('') + '</tr>';
         }).join('');
         var subtitle = getHouseExpenseDateRangeLabel();
+        // Off-screen, as wide as the printable area of landscape A4 (297mm - 2 x 8mm margin).
         var iframe = document.createElement('iframe');
         iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
+        iframe.style.left = '-20000px';
+        iframe.style.top = '0';
+        iframe.style.width = Math.floor((297 - 16) / 25.4 * 96) + 'px';
+        iframe.style.height = '800px';
         iframe.style.border = '0';
         document.body.appendChild(iframe);
         var frameWindow = iframe.contentWindow;
@@ -2870,7 +2909,10 @@ $(document).ready(function () {
             '</style></head><body><div class="print-wrap">',
             '<h2>Junket Expenses</h2>',
             '<div class="subtitle">', houseExpenseHtmlEscape(subtitle), '</div>',
-            '<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
+            // Program Date | Date & Time | Category | Approved By | Received By | Description | Amount
+            '<table><colgroup><col style="width:10%"><col style="width:9%"><col style="width:21%">',
+            '<col style="width:9%"><col style="width:14%"><col style="width:28%"><col style="width:9%"></colgroup>',
+            '<thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
             '</div></body></html>'
         ].join(''));
         frameDoc.close();
@@ -2908,7 +2950,8 @@ $(document).ready(function () {
             }
             return;
         }
-        var headers = ['Program Date', 'Date & Time', 'Name', 'In-Charge', 'Receiver', 'Description', 'Amount'];
+        // Same columns and labels as the Print (the table header, minus Action)
+        var headers = ['PROGRAM DATE', 'DATE & TIME', 'CATEGORY', 'APPROVED BY', 'RECEIVED BY', 'DESCRIPTION', 'AMOUNT'];
         // Match the on-screen order (latest at the bottom on the default sort).
         data = sortHouseExpenseItemRows(data);
         if (isHouseExpenseDefaultDateSortDesc()) data.reverse();
@@ -2921,11 +2964,12 @@ $(document).ready(function () {
             return [
                 programDate === '-' ? '' : programDate,
                 enc,
-                row.expense_category || 'N/A',
+                houseExpenseGetExpenseNameLabel(row),
                 row.DESCRIPTION || row.OIC || '-',
                 row.RECEIVER || '-',
                 houseExpenseItemDescriptionColumnText(row),
-                amount
+                // Same sign as on screen: an expense is money out "(x)"; a return-money row is plain
+                row.record_type === 'return_money' ? Math.abs(amount) : -Math.abs(amount)
             ];
         });
         var outName = 'Junket_Expenses-export.xlsx';
