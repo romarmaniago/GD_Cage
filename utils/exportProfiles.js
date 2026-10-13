@@ -126,7 +126,9 @@ const PROFILES = {
 		leftAlignCols: [2, 3, 6],
 		centerAlignCols: [1],
 		skipGrandTotal: true,
-		amountIndent: 0
+		amountIndent: 0,
+		amountNumFmt: ALIGNED_AMOUNT_FMT,
+		dateCols: [1]
 	},
 	markerHistorySummary: {
 		// Account | Name | Total | Guarantor — On Credit/Finished Credit collapsed to 1 row/account
@@ -135,12 +137,14 @@ const PROFILES = {
 		leftAlignCols: [2, 4],
 		centerAlignCols: [1],
 		skipGrandTotal: true,
-		amountIndent: 0
+		amountIndent: 0,
+		amountNumFmt: ALIGNED_AMOUNT_FMT
 	},
 	markerBalance: {
 		amountCols: [2],
 		labelCols: 1,
-		leftAlignCols: [1]
+		leftAlignCols: [1],
+		amountNumFmt: ALIGNED_AMOUNT_FMT
 	},
 	netProfit: {
 		amountCols: [2, 3, 5, 6, 7, 8],

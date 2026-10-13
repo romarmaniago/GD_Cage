@@ -218,10 +218,13 @@ function addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet
 	totalRow.height = 24;
 }
 
-/** "2026-10-09" → { value: Date, numFmt: 'yyyy-mm-dd' }, "2026-10" → 'yyyy-mm'; anything else → null. */
+/** "2026-10-09 21:01" → { value: Date, numFmt: 'yyyy-mm-dd hh:mm' }, "2026-10-09" → 'yyyy-mm-dd',
+ *  "2026-10" → 'yyyy-mm'; anything else → null. */
 function toExcelDate(raw) {
 	const s = String(raw == null ? '' : raw).trim();
-	let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+	let m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(s);
+	if (m) return { value: new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0))), numFmt: 'yyyy-mm-dd hh:mm' };
+	m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
 	if (m) return { value: new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])), numFmt: 'yyyy-mm-dd' };
 	m = /^(\d{4})-(\d{2})$/.exec(s);
 	if (m) return { value: new Date(Date.UTC(+m[1], +m[2] - 1, 1)), numFmt: 'yyyy-mm' };
@@ -294,7 +297,9 @@ function computeColumnWidths(headers, rows, dataRowCount, profile, grandTotalLab
 		} else if (upperHeader.includes('RECEIPT') || upperHeader.includes('DATE')) {
 			minWidth = 18;
 		}
-		return Math.min(maxWidth, Math.max(minWidth, m + 4));
+		// Character count under-measures wide capitals (W, M, G, O…) in Calibri: without the extra 10%
+		// names like "HWANG SEUNGHO" wrapped onto a hidden second line.
+		return Math.min(maxWidth, Math.max(minWidth, Math.ceil(m * 1.1) + 4));
 	});
 }
 

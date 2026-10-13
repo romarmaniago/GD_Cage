@@ -396,13 +396,20 @@
     function getMarkerHistoryPrintStyles() {
         return [
             '@page{size:landscape;margin:6mm;}',
+            // print the header fill and red negatives even with "Background graphics" off
+            '*{-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
             'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
             '.print-wrap{width:100%;}',
             'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
             '.subtitle{text-align:center;margin:0 0 10px;font-size:12px;color:#444;}',
-            'table{width:100%;border-collapse:collapse;font-size:10px;}',
-            'th,td{border:1px solid #777;padding:4px 6px;vertical-align:middle;text-align:center;}',
-            'th{background:#d9e1f2;font-weight:700;}'
+            'table{width:100%;border-collapse:collapse;font-size:11.5px;}',
+            'th,td{border:1px solid #777;padding:5px 6px;vertical-align:middle;text-align:center;}',
+            'td{white-space:nowrap;}',
+            'th{background:#d9e1f2;font-weight:700;}',
+            // amounts: digits line up — a negative's ")" hangs past them, positives carry an invisible ")"
+            '.num{font-variant-numeric:tabular-nums;}',
+            '.neg{color:#dc3545;}',
+            '.paren-pad{visibility:hidden;}'
         ].join('');
     }
 
@@ -458,11 +465,17 @@
         }).join('');
         var rowsHtml = rows.map(function (row) {
             return '<tr>' + row.map(function (cell, idx) {
-                // Credit / Credit Total / Balance render negative amounts as "(x,xxx)" — keep
-                // that red on paper too, same as on screen.
+                var style = alignStyle(idx + 1);
+                if (rightAlignCols.indexOf(idx + 1) === -1) {
+                    return '<td style="' + style + '">' + escapeHtml(cell) + '</td>';
+                }
+                // Credit / Credit Total / Balance: negatives "(x,xxx)" in red like on screen; positives get
+                // an invisible ")" so their digits line up with the negatives'.
                 var isNegAmount = /^\(.*\)$/.test(cell);
-                var style = alignStyle(idx + 1) + (isNegAmount ? 'color:#dc3545;' : '');
-                return '<td style="' + style + '">' + escapeHtml(cell) + '</td>';
+                var html = isNegAmount
+                    ? '<span class="neg">' + escapeHtml(cell) + '</span>'
+                    : escapeHtml(cell) + (cell ? '<span class="paren-pad">)</span>' : '');
+                return '<td class="num" style="' + style + '">' + html + '</td>';
             }).join('') + '</tr>';
         }).join('');
 
