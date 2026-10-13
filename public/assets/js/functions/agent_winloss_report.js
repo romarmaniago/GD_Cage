@@ -347,21 +347,46 @@ $(document).ready(function () {
 		return (range.from || '') + ' to ' + (range.to || '');
 	}
 
+	// Print uses the table's own cell rendering (same colors, "( )" negatives, alignment, row order).
+	// Links become plain text; right-aligned amounts get a hidden ")" when positive so digits line up.
+	function printCellHtml(html, isAmount) {
+		const $cell = $('<div>').html(html);
+		$cell.find('a').each(function () {
+			$(this).replaceWith('<span class="print-link">' + escapeHtml($(this).text()) + '</span>');
+		});
+		let out = $cell.html();
+		if (isAmount && !/\)\s*$/.test($cell.text().trim())) out += '<span class="paren-pad">)</span>';
+		return out;
+	}
+
 	function getPrintPayload() {
-		if (!agentWinlossTable) return { headers: [], rows: [] };
+		if (!agentWinlossTable) return { headers: [], rows: [], footer: [] };
 		const headers = [];
 		$('#agent-winloss-report-tbl thead tr:first th').each(function () {
-			headers.push($(this).text().trim());
+			headers.push({ text: $(this).text().trim(), right: $(this).hasClass('text-end') });
 		});
+		const columns = agentWinlossTable.settings()[0].aoColumns;
+		const isAmountCol = columns.map(function (col) { return /\btext-end\b/.test(col.sClass || ''); });
 		const rows = [];
-		agentWinlossTable.rows({ search: 'applied' }).every(function () {
+		agentWinlossTable.rows({ search: 'applied', order: 'applied' }).every(function (rowIdx) {
 			const cells = [];
-			$(this.node()).find('td').each(function () {
-				cells.push($(this).text().trim());
-			});
-			if (cells.length) rows.push(cells);
+			for (let c = 0; c < columns.length; c++) {
+				const html = agentWinlossTable.cell(rowIdx, c).render('display');
+				cells.push({ html: printCellHtml(html == null ? '' : String(html), isAmountCol[c]), right: isAmountCol[c] });
+			}
+			rows.push(cells);
 		});
-		return { headers: headers, rows: rows };
+		// Grand Total row exactly as the table footer shows it (incl. the Games total on Per Day / Per Month)
+		const footer = [];
+		$('#agent-winloss-report-tbl tfoot tr:first th').each(function () {
+			const right = $(this).hasClass('text-end');
+			footer.push({
+				html: printCellHtml($(this).html(), right && $(this).is('[id]')),
+				right: right,
+				colspan: parseInt($(this).attr('colspan'), 10) || 1
+			});
+		});
+		return { headers: headers, rows: rows, footer: footer };
 	}
 
 	function printReport() {
@@ -379,28 +404,18 @@ $(document).ready(function () {
 			return;
 		}
 
+		const alignClass = function (cell) { return cell.right ? ' class="num"' : ''; };
 		const headerHtml = payload.headers.map(function (h) {
-			return '<th>' + escapeHtml(h) + '</th>';
+			return '<th' + alignClass(h) + '>' + escapeHtml(h.text) + '</th>';
 		}).join('');
 		const rowsHtml = payload.rows.map(function (row) {
 			return '<tr>' + row.map(function (cell) {
-				return '<td>' + escapeHtml(cell) + '</td>';
+				return '<td' + alignClass(cell) + '>' + cell.html + '</td>';
 			}).join('') + '</tr>';
 		}).join('');
-		const totals = {
-			buy_in: $('#agent-winloss-total-buyin').text().trim(),
-			cash_out: $('#agent-winloss-total-cashout').text().trim(),
-			win_loss: $('#agent-winloss-total-winloss').text().trim(),
-			rolling: $('#agent-winloss-total-rolling').text().trim()
-		};
-		const colCount = payload.headers.length;
-		const totalColspan = Math.max(1, colCount - 4);
-		const footerHtml = '<tr><th colspan="' + totalColspan + '" style="text-align:right;">' +
-			escapeHtml(t.grand_total || 'Grand Total') + '</th>' +
-			'<th style="text-align:right;">' + escapeHtml(totals.buy_in) + '</th>' +
-			'<th style="text-align:right;">' + escapeHtml(totals.cash_out) + '</th>' +
-			'<th style="text-align:right;">' + escapeHtml(totals.win_loss) + '</th>' +
-			'<th style="text-align:right;">' + escapeHtml(totals.rolling) + '</th></tr>';
+		const footerHtml = '<tr>' + payload.footer.map(function (cell) {
+			return '<th' + alignClass(cell) + (cell.colspan > 1 ? ' colspan="' + cell.colspan + '"' : '') + '>' + cell.html + '</th>';
+		}).join('') + '</tr>';
 
 		const iframe = document.createElement('iframe');
 		iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
@@ -411,14 +426,20 @@ $(document).ready(function () {
 		frameDoc.write([
 			'<!doctype html><html><head><title>', escapeHtml(t.title || 'Agent Win/Loss'), '</title>',
 			'<style>',
+			// Same look as the on-screen table: cream header, striped rows, right-aligned amounts, red "( )" negatives
 			'@page{size:landscape;margin:8mm;}',
-			'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
-			'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
-			'.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#444;}',
-			'table{width:100%;border-collapse:collapse;font-size:10px;}',
-			'th,td{border:1px solid #777;padding:5px 7px;vertical-align:middle;text-align:left;}',
-			'th{background:#d9e1f2;font-weight:700;}',
-			'tfoot th{background:#e8e8e8;}',
+			'*{-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+			'body{font-family:Inter,"Segoe UI",Arial,sans-serif;color:#333;margin:0;}',
+			'h2{text-align:center;margin:0 0 4px;font-size:18px;color:#1f2937;}',
+			'.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#555;}',
+			'table{width:100%;border-collapse:collapse;font-size:10.5px;}',
+			'th,td{padding:6px 8px;vertical-align:middle;text-align:left;border-bottom:1px solid #ece6d6;white-space:nowrap;}',
+			'thead th{font-weight:700;color:#1f2937;background:#f7f3ea;border-bottom:1px solid #d9cfb5;}',
+			'tbody tr:nth-child(even) td{background:#faf6ec;}',
+			'tfoot th{font-weight:700;color:#1f2937;background:#f3eee2;border-top:1px solid #d9cfb5;}',
+			'.num{text-align:right;font-variant-numeric:tabular-nums;}',
+			'.paren-pad{visibility:hidden;}',
+			'.print-link{color:#2f5bea;}',
 			'</style></head><body>',
 			'<h2>', escapeHtml(t.title || 'Agent Win/Loss'), '</h2>',
 			'<div class="subtitle">', escapeHtml(getDateRangeLabel()), '</div>',
