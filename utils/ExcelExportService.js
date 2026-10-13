@@ -164,7 +164,9 @@ function autoFitRowHeights(ws, startRow, endRow) {
 	}
 }
 
-function addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet, fillGrandTotal, grandTotalLabel, amountNumFmt) {
+/** @param {Object<string, number>} [totals] - fixed total per 1-based column (instead of a SUM formula),
+ *  for pages whose total skips some rows (e.g. Loss Amount leaves settled entries out). */
+function addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet, fillGrandTotal, grandTotalLabel, amountNumFmt, totals) {
 	if (dataRowCount <= 0 || profile.skipGrandTotal) return;
 	const dataStartRow = 2;
 	const dataEndRow = 1 + dataRowCount;
@@ -186,7 +188,8 @@ function addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet
 		const range = letter + dataStartRow + ':' + letter + dataEndRow;
 		const sumExpr = isOutflowCol(col1, outflowSet) ? 'ABS(SUM(' + range + '))' : 'SUM(' + range + ')';
 		const cell = totalRow.getCell(col1);
-		cell.value = { formula: sumExpr };
+		const fixed = totals && totals[col1] != null && Number.isFinite(Number(totals[col1])) ? Number(totals[col1]) : null;
+		cell.value = fixed != null ? fixed : { formula: sumExpr };
 		cell.numFmt = amountNumFmt;
 		cell.alignment = amountAlign;
 	});
@@ -322,6 +325,7 @@ async function buildTableExportXlsx(opts) {
 		headers,
 		rows,
 		filename,
+		totals,
 		maxRows = 10000
 	} = opts;
 
@@ -409,7 +413,7 @@ async function buildTableExportXlsx(opts) {
 
 	const dataRowCount = rows.length;
 	if (dataRowCount > 0) {
-		addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet, FILL_GRAND_TOTAL, grandTotalLabel, amountNumFmt);
+		addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet, FILL_GRAND_TOTAL, grandTotalLabel, amountNumFmt, totals);
 	}
 
 	// A profile may fix the widths (balanced columns, long text wraps); otherwise size to content

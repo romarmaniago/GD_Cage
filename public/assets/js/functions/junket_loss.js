@@ -408,7 +408,7 @@ function formatJunketLossAmountDisplay(value) {
         maximumFractionDigits: 0
     });
     // Negative rows are recoveries (e.g. settlement commission applied to the loss): plain text.
-    if (raw < 0) {
+    if (raw <= 0) {
         return formatted;
     }
     return '<span class="text-dash-neg">(' + formatted + ')</span>';
@@ -1124,51 +1124,74 @@ $(document).ready(function () {
     // Action column is last (index 8). Excluded from print/export payloads.
     var actionColIndex = 8;
 
-    function getJunketLossTablePayload() {
+    // Rows in the on-screen order (default date sort shows oldest-to-newest, latest at the bottom).
+    function getJunketLossOutputRows() {
+        var rows = junketLossTable.rows({ search: 'applied', order: 'applied' }).data().toArray();
+        var order = junketLossTable.order();
+        if (order.length && order[0][0] === 0 && order[0][1] === 'desc') rows.reverse();
+        return rows;
+    }
+
+    function getJunketLossHeaders() {
         var headers = [];
         $('#junket-loss-tbl thead tr:first th').each(function (i) {
             if (i === actionColIndex) return;
             headers.push($(this).text().trim());
         });
-        var rows = [];
-        junketLossTable.rows({ search: 'applied' }).every(function () {
-            var cells = [];
-            $(this.node())
-                .find('td')
-                .each(function (i) {
-                    if (i === actionColIndex) return;
-                    cells.push($(this).text().trim());
-                });
-            if (cells.length) rows.push(cells);
-        });
-        // Match the on-screen order: default date sort shows oldest-to-newest (latest at bottom).
-        var order = junketLossTable.order();
-        if (order.length && order[0][0] === 0 && order[0][1] === 'desc') rows.reverse();
-        return { headers: headers, rows: rows };
+        return headers;
+    }
+
+    // Same rule as the table Total: settled entries are left out, recoveries (negative) reduce it.
+    function getJunketLossOutputTotal(rows) {
+        return rows.reduce(function (sum, row) {
+            return isJunketLossSettled(row) ? sum : sum + (Number(row.AMOUNT) || 0);
+        }, 0);
+    }
+
+    // As shown on screen: a loss "(x)", a recovery plain, zero "0"
+    function junketLossAmountText(value) {
+        var raw = Number(value) || 0;
+        var formatted = Math.abs(raw).toLocaleString('en-US', { maximumFractionDigits: 0 });
+        return raw > 0 ? '(' + formatted + ')' : formatted;
+    }
+
+    function junketLossProgramDate(row) {
+        var raw = row.PROGRAM_DATE || row.ENCODED_DT || '';
+        return raw ? moment(raw).format('YYYY-MM-DD') : '';
     }
 
     function getJunketLossPrintStyles() {
         return [
-            '@page{size:landscape;margin:10mm;}',
+            '@page{size:landscape;margin:8mm;}',
+            // print the header fill, settled tint and red amounts even with "Background graphics" off
+            '*{-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
             'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
             '.print-wrap{width:100%;}',
             'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
             '.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#444;}',
-            'table{width:100%;border-collapse:collapse;font-size:11px;}',
-            'th,td{border:1px solid #777;padding:6px 8px;vertical-align:middle;}',
-            'th{background:#d9e1f2;text-align:left;font-weight:700;}',
-            'th:nth-child(5),td:nth-child(5){text-align:right;}',
-            'th:nth-child(6),td:nth-child(6){text-align:center;}',
-            'td{text-align:left;}',
-            '.text-dash-neg{color:#dc3545;}'
+            // fixed, balanced column widths (see the <colgroup>); long text wraps inside its column
+            'table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11.5px;}',
+            'th,td{border:1px solid #777;padding:4px 6px;vertical-align:middle;text-align:left;overflow-wrap:anywhere;}',
+            'th{background:#d9e1f2;font-weight:700;}',
+            'thead th{white-space:nowrap;font-size:10.5px;}',
+            // dates, amount and type stay on one line
+            'td:nth-child(1),td:nth-child(2),td:nth-child(5),td:nth-child(6){white-space:nowrap;}',
+            'td:nth-child(1),td:nth-child(2),td:nth-child(6){text-align:center;}',
+            // Amount: digits line up — a "(x)" hangs its ")" past them, other values carry an invisible ")"
+            'td:nth-child(5){text-align:right;font-variant-numeric:tabular-nums;}',
+            '.neg{color:#dc3545;}',
+            '.paren-pad{visibility:hidden;}',
+            'tr.is-settled td{background:#e4f3e8;}',
+            'tr.total-row td{font-weight:700;background:#f4f6fa;}',
+            'thead th:nth-child(n){text-align:center;}'
         ].join('');
     }
 
     function printJunketLoss() {
         if (!junketLossTable) return;
-        var payload = getJunketLossTablePayload();
+        var rows = getJunketLossOutputRows();
         var t = window.junketLossTranslations || {};
-        if (payload.rows.length === 0) {
+        if (rows.length === 0) {
             Swal.fire({
                 icon: 'info',
                 title: 'Print',
@@ -1178,14 +1201,34 @@ $(document).ready(function () {
             return;
         }
 
-        var headerHtml = payload.headers.map(function (h) {
+        var amountHtml = function (value) {
+            var text = junketLossAmountText(value);
+            if (/^\(.*\)$/.test(text)) return '<span class="neg">' + escapeHtml(text) + '</span>';
+            return escapeHtml(text) + '<span class="paren-pad">)</span>';
+        };
+        var textHtml = function (value) {
+            // "BOBBY/MINA" may wrap after a "/" instead of mid-name
+            return escapeHtml(value == null ? '' : value).replace(/\//g, '/<wbr>');
+        };
+        var headerHtml = getJunketLossHeaders().map(function (h) {
             return '<th>' + escapeHtml(h) + '</th>';
         }).join('');
-        var rowsHtml = payload.rows.map(function (row) {
-            return '<tr>' + row.map(function (cell) {
-                return '<td>' + escapeHtml(cell) + '</td>';
-            }).join('') + '</tr>';
+        var rowsHtml = rows.map(function (row) {
+            return '<tr' + (isJunketLossSettled(row) ? ' class="is-settled"' : '') + '>' +
+                '<td>' + escapeHtml(junketLossProgramDate(row)) + '</td>' +
+                // the year is already in Program Date
+                '<td>' + escapeHtml(row.ENCODED_DT ? moment(row.ENCODED_DT).format('MM-DD HH:mm') : '') + '</td>' +
+                '<td>' + textHtml(row.ACCOUNT_NAME) + '</td>' +
+                '<td>' + textHtml(row.GUEST_NAME) + '</td>' +
+                '<td>' + amountHtml(row.AMOUNT) + '</td>' +
+                '<td>' + escapeHtml(paymentTypeLabel(row.PAYMENT_TYPE)) + '</td>' +
+                '<td>' + textHtml(row.IN_CHARGE) + '</td>' +
+                '<td>' + textHtml(row.DESCRIPTION) + '</td>' +
+                '</tr>';
         }).join('');
+        rowsHtml += '<tr class="total-row"><td colspan="4" style="text-align:center;">TOTAL</td>' +
+            '<td>' + amountHtml(getJunketLossOutputTotal(rows)) + '</td><td colspan="3"></td></tr>';
+
         var iframe = document.createElement('iframe');
         iframe.style.position = 'fixed';
         iframe.style.right = '0';
@@ -1204,7 +1247,10 @@ $(document).ready(function () {
             '</style></head><body><div class="print-wrap">',
             '<h2>Loss Amount</h2>',
             '<div class="subtitle">', escapeHtml(junketLossFromDate + ' to ' + junketLossToDate), '</div>',
-            '<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
+            // Program Date | Date & Time | Account | Guest | Amount | Type | Person(s) Involved | Description
+            '<table><colgroup><col style="width:9%"><col style="width:9%"><col style="width:12%"><col style="width:13%">',
+            '<col style="width:10%"><col style="width:6%"><col style="width:15%"><col style="width:26%"></colgroup>',
+            '<thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
             '</div></body></html>'
         ].join(''));
         frameDoc.close();
@@ -1225,11 +1271,10 @@ $(document).ready(function () {
     $('#btn-junket-loss-export').on('click', function (e) {
         e.preventDefault();
         if (!junketLossTable) return;
-        var payload = getJunketLossTablePayload();
-        var headers = payload.headers;
-        var rows = payload.rows;
+        var data = getJunketLossOutputRows();
+        var headers = getJunketLossHeaders();
         var t = window.junketLossTranslations || {};
-        if (rows.length === 0) {
+        if (data.length === 0) {
             Swal.fire({
                 icon: 'info',
                 title: t.export_label || 'Export',
@@ -1238,6 +1283,21 @@ $(document).ready(function () {
             });
             return;
         }
+        // Real values for Excel: dates as dates, Amount signed as shown (a loss is negative "(x)",
+        // a recovery positive). The total is sent as-is because it leaves settled entries out.
+        var rows = data.map(function (row) {
+            return [
+                junketLossProgramDate(row),
+                row.ENCODED_DT ? moment(row.ENCODED_DT).format('YYYY-MM-DD HH:mm') : '',
+                row.ACCOUNT_NAME || '',
+                row.GUEST_NAME || '',
+                -(Number(row.AMOUNT) || 0),
+                paymentTypeLabel(row.PAYMENT_TYPE),
+                row.IN_CHARGE || '',
+                row.DESCRIPTION || ''
+            ];
+        });
+        var totals = { 5: -getJunketLossOutputTotal(data) };
         var outName = getJunketLossExportFilename();
         var $btn = $(this);
         $btn.prop('disabled', true);
@@ -1245,7 +1305,7 @@ $(document).ready(function () {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
-            body: JSON.stringify({ headers: headers, rows: rows, filename: outName })
+            body: JSON.stringify({ headers: headers, rows: rows, totals: totals, filename: outName })
         })
             .then(function (res) {
                 if (!res.ok) {

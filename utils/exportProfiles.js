@@ -85,9 +85,17 @@ const PROFILES = {
 		skipGrandTotal: true
 	},
 	junketLoss: {
-		amountCols: [3],
-		labelCols: 2,
-		leftAlignCols: [1, 2, 4, 5]
+		// Program Date | Date & Time | Account | Guest | Amount | Type | Person(s) Involved | Description
+		amountCols: [5],
+		labelCols: 4,
+		leftAlignCols: [3, 4, 7, 8],
+		centerAlignCols: [1, 2, 6],
+		dateCols: [1, 2],
+		amountNumFmt: ALIGNED_AMOUNT_FMT,
+		grandTotalLabel: 'TOTAL',
+		grandTotalAlign: 'center',
+		centerHeaders: true,
+		columnWidths: [16, 17, 22, 22, 15, 10, 26, 40]
 	},
 	tip: {
 		amountCols: [8, 12],

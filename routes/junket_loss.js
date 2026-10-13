@@ -525,9 +525,11 @@ router.get('/junket_loss_settlement/:id', checkSession, async (req, res) => {
 /** Client omits ACTION (last column). */
 router.post('/loss_amount/export_xlsx', checkSession, async function (req, res) {
 	try {
-		const { headers, rows, filename } = req.body || {};
+		const { headers, rows, filename, totals } = req.body || {};
 		const result = await buildTableExportXlsx({
 			profileKey: 'junketLoss',
+			// the page total skips settled entries, so the client sends it instead of a SUM formula
+			totals: totals && typeof totals === 'object' ? totals : undefined,
 			sheetName: 'Loss Amount',
 			headers,
 			rows,
