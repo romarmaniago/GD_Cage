@@ -12,11 +12,42 @@
  * @property {boolean} [zebraRows]
  * @property {boolean} [highlightTotalCol]
  * @property {string} [grandTotalLabel]
+ * @property {string} [amountNumFmt]
+ * @property {number[]} [dateCols]
+ * @property {number[]} [plainNumberCols]
  * @property {(headerCount: number, headers: string[]) => ExportProfile} [resolve]
  */
 
+/** Excel accounting style: "( )" negatives in red, positives padded by the width of ")" so digits line up. */
+const ALIGNED_AMOUNT_FMT = '#,##0_);[Red](#,##0);0_)';
+
 /** @type {Record<string, ExportProfile>} */
 const PROFILES = {
+	// Agent Win/Loss — Per Game (10 cols) or Per Day / Per Month (8 cols)
+	agentWinlossReport: {
+		amountNumFmt: ALIGNED_AMOUNT_FMT,
+		resolve(headerCount) {
+			if (headerCount >= 10) {
+				// Program Date | Game # | Agent | Line | Guest | Game Type | Buy In | Cash Out | Win/Loss | Rolling
+				return {
+					amountCols: [7, 8, 9, 10],
+					labelCols: 6,
+					leftAlignCols: [3, 4, 5],
+					centerAlignCols: [1, 2, 6],
+					dateCols: [1],
+					plainNumberCols: [2]
+				};
+			}
+			// Program Date / Month | Agent | Line | Games | Buy In | Cash Out | Win/Loss | Rolling
+			return {
+				amountCols: [4, 5, 6, 7, 8],
+				labelCols: 3,
+				leftAlignCols: [2, 3],
+				centerAlignCols: [1],
+				dateCols: [1]
+			};
+		}
+	},
 	gameBook: {
 		amountCols: [7, 8, 9, 10, 12, 13, 14],
 		outflowCols: [8, 12, 14],
@@ -218,6 +249,10 @@ function resolveExportProfile(profileKey, headerCount, headers) {
 		highlightTotalCol: resolved.highlightTotalCol != null ? resolved.highlightTotalCol : !!base.highlightTotalCol,
 		grandTotalLabel: base.grandTotalLabel || 'GRAND TOTAL',
 		amountNumFmt: resolved.amountNumFmt || base.amountNumFmt || null,
+		// "YYYY-MM-DD" / "YYYY-MM" text → real Excel dates
+		dateCols: (resolved.dateCols || base.dateCols || []).filter((c) => c <= headerCount),
+		// numbers shown as-is (no thousands separator), e.g. Game #
+		plainNumberCols: (resolved.plainNumberCols || base.plainNumberCols || []).filter((c) => c <= headerCount),
 		amountIndent: resolved.amountIndent != null ? resolved.amountIndent : base.amountIndent
 	};
 }

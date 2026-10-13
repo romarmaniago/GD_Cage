@@ -441,7 +441,7 @@ router.post('/agent_winloss_report/export_xlsx', checkSession, async (req, res) 
 				row.agency_name || '',
 				row.game_count,
 				row.buy_in,
-				row.cash_out,
+				-Math.abs(Number(row.cash_out) || 0),
 				row.win_loss,
 				row.rolling
 			]);
@@ -454,7 +454,7 @@ router.post('/agent_winloss_report/export_xlsx', checkSession, async (req, res) 
 				row.agency_name || '',
 				row.game_count,
 				row.buy_in,
-				row.cash_out,
+				-Math.abs(Number(row.cash_out) || 0),
 				row.win_loss,
 				row.rolling
 			]);
@@ -463,26 +463,20 @@ router.post('/agent_winloss_report/export_xlsx', checkSession, async (req, res) 
 			headers = ['Program Date', 'Game #', 'Agent Code (Agent Name)', 'Line', 'Guest', 'Game Type', 'Buy In', 'Cash Out', 'Win/Loss', 'Rolling'];
 			rows = (payload.rows || []).map((row) => [
 				row.program_date,
-				row.game_id,
+				Number(row.game_id) || row.game_id || '',
 				formatAgentCell(row),
 				row.agency_name || '',
 				row.guest_name,
 				row.game_type,
 				row.buy_in,
-				row.cash_out,
+				-Math.abs(Number(row.cash_out) || 0),
 				row.win_loss,
 				row.rolling
 			]);
 			sheetName = 'Agent WL Per Game';
 		}
 
-		const totals = payload.totals || {};
-		rows.push([]);
-		if (normalizedGroup === 'day' || normalizedGroup === 'month') {
-			rows.push(['GRAND TOTAL', '', '', totals.game_count, totals.buy_in, totals.cash_out, totals.win_loss, totals.rolling]);
-		} else {
-			rows.push(['GRAND TOTAL', '', '', '', '', '', totals.buy_in, totals.cash_out, totals.win_loss, totals.rolling]);
-		}
+		// GRAND TOTAL row (SUM formulas) is added by buildTableExportXlsx
 
 		const result = await buildTableExportXlsx({
 			profileKey: 'agentWinlossReport',

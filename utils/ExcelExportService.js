@@ -130,7 +130,9 @@ function bodyAlignment(colIndex0, profile, amountSet, leftSet, centerSet) {
 	}
 	if (amountSet.has(col1)) {
 		const amountIndent = profile.amountIndent != null ? profile.amountIndent : 1;
-		return { vertical: 'middle', horizontal: 'right', indent: amountIndent, wrapText: true };
+		// No wrapText on amounts: Excel ignores the "_)" padding of the number format in wrapped cells,
+		// so positives would not line up with "( )" negatives.
+		return { vertical: 'middle', horizontal: 'right', indent: amountIndent, wrapText: false };
 	}
 	if (centerSet.has(col1)) {
 		return { vertical: 'middle', horizontal: 'center', wrapText: true };
@@ -149,7 +151,8 @@ function autoFitRowHeights(ws, startRow, endRow) {
 		row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
 			if (!cell.alignment || !cell.alignment.wrapText) return;
 			const colWidth = ws.getColumn(colNumber).width || 10;
-			const text = cell.value == null ? '' : (cell.formula ? '' : String(cell.value));
+			const text = cell.value == null || cell.formula ? ''
+				: (cell.value instanceof Date ? '0000-00-00' : String(cell.value));
 			if (!text) return;
 			let lineCount = 0;
 			text.split(/\r?\n/).forEach((segment) => {
@@ -167,7 +170,7 @@ function addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet
 	const dataEndRow = 1 + dataRowCount;
 	const totalRowNum = dataEndRow + 1;
 	const labelCols = profile.labelCols || 1;
-	const amountAlign = { vertical: 'middle', horizontal: 'right', indent: 1, wrapText: true };
+	const amountAlign = { vertical: 'middle', horizontal: 'right', indent: 1, wrapText: false }; // see bodyAlignment
 	const grandTotalBorder = {
 		top: { style: 'medium', color: { argb: 'FF333333' } },
 		left: { style: 'thin', color: { argb: 'FF666666' } },
@@ -215,12 +218,23 @@ function addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet
 	totalRow.height = 24;
 }
 
-function applyExportNumericFormats(ws, amountSet, percentSet, lastRowNum, amountNumFmt) {
+/** "2026-10-09" → { value: Date, numFmt: 'yyyy-mm-dd' }, "2026-10" → 'yyyy-mm'; anything else → null. */
+function toExcelDate(raw) {
+	const s = String(raw == null ? '' : raw).trim();
+	let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+	if (m) return { value: new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])), numFmt: 'yyyy-mm-dd' };
+	m = /^(\d{4})-(\d{2})$/.exec(s);
+	if (m) return { value: new Date(Date.UTC(+m[1], +m[2] - 1, 1)), numFmt: 'yyyy-mm' };
+	return null;
+}
+
+function applyExportNumericFormats(ws, amountSet, percentSet, lastRowNum, amountNumFmt, plainNumberSet) {
 	const numFmt = amountNumFmt || AMOUNT_FMT;
 	ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
 		if (rowNumber <= 1 || rowNumber > lastRowNum) return;
 		row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
 			if (cell.numFmt && /%/.test(String(cell.numFmt))) return;
+			if (plainNumberSet && plainNumberSet.has(colNumber)) return;
 			const hasFormula =
 				!!cell.formula || (cell.value != null && typeof cell.value === 'object' && cell.value.formula);
 			if (hasFormula) {
@@ -323,6 +337,8 @@ async function buildTableExportXlsx(opts) {
 	const percentSet = new Set(profile.percentCols);
 	const leftSet = new Set(profile.leftAlignCols);
 	const centerSet = new Set(profile.centerAlignCols);
+	const dateSet = new Set(profile.dateCols || []);
+	const plainNumberSet = new Set(profile.plainNumberCols || []);
 	const amountNumFmt = profile.amountNumFmt || AMOUNT_FMT;
 	const grandTotalLabel = profile.grandTotalLabel || 'GRAND TOTAL';
 	const totalColIndex = profile.highlightTotalCol ? findTotalColIndex(headerStrings) : -1;
@@ -364,6 +380,16 @@ async function buildTableExportXlsx(opts) {
 			} else if (profile.zebraRows && rowIdx % 2 === 1) {
 				cell.fill = FILL_ZEBRA;
 			}
+			if (dateSet.has(colNumber)) {
+				const date = toExcelDate(arr[colNumber - 1]);
+				if (date) {
+					cell.value = date.value;
+					cell.numFmt = date.numFmt;
+				}
+			}
+			if (plainNumberSet.has(colNumber) && typeof cell.value === 'number') {
+				cell.numFmt = '0';
+			}
 			if (percentSet.has(colNumber)) {
 				const orig = arr[colNumber - 1];
 				const s = orig == null ? '' : String(orig).trim();
@@ -386,7 +412,7 @@ async function buildTableExportXlsx(opts) {
 
 	const lastRowNum = dataRowCount > 0 && !profile.skipGrandTotal ? dataRowCount + 2 : Math.max(1, dataRowCount + 1);
 	autoFitRowHeights(ws, 2, lastRowNum);
-	applyExportNumericFormats(ws, amountSet, percentSet, lastRowNum, amountNumFmt);
+	applyExportNumericFormats(ws, amountSet, percentSet, lastRowNum, amountNumFmt, plainNumberSet);
 
 	const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
 	const outName = sanitizeFilename(filename, 'Export.xlsx');
