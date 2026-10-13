@@ -89,9 +89,11 @@ async function softDeleteServiceLedger(serviceId, accountId, serviceAmount, edit
 /** Client omits ACTION (last column). */
 router.post('/fnb-hotel/export_xlsx', checkSession, async function (req, res) {
 	try {
-		const { headers, rows, filename } = req.body || {};
+		const { headers, rows, filename, totals } = req.body || {};
 		const result = await buildTableExportXlsx({
 			profileKey: 'fnbHotel',
+			// the page total skips settled rows, so the client sends it instead of a SUM formula
+			totals: totals && typeof totals === 'object' ? totals : undefined,
 			sheetName: 'F&B Hotel',
 			headers,
 			rows,

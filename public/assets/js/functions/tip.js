@@ -1125,7 +1125,7 @@ function getTipTablePayload() {
 	var headers = getTipExportHeaders();
 	var rows = [];
 	if (!tipTable) return { headers: headers, rows: rows };
-	tipTable.rows({ search: 'applied' }).every(function () {
+	tipTable.rows({ search: 'applied', order: 'applied' }).every(function () {
 		var cells = [];
 		$(this.node())
 			.find('td')
@@ -1163,20 +1163,14 @@ function tipPrintEscapeHtml(value) {
 		.replace(/'/g, '&#39;');
 }
 
-function getTipPrintStyles() {
-	return [
-		'@page{size:landscape;margin:10mm;}',
-		'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
-		'.print-wrap{width:100%;}',
-		'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
-		'.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#444;}',
-		'table{width:100%;border-collapse:collapse;font-size:10px;}',
-		'th,td{border:1px solid #777;padding:5px 6px;vertical-align:middle;}',
-		'th{background:#d9e1f2;text-align:center;font-weight:700;}',
-		'td{text-align:center;}',
-		'th:nth-child(8),td:nth-child(8),th:nth-child(12),td:nth-child(12){text-align:right;}',
-		'td:nth-child(6){text-align:left;}'
-	].join('');
+/** The table's TOTAL row (Roller / Dealer amounts), minus the Action column. */
+function getTipFooterRow() {
+	var cells = [];
+	$('#tip-tbl tfoot tr:first th').each(function (i) {
+		if (i === TIP_ACTION_COL_INDEX) return;
+		cells.push($(this).text().replace(/\s+/g, ' ').trim());
+	});
+	return cells;
 }
 
 function printTipTable() {
@@ -1191,51 +1185,23 @@ function printTipTable() {
 		});
 		return;
 	}
+	if (!window.gdPrintTable) return;
 
-	var headerHtml = payload.headers.map(function (h) {
-		return '<th>' + tipPrintEscapeHtml(h) + '</th>';
-	}).join('');
-	var rowsHtml = payload.rows.map(function (row) {
-		return '<tr>' + row.map(function (cell) {
-			return '<td>' + tipPrintEscapeHtml(cell) + '</td>';
-		}).join('') + '</tr>';
-	}).join('');
-
-	var iframe = document.createElement('iframe');
-	iframe.style.position = 'fixed';
-	iframe.style.right = '0';
-	iframe.style.bottom = '0';
-	iframe.style.width = '0';
-	iframe.style.height = '0';
-	iframe.style.border = '0';
-	document.body.appendChild(iframe);
-
-	var frameWindow = iframe.contentWindow;
-	var frameDoc = frameWindow.document;
-	var rangeLabel = getTipDateRangeLabel();
-	frameDoc.open();
-	frameDoc.write([
-		'<!doctype html><html><head><title>', tipPrintEscapeHtml(t.title || 'Tip'), '</title><style>',
-		getTipPrintStyles(),
-		'</style></head><body><div class="print-wrap">',
-		'<h2>', tipPrintEscapeHtml(t.title || 'Tip'), '</h2>',
-		rangeLabel ? '<div class="subtitle">' + tipPrintEscapeHtml(rangeLabel) + '</div>' : '',
-		'<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
-		'</div></body></html>'
-	].join(''));
-	frameDoc.close();
-
-	var cleanup = function () {
-		setTimeout(function () {
-			if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
-		}, 300);
-	};
-	frameWindow.onafterprint = cleanup;
-	setTimeout(function () {
-		frameWindow.focus();
-		frameWindow.print();
-		cleanup();
-	}, 250);
+	// Same sheet as the other list prints (gd_print_table.js):
+	// Program Date | Date & Time | Account | Guest | Game # | Remarks | Roller x4 | Dealer x4
+	var footer = getTipFooterRow();
+	var rows = footer.length === payload.headers.length ? payload.rows.concat([footer]) : payload.rows;
+	window.gdPrintTable({
+		title: t.title || 'Tip',
+		subtitle: getTipDateRangeLabel(),
+		headers: payload.headers,
+		rows: rows,
+		amountCols: [7, 11],
+		leftCols: [2, 3, 5, 9, 13],
+		wrapCols: [5],
+		totalRows: rows.length > payload.rows.length ? 1 : 0,
+		shortDateCols: [1]
+	});
 }
 
 function exportTipTable($btn) {

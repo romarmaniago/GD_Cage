@@ -98,11 +98,21 @@ const PROFILES = {
 		columnWidths: [16, 17, 22, 22, 15, 10, 26, 40]
 	},
 	tip: {
+		// Program Date | Date & Time | Account | Guest | Game # | Remarks | Roller x4 | Dealer x4
 		amountCols: [8, 12],
 		signedCols: [8],
 		labelCols: 6,
 		leftAlignCols: [3, 4, 6, 10, 14],
-		centerAlignCols: [1, 2, 5, 7, 9, 11, 13]
+		centerAlignCols: [1, 2, 5, 7, 9, 11, 13],
+		dateCols: [1, 2],
+		plainNumberCols: [5],
+		amountNumFmt: ALIGNED_AMOUNT_FMT,
+		grandTotalLabel: 'TOTAL',
+		grandTotalAlign: 'center',
+		centerHeaders: true,
+		// all 14 columns fit one screen (no side scrolling); long names / remarks wrap
+		columnWidths: [11, 17, 32, 20, 8, 26, 11, 13, 8, 11, 11, 13, 8, 11],
+		headerHeight: 34
 	},
 	authorizedMasterAccount: {
 		amountCols: [3],
@@ -113,14 +123,31 @@ const PROFILES = {
 		skipGrandTotal: true
 	},
 	fnbHotel: {
+		// Program Date | Date | Account # / Name | Guest | Type | Amount | Payment | Remarks
 		amountCols: [6],
 		labelCols: 5,
-		leftAlignCols: [1, 2, 3, 4, 5, 7, 8]
+		leftAlignCols: [3, 4, 5, 8],
+		centerAlignCols: [1, 2, 7],
+		dateCols: [1, 2],
+		amountNumFmt: ALIGNED_AMOUNT_FMT,
+		grandTotalLabel: 'TOTAL',
+		grandTotalAlign: 'center',
+		centerHeaders: true,
+		columnWidths: [16, 17, 32, 26, 16, 15, 12, 36]
 	},
 	multipurposeLedger: {
+		// Date and Time | Account | Guest | Type | Currency | Amount | Approved By | Remarks
 		amountCols: [6],
+		// "(x)" on screen is money out → a negative number in Excel
+		signedCols: [6],
 		labelCols: 5,
-		leftAlignCols: [1, 2, 3, 4, 5, 7, 8]
+		leftAlignCols: [2, 3, 7, 8],
+		centerAlignCols: [1, 4, 5],
+		dateCols: [1],
+		amountNumFmt: ALIGNED_AMOUNT_FMT,
+		centerHeaders: true,
+		// the rows are in different currencies, so a single total would be meaningless
+		skipGrandTotal: true
 	},
 	houseExpense: {
 		// Program Date | Date & Time | Name | In-Charge | Receiver | Description | Amount
@@ -273,6 +300,7 @@ function resolveExportProfile(profileKey, headerCount, headers) {
 		grandTotalAlign: base.grandTotalAlign || 'left',
 		centerHeaders: !!base.centerHeaders,
 		columnWidths: Array.isArray(base.columnWidths) ? base.columnWidths : null,
+		headerHeight: base.headerHeight || null,
 		amountNumFmt: resolved.amountNumFmt || base.amountNumFmt || null,
 		// "YYYY-MM-DD" / "YYYY-MM" text → real Excel dates
 		dateCols: (resolved.dateCols || base.dateCols || []).filter((c) => c <= headerCount),

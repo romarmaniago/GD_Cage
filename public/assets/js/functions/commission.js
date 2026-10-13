@@ -1444,17 +1444,21 @@ $(document).ready(function() {
             .replace(/'/g, '&#39;');
     }
 
+    // Print columns: the table without its first (compare checkbox) column —
+    // Program Date | Game Start | Acct | Guest | Membership | Type | Rate | Game # | 7 amounts | Date & Time
     function getCommissionTablePayload(includeFooter) {
         var dt = $('#commission-tbl').DataTable();
         var headers = [];
-        $('#commission-tbl thead tr:first th').each(function () {
+        $('#commission-tbl thead tr:first th').each(function (i) {
+            if (i === 0) return;
             headers.push($(this).text().trim());
         });
 
         var rows = [];
-        dt.rows({ search: 'applied' }).every(function () {
+        dt.rows({ search: 'applied', order: 'applied' }).every(function () {
             var cells = [];
-            $(this.node()).find('td').each(function () {
+            $(this.node()).find('td').each(function (i) {
+                if (i === 0) return;
                 cells.push($(this).text().trim());
             });
             if (cells.length) rows.push(cells);
@@ -1465,7 +1469,6 @@ $(document).ready(function() {
         var dataRowCount = rows.length;
         if (includeFooter && dataRowCount > 0) {
             rows.push([
-                '',
                 $('#commission-tbl tfoot th').eq(1).text().trim(),
                 '',
                 '',
@@ -1488,25 +1491,6 @@ $(document).ready(function() {
         return { headers: headers, rows: rows, dataRowCount: dataRowCount };
     }
 
-    function getCommissionPrintStyles() {
-        return [
-            '@page{size:landscape;margin:8mm;}',
-            'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
-            '.print-wrap{width:100%;}',
-            'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
-            '.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#444;}',
-            'table{width:100%;border-collapse:collapse;font-size:9px;}',
-            'th,td{border:1px solid #777;padding:5px 7px;vertical-align:middle;}',
-            'th{background:#d9e1f2;text-align:right;font-weight:700;}',
-            'th:nth-child(1){text-align:center;}',
-            'th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(5),th:nth-child(6),th:nth-child(7),th:nth-child(9),th:nth-child(17){text-align:left;}',
-            'td{text-align:right;}',
-            'td:nth-child(1){text-align:center;}',
-            'td:nth-child(2),td:nth-child(3),td:nth-child(4),td:nth-child(5),td:nth-child(6),td:nth-child(7),td:nth-child(9),td:nth-child(17){text-align:left;}',
-            'tbody tr:last-child td{font-weight:700;background:#f4f6fa;}'
-        ].join('');
-    }
-
     function printCommissionTable() {
         if (!$.fn.DataTable.isDataTable('#commission-tbl')) return;
         var payload = getCommissionTablePayload(true);
@@ -1524,51 +1508,20 @@ $(document).ready(function() {
             }
             return;
         }
+        if (!window.gdPrintTable) return;
 
-        var dateRange = getCommissionDateRangeLabel();
-        var headerHtml = payload.headers.map(function (h) {
-            return '<th>' + escapeHtml(h) + '</th>';
-        }).join('');
-        var rowsHtml = payload.rows.map(function (row) {
-            return '<tr>' + row.map(function (cell) {
-                return '<td>' + escapeHtml(cell) + '</td>';
-            }).join('') + '</tr>';
-        }).join('');
-
-        var iframe = document.createElement('iframe');
-        iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = '0';
-        document.body.appendChild(iframe);
-
-        var frameWindow = iframe.contentWindow;
-        var frameDoc = frameWindow.document;
-        frameDoc.open();
-        frameDoc.write([
-            '<!doctype html><html><head><title>Commission</title><style>',
-            getCommissionPrintStyles(),
-            '</style></head><body><div class="print-wrap">',
-            '<h2>Commission</h2>',
-            '<div class="subtitle">', escapeHtml(dateRange), '</div>',
-            '<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
-            '</div></body></html>'
-        ].join(''));
-        frameDoc.close();
-
-        var cleanup = function () {
-            setTimeout(function () {
-                if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
-            }, 300);
-        };
-        frameWindow.onafterprint = cleanup;
-        setTimeout(function () {
-            frameWindow.focus();
-            frameWindow.print();
-            cleanup();
-        }, 250);
+        // Same sheet as the Game Book print (gd_print_table.js)
+        window.gdPrintTable({
+            title: 'Commission',
+            subtitle: getCommissionDateRangeLabel(),
+            headers: payload.headers,
+            rows: payload.rows,
+            amountCols: [8, 9, 10, 11, 12, 13, 14],
+            leftCols: [4, 5],
+            totalRows: 1,
+            shortDateCols: [1, 15],
+            stripMainCols: [2]
+        });
     }
 
     $('#btn-commission-export').on('click', function (e) {

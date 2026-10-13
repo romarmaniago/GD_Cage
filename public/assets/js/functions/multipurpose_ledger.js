@@ -790,7 +790,7 @@ $(document).ready(function () {
 			headers.push($(this).text().trim());
 		});
 		const rows = [];
-		jflTable.rows({ search: 'applied' }).every(function () {
+		jflTable.rows({ search: 'applied', order: 'applied' }).every(function () {
 			const cells = [];
 			$(this.node())
 				.find('td')
@@ -871,50 +871,18 @@ $(document).ready(function () {
 			Swal.fire('Print', t.no_data || 'No data to print.', 'info');
 			return;
 		}
-		const headerHtml = payload.headers
-			.map(function (h) {
-				return '<th>' + escapeHtml(h) + '</th>';
-			})
-			.join('');
-		const rowsHtml = payload.rows
-			.map(function (row) {
-				return (
-					'<tr>' +
-					row
-						.map(function (cell) {
-							return '<td>' + escapeHtml(cell) + '</td>';
-						})
-						.join('') +
-					'</tr>'
-				);
-			})
-			.join('');
-		const iframe = document.createElement('iframe');
-		iframe.style.cssText = 'position:fixed;width:0;height:0;border:0';
-		document.body.appendChild(iframe);
-		const w = iframe.contentWindow;
-		const doc = w.document;
-		doc.open();
-		doc.write(
-			'<!doctype html><html><head><title>Multipurpose Ledger</title><style>' +
-				'@page{size:landscape;margin:10mm;}body{font-family:Arial,sans-serif;font-size:11px;}' +
-				'table{width:100%;border-collapse:collapse;}th,td{border:1px solid #777;padding:6px;}' +
-				'th{background:#d9e1f2;}</style></head><body>' +
-				'<h2 style="text-align:center">Multipurpose Ledger</h2>' +
-				'<table><thead><tr>' +
-				headerHtml +
-				'</tr></thead><tbody>' +
-				rowsHtml +
-				'</tbody></table></body></html>'
-		);
-		doc.close();
-		setTimeout(function () {
-			w.focus();
-			w.print();
-			setTimeout(function () {
-				iframe.remove();
-			}, 300);
-		}, 250);
+		if (!window.gdPrintTable) return;
+		// Same sheet as the other list prints (gd_print_table.js):
+		// Date and Time | Account | Guest | Type | Currency | Amount | Approved By | Remarks
+		// No total row — the amounts are in different currencies.
+		window.gdPrintTable({
+			title: 'Multipurpose Ledger',
+			headers: payload.headers,
+			rows: payload.rows,
+			amountCols: [5],
+			leftCols: [1, 2, 6, 7],
+			wrapCols: [7]
+		});
 	});
 });
 

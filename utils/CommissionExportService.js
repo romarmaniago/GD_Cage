@@ -1,7 +1,9 @@
 const path = require('path');
 const ExcelJS = require('exceljs');
 
-const AMOUNT_FMT = '#,##0;[Red](#,##0)';
+// Excel accounting style: "( )" negatives in red, positives padded by the width of ")" so digits line up
+// (only works on cells without wrapText — amount cells here have none).
+const AMOUNT_FMT = '#,##0_);[Red](#,##0);0_)';
 
 const THIN_BORDER = {
 	top: { style: 'thin', color: { argb: 'FF666666' } },
@@ -22,8 +24,8 @@ const FILL_GRAND_TOTAL = { type: 'pattern', pattern: 'solid', fgColor: { argb: '
 // Add Charge / Total Settle / Finish), so both exports read the same way. Commission has no
 // Program End field, so the Finish group is just Game End.
 const COLUMNS = [
-	{ key: 'program_date', header: 'Program', group: 'Start', fill: FILL_START },
-	{ key: 'game_start', header: 'Game', group: 'Start', fill: FILL_START },
+	{ key: 'program_date', header: 'Program', group: 'Start', fill: FILL_START, date: 'yyyy-mm-dd' },
+	{ key: 'game_start', header: 'Game', group: 'Start', fill: FILL_START, date: 'yyyy-mm-dd hh:mm' },
 	{ key: 'acc', header: 'Acc', group: 'Game Information', fill: FILL_GAME_INFO, leftAlign: true },
 	{ key: 'guest_name', header: 'Guest', group: 'Game Information', fill: FILL_GAME_INFO, leftAlign: true },
 	{ key: 'membership_no', header: 'Membership', group: 'Game Information', fill: FILL_GAME_INFO, leftAlign: true },
@@ -37,8 +39,16 @@ const COLUMNS = [
 	{ key: 'settlement', header: 'Settlement', group: 'Game Information', fill: FILL_GAME_INFO, amount: true },
 	{ key: 'add_charge', header: 'Add Charge', fill: FILL_ADD_CHARGE, amount: true },
 	{ key: 'total_settle', header: 'Total Settle', fill: FILL_TOTAL_SETTLE, amount: true },
-	{ key: 'game_end', header: 'Game End', group: 'Finish', fill: FILL_FINISH }
+	{ key: 'game_end', header: 'Game End', group: 'Finish', fill: FILL_FINISH, date: 'yyyy-mm-dd hh:mm' }
 ];
+
+/** 'YYYY-MM-DD' or 'YYYY-MM-DD HH:mm[:ss]' → Date (UTC parts = the written local time, which is what
+ *  ExcelJS stores), else null — so Excel gets real date cells instead of text. */
+function toExcelDate(value) {
+	const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(String(value == null ? '' : value).trim());
+	if (!m) return null;
+	return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)));
+}
 
 function displayWidth(value) {
 	return Array.from(String(value == null ? '' : value)).reduce((sum, ch) => {
@@ -173,7 +183,14 @@ async function buildCommissionGroupedExportXlsx(opts) {
 		COLUMNS.forEach((meta, idx) => {
 			const cell = dataRow.getCell(idx + 1);
 			cell.border = THIN_BORDER;
-			if (meta.key === 'game_rate') {
+			if (meta.date) {
+				const date = toExcelDate(cell.value);
+				if (date) {
+					cell.value = date;
+					cell.numFmt = meta.date;
+				}
+				cell.alignment = { vertical: 'middle', horizontal: 'center' };
+			} else if (meta.key === 'game_rate') {
 				cell.numFmt = '0.00%';
 				cell.alignment = { vertical: 'middle', horizontal: 'center' };
 			} else if (meta.amount) {
@@ -225,11 +242,17 @@ async function buildCommissionGroupedExportXlsx(opts) {
 		var maxLen = displayWidth(meta.header);
 		rowValueMaps.forEach((v) => {
 			var val = v[meta.key];
-			var len = displayWidth(meta.amount ? Number(val).toLocaleString('en-US') : val);
+			var len = meta.date ? meta.date.length : displayWidth(meta.amount ? Number(val).toLocaleString('en-US') : val);
 			if (len > maxLen) maxLen = len;
 		});
 		if (dataRowCount > 0 && meta.key === 'program_date') {
 			maxLen = Math.max(maxLen, displayWidth('Grand Total'));
+		}
+		// The Grand Total is usually the widest amount (and bold) — size for it, or Excel shows "#####".
+		if (dataRowCount > 0 && meta.amount) {
+			var total = rowValueMaps.reduce((sum, v) => sum + (Number(v[meta.key]) || 0), 0);
+			var totalText = Math.abs(total).toLocaleString('en-US') + '()';
+			maxLen = Math.max(maxLen, displayWidth(totalText) + 1);
 		}
 		var minWidth = meta.amount ? 11 : 10;
 		var width = Math.max(minWidth, maxLen + 3);

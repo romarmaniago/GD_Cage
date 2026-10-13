@@ -5900,9 +5900,10 @@ $(document).ready(function () {
 				return '<td>' + printTextCell(cell, i) + '</td>';
 			}).join('') + '</tr>';
 		}).join('');
-		// Off-screen, but as wide as the printable area of landscape A4 (297mm - 2 x 6mm margin)
-		// so the table can be measured and fitted before printing.
-		var PRINT_PAGE_WIDTH_PX = Math.floor((297 - 12) / 25.4 * 96);
+		// Off-screen, but as wide as the printable area of the page (see below) so the table can be
+		// measured and fitted before printing.
+		// narrower of landscape Letter (279.4mm) and A4 (297mm), so the fit works on either paper
+		var PRINT_PAGE_WIDTH_PX = Math.floor((279.4 - 12) / 25.4 * 96);
 		var iframe = document.createElement('iframe');
 		iframe.style.position = 'fixed';
 		iframe.style.left = '-20000px';

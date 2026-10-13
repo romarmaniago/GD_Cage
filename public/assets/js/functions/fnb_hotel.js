@@ -399,49 +399,91 @@ $(document).ready(function() {
 		return 'FnbHotel_' + d + '.xlsx';
 	}
 
-	function getFnbHotelTablePayload() {
+	// Rows as shown on screen (filter + sort applied; the default date sort lists oldest-to-newest).
+	// The table holds rendered cells, so text comes from each row's cells and the signed amount /
+	// settled flag from the row's data attributes (set in reloadData).
+	function getFnbHotelOutputRows() {
 		const dt = $('#fnb-hotel-table').DataTable();
-		const actionColIndex = 8;
+		const rows = [];
+		dt.rows({ search: 'applied', order: 'applied' }).every(function () {
+			const node = this.node();
+			if (!node) return;
+			const cells = $(node).find('td').map(function () { return $(this).text().trim(); }).get();
+			if (!cells.length) return;
+			rows.push({
+				programDate: cells[0] || '',
+				date: cells[1] || '',
+				account: cells[2] || '',
+				guest: cells[3] || '',
+				type: cells[4] || '',
+				payment: cells[6] || '',
+				remarks: cells[7] === '—' ? '' : (cells[7] || ''),
+				amount: Number(node.dataset.signedAmount) || 0,
+				settled: node.dataset.settled === '1'
+			});
+		});
+		if (isFnbHotelDefaultDateSortDesc(dt)) rows.reverse();
+		return rows;
+	}
+
+	function getFnbHotelHeaders() {
 		const headers = [];
 		$('#fnb-hotel-table thead tr:first th').each(function (i) {
-			if (i === actionColIndex) return;
+			if (i === 8) return; // Action
 			headers.push($(this).text().trim());
 		});
-		const rows = [];
-		dt.rows({ search: 'applied' }).every(function () {
-			const cells = [];
-			$(this.node())
-				.find('td')
-				.each(function (i) {
-					if (i === actionColIndex) return;
-					cells.push($(this).text().trim());
-				});
-			if (cells.length) rows.push(cells);
+		return headers;
+	}
+
+	// Same rule as the table Total: settled rows are already in company capital, so they are left out.
+	function getFnbHotelOutputTotal(rows) {
+		return rows.reduce(function (sum, row) { return row.settled ? sum : sum + row.amount; }, 0);
+	}
+
+	// As shown on screen: negative "(x)", positive plain
+	function fnbHotelAmountText(value) {
+		const n = Number(value) || 0;
+		const abs = Math.abs(n);
+		const hasDecimals = abs % 1 !== 0;
+		const formatted = abs.toLocaleString('en-US', {
+			minimumFractionDigits: hasDecimals ? 2 : 0,
+			maximumFractionDigits: hasDecimals ? 2 : 0
 		});
-		// Match the on-screen order: default date sort shows oldest-to-newest (latest at bottom).
-		if (isFnbHotelDefaultDateSortDesc(dt)) rows.reverse();
-		return { headers, rows };
+		return n < 0 ? '(' + formatted + ')' : formatted;
 	}
 
 	function getFnbHotelPrintStyles() {
 		return [
 			'@page{size:landscape;margin:8mm;}',
+			// print the header fill, settled tint and red amounts even with "Background graphics" off
+			'*{-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
 			'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
 			'.print-wrap{width:100%;}',
 			'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
 			'.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#444;}',
-			'table{width:100%;border-collapse:collapse;font-size:10px;}',
-			'th,td{border:1px solid #777;padding:5px 7px;vertical-align:middle;text-align:left;}',
+			// fixed, balanced column widths (see the <colgroup>); long text wraps inside its column
+			'table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11.5px;}',
+			'th,td{border:1px solid #777;padding:4px 6px;vertical-align:middle;text-align:left;overflow-wrap:anywhere;}',
 			'th{background:#d9e1f2;font-weight:700;}',
-			'th:nth-child(6),td:nth-child(6){text-align:right;padding-right:14px;}'
+			'thead th{white-space:nowrap;font-size:10.5px;}',
+			// dates, amount and payment stay on one line
+			'td:nth-child(1),td:nth-child(2),td:nth-child(6),td:nth-child(7){white-space:nowrap;}',
+			'td:nth-child(1),td:nth-child(2),td:nth-child(7){text-align:center;}',
+			// Amount: digits line up — a "(x)" hangs its ")" past them, other values carry an invisible ")"
+			'td:nth-child(6){text-align:right;font-variant-numeric:tabular-nums;}',
+			'.neg{color:#dc3545;}',
+			'.paren-pad{visibility:hidden;}',
+			'tr.is-settled td{background:#e4f3e8;}',
+			'tr.total-row td{font-weight:700;background:#f4f6fa;}',
+			'thead th:nth-child(n){text-align:center;}'
 		].join('');
 	}
 
 	function printFnbHotelTable() {
 		if (!$.fn.DataTable.isDataTable('#fnb-hotel-table')) return;
-		const payload = getFnbHotelTablePayload();
+		const rows = getFnbHotelOutputRows();
 		const t = window.fnbHotelTranslations || {};
-		if (payload.rows.length === 0) {
+		if (rows.length === 0) {
 			if (window.Swal) {
 				Swal.fire({
 					icon: 'info',
@@ -455,10 +497,28 @@ $(document).ready(function() {
 			return;
 		}
 
-		const headerHtml = payload.headers.map((h) => '<th>' + escapeHtml(h) + '</th>').join('');
-		const rowsHtml = payload.rows.map((row) => {
-			return '<tr>' + row.map((cell) => '<td>' + escapeHtml(cell) + '</td>').join('') + '</tr>';
+		const amountHtml = function (value) {
+			const text = fnbHotelAmountText(value);
+			if (/^\(.*\)$/.test(text)) return '<span class="neg">' + escapeHtml(text) + '</span>';
+			return escapeHtml(text) + '<span class="paren-pad">)</span>';
+		};
+		const headerHtml = getFnbHotelHeaders().map((h) => '<th>' + escapeHtml(h) + '</th>').join('');
+		let rowsHtml = rows.map(function (row) {
+			return '<tr' + (row.settled ? ' class="is-settled"' : '') + '>' +
+				'<td>' + escapeHtml(row.programDate) + '</td>' +
+				// the year is already in Program Date
+				'<td>' + escapeHtml(row.date.replace(/^\d{4}-(\d{2}-\d{2}\s+\d{1,2}:\d{2}).*$/, '$1')) + '</td>' +
+				'<td>' + escapeHtml(row.account) + '</td>' +
+				'<td>' + escapeHtml(row.guest) + '</td>' +
+				'<td>' + escapeHtml(row.type) + '</td>' +
+				'<td>' + amountHtml(row.amount) + '</td>' +
+				'<td>' + escapeHtml(row.payment) + '</td>' +
+				'<td>' + escapeHtml(row.remarks) + '</td>' +
+				'</tr>';
 		}).join('');
+		rowsHtml += '<tr class="total-row"><td colspan="5" style="text-align:center;">TOTAL</td>' +
+			'<td>' + amountHtml(getFnbHotelOutputTotal(rows)) + '</td><td colspan="2"></td></tr>';
+
 		const dateRange = getFnbHotelDateRangeLabel() || 'All dates';
 		const iframe = document.createElement('iframe');
 		iframe.style.position = 'fixed';
@@ -473,12 +533,15 @@ $(document).ready(function() {
 		const frameDoc = frameWindow.document;
 		frameDoc.open();
 		frameDoc.write([
-			'<!doctype html><html><head><title>F&B / Hotel</title><style>',
+			'<!doctype html><html><head><title>Add Charge</title><style>',
 			getFnbHotelPrintStyles(),
 			'</style></head><body><div class="print-wrap">',
-			'<h2>F&B / Hotel</h2>',
+			'<h2>Add Charge</h2>',
 			'<div class="subtitle">', escapeHtml(dateRange), '</div>',
-			'<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
+			// Program Date | Date | Account # / Name | Guest | Type | Amount | Payment | Remarks
+			'<table><colgroup><col style="width:9%"><col style="width:9%"><col style="width:20%"><col style="width:16%">',
+			'<col style="width:9%"><col style="width:9%"><col style="width:7%"><col style="width:21%"></colgroup>',
+			'<thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
 			'</div></body></html>'
 		].join(''));
 		frameDoc.close();
@@ -499,11 +562,10 @@ $(document).ready(function() {
 	$('#btn-fnb-hotel-export').on('click', function (e) {
 		e.preventDefault();
 		if (!$.fn.DataTable.isDataTable('#fnb-hotel-table')) return;
-		const payload = getFnbHotelTablePayload();
-		const headers = payload.headers;
-		const rows = payload.rows;
+		const data = getFnbHotelOutputRows();
+		const headers = getFnbHotelHeaders();
 		const t = window.fnbHotelTranslations || {};
-		if (rows.length === 0) {
+		if (data.length === 0) {
 			if (window.Swal) {
 				Swal.fire({
 					icon: 'info',
@@ -516,6 +578,12 @@ $(document).ready(function() {
 			}
 			return;
 		}
+		// Real values for Excel: dates as dates, Amount as a signed number. The total is sent as-is
+		// because it leaves settled rows out.
+		const rows = data.map(function (row) {
+			return [row.programDate, row.date, row.account, row.guest, row.type, row.amount, row.payment, row.remarks];
+		});
+		const totals = { 6: getFnbHotelOutputTotal(data) };
 		const outName = getFnbHotelExportFilename();
 		const $btn = $(this);
 		$btn.prop('disabled', true);
@@ -523,7 +591,7 @@ $(document).ready(function() {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			credentials: 'same-origin',
-			body: JSON.stringify({ headers: headers, rows: rows, filename: outName })
+			body: JSON.stringify({ headers: headers, rows: rows, totals: totals, filename: outName })
 		})
 			.then(function (res) {
 				if (!res.ok) {

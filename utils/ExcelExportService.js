@@ -361,7 +361,8 @@ async function buildTableExportXlsx(opts) {
 	});
 
 	const headerRow = ws.addRow(headerStrings);
-	headerRow.height = 22;
+	// taller when a profile's fixed widths make long headers wrap onto two lines
+	headerRow.height = profile.headerHeight || 22;
 	headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
 		const colIdx = colNumber - 1;
 		cell.font = { bold: true };

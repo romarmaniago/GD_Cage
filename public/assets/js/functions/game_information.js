@@ -985,7 +985,7 @@
 		});
 
 		var rows = [];
-		dataTable.rows({ search: 'applied' }).every(function () {
+		dataTable.rows({ search: 'applied', order: 'applied' }).every(function () {
 			var cells = [];
 			$(this.node()).find('td').each(function (i) {
 				if (i === actionColIndex) return;
@@ -1000,14 +1000,14 @@
 		var dataRowCount = rows.length;
 		if (includeFooter && dataRowCount) {
 			rows.push([
-				'',
-				'',
-				'',
-				'',
-				'',
-				'',
-				'',
 				$('#game_information-tbl tfoot th').eq(0).text().trim(),
+				'',
+				'',
+				'',
+				'',
+				'',
+				'',
+				'',
 				$('#GI_GRAND_BUYIN').text().trim(),
 				$('#GI_GRAND_CASHOUT').text().trim(),
 				$('#GI_GRAND_WINLOSS').text().trim(),
@@ -1020,20 +1020,6 @@
 		}
 
 		return { headers: headers, rows: rows, dataRowCount: dataRowCount };
-	}
-
-	function getGiPrintStyles() {
-		return [
-			'@page{size:landscape;margin:8mm;}',
-			'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
-			'.print-wrap{width:100%;}',
-			'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
-			'.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#444;}',
-			'table{width:100%;border-collapse:collapse;font-size:8px;}',
-			'th,td{border:1px solid #777;padding:4px 6px;vertical-align:middle;}',
-			'th{background:#d9e1f2;font-weight:700;}',
-			'tbody tr:last-child td{font-weight:700;background:#f4f6fa;}'
-		].join('');
 	}
 
 	function notifyGiNoData(mode) {
@@ -1053,45 +1039,21 @@
 			notifyGiNoData('print');
 			return;
 		}
+		if (!window.gdPrintTable) return;
 
-		var headerHtml = payload.headers.map(function (h) {
-			return '<th>' + escapeHtml(h) + '</th>';
-		}).join('');
-		var rowsHtml = payload.rows.map(function (row) {
-			return '<tr>' + row.map(function (cell) {
-				return '<td>' + escapeHtml(cell) + '</td>';
-			}).join('') + '</tr>';
-		}).join('');
-
-		var iframe = document.createElement('iframe');
-		iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
-		document.body.appendChild(iframe);
-
-		var frameWindow = iframe.contentWindow;
-		var frameDoc = frameWindow.document;
-		frameDoc.open();
-		frameDoc.write([
-			'<!doctype html><html><head><title>Game Information</title><style>',
-			getGiPrintStyles(),
-			'</style></head><body><div class="print-wrap">',
-			'<h2>Game Information</h2>',
-			'<div class="subtitle">', escapeHtml(getGiDateRangeLabel()), '</div>',
-			'<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
-			'</div></body></html>'
-		].join(''));
-		frameDoc.close();
-
-		var cleanup = function () {
-			setTimeout(function () {
-				if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
-			}, 300);
-		};
-		frameWindow.onafterprint = cleanup;
-		setTimeout(function () {
-			frameWindow.focus();
-			frameWindow.print();
-			cleanup();
-		}, 250);
+		// Same sheet as the Game Book print (gd_print_table.js):
+		// Program Date | Game Start | Acc | Guest | Membership | Type | Rate | Game # | 7 amounts | Game End
+		window.gdPrintTable({
+			title: 'Game Information',
+			subtitle: getGiDateRangeLabel(),
+			headers: payload.headers,
+			rows: payload.rows,
+			amountCols: [8, 9, 10, 11, 12, 13, 14],
+			leftCols: [4, 5],
+			totalRows: 1,
+			shortDateCols: [1, 15],
+			stripMainCols: [2]
+		});
 	}
 
 	function getGiExportFilename() {
