@@ -5832,11 +5832,19 @@ $(document).ready(function () {
 			'.print-wrap{width:100%;}',
 			'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
 			'.subtitle{text-align:center;margin:0 0 10px;font-size:12px;color:#444;}',
-			'table{width:100%;border-collapse:collapse;font-size:8px;}',
-			'th,td{border:1px solid #777;padding:4px 5px;vertical-align:middle;text-align:center;}',
+			'*{-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+			// 16 columns on landscape A4: readable 10.5px text with tight cell padding
+			'table{width:100%;border-collapse:collapse;font-size:10.5px;}',
+			'th,td{border:1px solid #777;padding:4px 3px;vertical-align:middle;text-align:center;}',
+			// One text line per row (headers may still wrap); printGameListTable() shrinks the font to fit the page
+			'td{white-space:nowrap;}',
 			'th{background:#d9e1f2;font-weight:700;}',
-			'th:nth-child(5),th:nth-child(6),td:nth-child(5),td:nth-child(6){text-align:left;padding-left:10px;}',
-			'th:nth-child(7),th:nth-child(8),th:nth-child(9),th:nth-child(10),th:nth-child(11),th:nth-child(12),th:nth-child(13),th:nth-child(14),th:nth-child(15),td:nth-child(7),td:nth-child(8),td:nth-child(9),td:nth-child(10),td:nth-child(11),td:nth-child(12),td:nth-child(13),td:nth-child(14),td:nth-child(15){text-align:right;padding-right:10px;}',
+			'th:nth-child(5),th:nth-child(6),td:nth-child(5),td:nth-child(6){text-align:left;padding-left:5px;}',
+			// Amounts (Buy-In … Total Settle): right-aligned, digits lined up — ")" of a negative hangs
+			// past the digits, positives carry an invisible ")" — and negatives in red, like the table.
+			'.num{text-align:right;padding-right:5px;font-variant-numeric:tabular-nums;white-space:nowrap;}',
+			'.neg{color:#dc3545;}',
+			'.paren-pad{visibility:hidden;}',
 			'tbody tr:last-child td{font-weight:700;background:#f4f6fa;}'
 		].join('');
 	}
@@ -5862,20 +5870,45 @@ $(document).ready(function () {
 						return String(window.selectedProgramDate || '').trim();
 				  })()
 				: $('#daterange-picker').val() || '';
-		var headerHtml = payload.headers.map(function (h) {
-			return '<th>' + escapeGameListPrintHtml(h) + '</th>';
+		// Buy-In, Cash-Out, Win/Loss, Rolling, Commission, Add Chg, Total Settle
+		var PRINT_AMOUNT_FROM = 8;
+		var PRINT_AMOUNT_TO = 14;
+		var isPrintAmountCol = function (i) { return i >= PRINT_AMOUNT_FROM && i <= PRINT_AMOUNT_TO; };
+		var printAmountHtml = function (text) {
+			var t = String(text == null ? '' : text).trim();
+			if (!t) return '';
+			if (/^\(.*\)$/.test(t)) return '<span class="neg">' + escapeGameListPrintHtml(t) + '</span>';
+			return escapeGameListPrintHtml(t) + '<span class="paren-pad">)</span>';
+		};
+		var headerHtml = payload.headers.map(function (h, i) {
+			return '<th' + (isPrintAmountCol(i) ? ' class="num"' : '') + '>' + escapeGameListPrintHtml(h) + '</th>';
 		}).join('');
+		// Shorter text so each row stays on one line: the year is already in Program Date, and
+		// "Main" is the default group (the Excel export leaves both off the same way).
+		var PRINT_GAME_START = 1;
+		var PRINT_ACC_GROUP = 2;
+		var PRINT_GAME_END = 15;
+		var printTextCell = function (text, i) {
+			var t = String(text == null ? '' : text).trim();
+			if (i === PRINT_GAME_START || i === PRINT_GAME_END) t = t.replace(/^\d{4}-(\d{2}-\d{2})\s+(\d{1,2}:\d{2}).*$/, '$1 $2');
+			if (i === PRINT_ACC_GROUP) t = t.replace(/\s+Main$/i, '');
+			return escapeGameListPrintHtml(t);
+		};
 		var rowsHtml = payload.rows.map(function (row) {
-			return '<tr>' + row.map(function (cell) {
-				return '<td>' + escapeGameListPrintHtml(cell) + '</td>';
+			return '<tr>' + row.map(function (cell, i) {
+				if (isPrintAmountCol(i)) return '<td class="num">' + printAmountHtml(cell) + '</td>';
+				return '<td>' + printTextCell(cell, i) + '</td>';
 			}).join('') + '</tr>';
 		}).join('');
+		// Off-screen, but as wide as the printable area of landscape A4 (297mm - 2 x 6mm margin)
+		// so the table can be measured and fitted before printing.
+		var PRINT_PAGE_WIDTH_PX = Math.floor((297 - 12) / 25.4 * 96);
 		var iframe = document.createElement('iframe');
 		iframe.style.position = 'fixed';
-		iframe.style.right = '0';
-		iframe.style.bottom = '0';
-		iframe.style.width = '0';
-		iframe.style.height = '0';
+		iframe.style.left = '-20000px';
+		iframe.style.top = '0';
+		iframe.style.width = PRINT_PAGE_WIDTH_PX + 'px';
+		iframe.style.height = '800px';
 		iframe.style.border = '0';
 		document.body.appendChild(iframe);
 		var frameWindow = iframe.contentWindow;
@@ -5897,7 +5930,17 @@ $(document).ready(function () {
 			}, 300);
 		};
 		frameWindow.onafterprint = cleanup;
+		// Rows don't wrap: if the widest row is wider than the page, step the font down (not below 8px).
+		var fitPrintTable = function () {
+			var table = frameDoc.querySelector('table');
+			if (!table) return;
+			var available = frameDoc.body.clientWidth;
+			for (var size = 10.5; size >= 8 && table.scrollWidth > available; size -= 0.25) {
+				table.style.fontSize = size + 'px';
+			}
+		};
 		setTimeout(function () {
+			fitPrintTable();
 			frameWindow.focus();
 			frameWindow.print();
 			cleanup();
