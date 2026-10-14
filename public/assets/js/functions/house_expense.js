@@ -27,7 +27,7 @@ window.houseExpenseItemTableSortState = {
     sortDir: 'desc'
 };
 window.houseExpenseItemPage = 1;
-window.houseExpenseItemPageSize = 10;
+window.houseExpenseItemPageSize = 25;
 window.HOUSE_EXPENSE_ITEM_PAGE_SIZES = [10, 25, 50, 100, -1];
 
 /** EN → KR dictionary for category name autocomplete (ENGLISH 한글). */
@@ -261,6 +261,8 @@ function houseExpenseGetExplorerSubtitleText(st) {
 
 /** Return Money isn't a row in expense_category — it's a synthetic main category injected client-side. */
 var HOUSE_EXPENSE_RETURN_MONEY_MAIN_ID = 'return_money';
+/** Hidden for now — set true to show Return Money again in the main category list. */
+var HOUSE_EXPENSE_SHOW_RETURN_MONEY_MAIN = false;
 
 function houseExpenseReturnMoneyMainRow() {
     var label = (window.houseExpenseTranslations && window.houseExpenseTranslations.return_money) || 'Return Money';
@@ -279,7 +281,9 @@ function houseExpenseIsReturnMoneyMainId(mainId) {
 function getHouseExpenseMainCategoryRows(expenseRows) {
     var catalogMains = (window.houseExpenseCategoryRows || []).filter(houseExpenseIsMainCategoryRow);
     if (catalogMains.length) {
-        return catalogMains.slice().concat([houseExpenseReturnMoneyMainRow()]);
+        var list = catalogMains.slice();
+        if (HOUSE_EXPENSE_SHOW_RETURN_MONEY_MAIN) list.push(houseExpenseReturnMoneyMainRow());
+        return list;
     }
     var byId = {};
     (expenseRows || []).forEach(function (r) {
@@ -304,7 +308,7 @@ function getHouseExpenseMainCategoryRows(expenseRows) {
                 sensitivity: 'base'
             });
         });
-    mains.push(houseExpenseReturnMoneyMainRow());
+    if (HOUSE_EXPENSE_SHOW_RETURN_MONEY_MAIN) mains.push(houseExpenseReturnMoneyMainRow());
     return mains;
 }
 
@@ -1289,6 +1293,9 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                     '<td>' +
                     buildExpenseNameCell(row, nameLabel) +
                     '</td>' +
+                    '<td class="text-end">' +
+                    amountDisplay +
+                    '</td>' +
                     '<td>' +
                     houseExpenseHtmlEscape(inChargeCol) +
                     '</td>' +
@@ -1297,9 +1304,6 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                     '</td>' +
                     '<td>' +
                     descriptionColHtml +
-                    '</td>' +
-                    '<td class="text-end">' +
-                    amountDisplay +
                     '</td>' +
                     '<td class="text-start expense-item-action-cell">' +
                     buildHouseExpenseActionButtons(row, amount) +
@@ -1681,7 +1685,7 @@ function houseExpenseFormatVehicleLabel(row) {
     var plate = row.vehicle_plate != null ? String(row.vehicle_plate).trim() : '';
     var model = row.vehicle_model != null ? String(row.vehicle_model).trim() : '';
     if (!plate) return '';
-    return model ? plate + ' — ' + model : plate;
+    return model ? model + ' — ' + plate : plate;
 }
 
 function houseExpenseGetExpenseNameLabel(row) {
@@ -2796,10 +2800,10 @@ $(document).ready(function () {
                 programDate,
                 enc,
                 houseExpenseGetExpenseNameLabel(row),
+                amountText,
                 row.DESCRIPTION || row.OIC || '-',
                 row.RECEIVER || '-',
-                houseExpenseItemDescriptionColumnText(row),
-                amountText
+                houseExpenseItemDescriptionColumnText(row)
             ];
         });
         if (rows.length) {
@@ -2808,10 +2812,10 @@ $(document).ready(function () {
                     $(this).find('th').first().text().trim(),
                     '',
                     '',
+                    $('#TOTAL_EXPENSE_AMOUNT').text().trim(),
                     '',
                     '',
-                    '',
-                    $('#TOTAL_EXPENSE_AMOUNT').text().trim()
+                    ''
                 ]);
             });
         }
@@ -2833,14 +2837,14 @@ $(document).ready(function () {
             'table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11.5px;}',
             'th,td{border:1px solid #777;padding:4px 6px;vertical-align:middle;text-align:left;overflow-wrap:anywhere;}',
             // dates and amount stay on one line; text columns may wrap
-            'td:nth-child(1),td:nth-child(2),td:nth-child(7){white-space:nowrap;}',
+            'td:nth-child(1),td:nth-child(2),td:nth-child(4){white-space:nowrap;}',
             'th{background:#d9e1f2;font-weight:700;}',
             // header labels on one line
             // header labels on one line, centered (placed after the column rules so it wins)
             'thead th{white-space:nowrap;font-size:10.5px;}',
             'th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2){text-align:center;}',
             // Amount: digits line up — a "(x)" hangs its ")" past them, other values carry an invisible ")"
-            'th:nth-child(7),td:nth-child(7){text-align:right;font-variant-numeric:tabular-nums;}',
+            'th:nth-child(4),td:nth-child(4){text-align:right;font-variant-numeric:tabular-nums;}',
             '.neg{color:#dc3545;}',
             '.paren-pad{visibility:hidden;}',
             // only the total row(s) — tagged in printHouseExpenseTable()
@@ -2868,7 +2872,7 @@ $(document).ready(function () {
         var headerHtml = payload.headers.map(function (h) {
             return '<th>' + houseExpenseHtmlEscape(h) + '</th>';
         }).join('');
-        var AMOUNT_COL = 6;
+        var AMOUNT_COL = 3;
         var printAmountHtml = function (text) {
             var t = String(text == null ? '' : text).trim();
             if (!t) return '';
@@ -2884,7 +2888,8 @@ $(document).ready(function () {
             if (r >= firstTotalRow) {
                 // Total: the label spans the text columns, the sum sits under Amount
                 return '<tr class="total-row"><td colspan="' + AMOUNT_COL + '">' + houseExpenseHtmlEscape(row[0]) + '</td>' +
-                    '<td>' + printAmountHtml(row[AMOUNT_COL]) + '</td></tr>';
+                    '<td>' + printAmountHtml(row[AMOUNT_COL]) + '</td>' +
+                    '<td colspan="' + (row.length - AMOUNT_COL - 1) + '"></td></tr>';
             }
             return '<tr>' + row.map(function (cell, i) {
                 return '<td>' + (i === AMOUNT_COL ? printAmountHtml(cell) : printTextHtml(cell)) + '</td>';
@@ -2909,9 +2914,9 @@ $(document).ready(function () {
             '</style></head><body><div class="print-wrap">',
             '<h2>Junket Expenses</h2>',
             '<div class="subtitle">', houseExpenseHtmlEscape(subtitle), '</div>',
-            // Program Date | Date & Time | Category | Approved By | Received By | Description | Amount
+            // Program Date | Date & Time | Category | Amount | Approved By | Received By | Description
             '<table><colgroup><col style="width:10%"><col style="width:9%"><col style="width:21%">',
-            '<col style="width:9%"><col style="width:14%"><col style="width:28%"><col style="width:9%"></colgroup>',
+            '<col style="width:9%"><col style="width:9%"><col style="width:14%"><col style="width:28%"></colgroup>',
             '<thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
             '</div></body></html>'
         ].join(''));
@@ -2951,7 +2956,7 @@ $(document).ready(function () {
             return;
         }
         // Same columns and labels as the Print (the table header, minus Action)
-        var headers = ['PROGRAM DATE', 'DATE & TIME', 'CATEGORY', 'APPROVED BY', 'RECEIVED BY', 'DESCRIPTION', 'AMOUNT'];
+        var headers = ['PROGRAM DATE', 'DATE & TIME', 'CATEGORY', 'AMOUNT', 'APPROVED BY', 'RECEIVED BY', 'DESCRIPTION'];
         // Match the on-screen order (latest at the bottom on the default sort).
         data = sortHouseExpenseItemRows(data);
         if (isHouseExpenseDefaultDateSortDesc()) data.reverse();
@@ -2965,11 +2970,11 @@ $(document).ready(function () {
                 programDate === '-' ? '' : programDate,
                 enc,
                 houseExpenseGetExpenseNameLabel(row),
+                // Same sign as on screen: an expense is money out "(x)"; a return-money row is plain
+                row.record_type === 'return_money' ? Math.abs(amount) : -Math.abs(amount),
                 row.DESCRIPTION || row.OIC || '-',
                 row.RECEIVER || '-',
-                houseExpenseItemDescriptionColumnText(row),
-                // Same sign as on screen: an expense is money out "(x)"; a return-money row is plain
-                row.record_type === 'return_money' ? Math.abs(amount) : -Math.abs(amount)
+                houseExpenseItemDescriptionColumnText(row)
             ];
         });
         var outName = 'Junket_Expenses-export.xlsx';
@@ -4774,7 +4779,7 @@ function onlyNumberKey(evt) {
 
 // Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
 if (window.gdAlignParenNumbers) {
-	window.gdAlignParenNumbers('.expense-item-table-wrap', ['#expense-item-cat-tbl tbody td:nth-child(7)', '#TOTAL_EXPENSE_AMOUNT']);
+	window.gdAlignParenNumbers('.expense-item-table-wrap', ['#expense-item-cat-tbl tbody td:nth-child(4)', '#TOTAL_EXPENSE_AMOUNT']);
 	window.gdAlignParenNumbers('#breakdown-modal-body-table', ['tbody td.text-end']);
 	window.gdAlignParenNumbers('#breakdown-modal-foot-table', ['#breakdown-modal-grand-total']);
 }

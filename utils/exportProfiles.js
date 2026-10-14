@@ -150,10 +150,10 @@ const PROFILES = {
 		skipGrandTotal: true
 	},
 	houseExpense: {
-		// Program Date | Date & Time | Name | In-Charge | Receiver | Description | Amount
-		amountCols: [7],
-		labelCols: 6,
-		leftAlignCols: [3, 4, 5, 6],
+		// Program Date | Date & Time | Name | Amount | In-Charge | Receiver | Description
+		amountCols: [4],
+		labelCols: 3,
+		leftAlignCols: [3, 5, 6, 7],
 		centerAlignCols: [1, 2],
 		dateCols: [1, 2],
 		amountNumFmt: ALIGNED_AMOUNT_FMT,
@@ -162,7 +162,7 @@ const PROFILES = {
 		grandTotalAlign: 'center',
 		centerHeaders: true,
 		// Balanced like the Print (sized for wide caps such as "MINA/VINCE/YANG/JEROME") — long text wraps inside its column
-		columnWidths: [16, 17, 34, 14, 29, 40, 15]
+		columnWidths: [16, 17, 34, 15, 14, 29, 40]
 	},
 	markerHistory: {
 		// Date & Time | Account | Name | Credit | Credit Total | Guarantor | Balance
