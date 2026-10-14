@@ -4698,7 +4698,15 @@ router.get('/export', async (req, res) => {
 
 		// Add rows from the database query
 		rows.forEach(row => {
-			worksheet.addRow(row);
+			const d = row.ENCODED_DT instanceof Date ? row.ENCODED_DT : null;
+			const added = worksheet.addRow({
+				...row,
+				// ExcelJS reads a Date as UTC: pass the local wall-clock time so Excel shows the time as recorded
+				ENCODED_DT: d && !isNaN(d.getTime())
+					? new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()))
+					: row.ENCODED_DT
+			});
+			if (d) added.getCell('ENCODED_DT').numFmt = 'yyyy-mm-dd hh:mm';
 		});
 
 		applyCommaThousandsToNumericCells(worksheet, { headerRows: 0 });

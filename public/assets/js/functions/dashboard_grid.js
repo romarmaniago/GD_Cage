@@ -1912,7 +1912,7 @@
     const rate = Number(panel && panel.dataset.wlRate);
     const wlRate = Number.isFinite(rate) ? rate : 65;
     const wlSettlement = Math.round(winLoss * (wlRate / 100));
-    const casinoTotal = wlSettlement - soa;
+    const casinoTotal = wlSettlement + soa; // SOA is signed (charges negative)
     const grandTotal = casinoTotal - companyExpenseTotal;
 
     if (panel) {
@@ -1925,7 +1925,8 @@
 
     setHtmlById('winloss', formatDashAmtHtml(winLoss));
     setHtmlById('dash-wl-settlement', formatDashAmtHtml(wlSettlement));
-    setHtmlById('dash-soa-fnb-hotel-total', formatDashAmtHtml(soa, true));
+    // SOA shows as entered: negative in red (x), positive plain.
+    setHtmlById('dash-soa-fnb-hotel-total', formatDashAmtHtml(soa || 0));
     setHtmlById('dash-casino-total', formatDashAmtHtml(casinoTotal));
     setHtmlById('dash-expenses-total', formatDashAmtHtml(expenseMain, true));
     setHtmlById('dash-expenses-total-anticipated', formatDashAmtHtml(expenseMain, true));

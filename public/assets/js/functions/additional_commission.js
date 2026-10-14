@@ -181,7 +181,7 @@
 
       const rate = Number(anticipatedPanel.dataset.wlRate) || Number(anticipatedPanel.dataset.wlDefault) || 65;
       const wlSettlement = Math.round(winLoss * (rate / 100));
-      const casinoTotal = wlSettlement - serviceSettle;
+      const casinoTotal = wlSettlement + serviceSettle; // SOA is signed (charges negative)
       const grandTotal = casinoTotal - nextCompanyExpense;
 
       if (companyExpenseEl) companyExpenseEl.innerHTML = formatDashboardNegHtml(nextCompanyExpense);

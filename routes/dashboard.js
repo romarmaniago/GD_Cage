@@ -4662,6 +4662,8 @@ router.get('/soa_fnb_hotel_history', checkSession, async (req, res) => {
 				sfh.CATEGORY AS category,
 				sfh.AMOUNT AS amount,
 				sfh.REMARKS AS remarks,
+				sfh.JOIN_PREV AS join_prev,
+				COALESCE(sfh.SORT_KEY, sfh.IDNo) AS sort_key,
 				DATE_FORMAT(sfh.ENCODED_DT, '%Y-%m-%d %H:%i') AS encoded_dt
 			 FROM soa_fnb_hotel sfh
 			 WHERE sfh.ACTIVE = 1
@@ -4707,7 +4709,10 @@ router.post('/add_soa_fnb_hotel', checkSession, async (req, res) => {
 		const category = String(req.body.category || '').trim();
 		const remarks = String(req.body.remarks != null ? req.body.remarks : '').trim().slice(0, 500);
 		const parsedAmount = Number(req.body.amount);
-		if (!category) {
+		// A line added under an SOA ("+") is joined to the row above and may have no label.
+		const joinPrev = Number(req.body.join_prev) === 1 || req.body.join_prev === true ? 1 : 0;
+		const sortKey = req.body.sort_key == null || req.body.sort_key === '' ? null : Number(req.body.sort_key);
+		if (!category && !joinPrev) {
 			return res.status(400).json({ message: 'SOA is required.' });
 		}
 		if (category.length > 100) {
@@ -4716,21 +4721,24 @@ router.post('/add_soa_fnb_hotel', checkSession, async (req, res) => {
 		if (!/^\d{4}-\d{2}-\d{2}$/.test(soaDate)) {
 			return res.status(400).json({ message: 'Please enter a valid program date (YYYY-MM-DD).' });
 		}
-		if (!Number.isFinite(parsedAmount) || parsedAmount === 0) {
+		if (!Number.isFinite(parsedAmount)) {
 			return res.status(400).json({ message: 'Please enter a valid amount to add.' });
+		}
+		if (sortKey !== null && !Number.isFinite(sortKey)) {
+			return res.status(400).json({ message: 'Invalid row position.' });
 		}
 
 		const userId = req.session.user_id || null;
 		const now = new Date();
 
-		await pool.execute(
+		const [result] = await pool.execute(
 			`INSERT INTO soa_fnb_hotel
-				(SOA_DATE, CATEGORY, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT, ACTIVE)
-			 VALUES (?, ?, ?, ?, ?, ?, 1)`,
-			[soaDate, category, parsedAmount, remarks || null, userId, now]
+				(SOA_DATE, CATEGORY, AMOUNT, REMARKS, JOIN_PREV, SORT_KEY, ENCODED_BY, ENCODED_DT, ACTIVE)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+			[soaDate, category, parsedAmount, remarks || null, joinPrev, sortKey, userId, now]
 		);
 
-		res.json({ success: true, message: 'SOA saved successfully.' });
+		res.json({ success: true, id: result.insertId, message: 'SOA saved successfully.' });
 	} catch (error) {
 		console.error('add_soa_fnb_hotel:', error);
 		res.status(500).json({ message: 'Error saving SOA.' });
@@ -4744,10 +4752,15 @@ router.put('/update_soa_fnb_hotel', checkSession, async (req, res) => {
 		const category = String(req.body.category || '').trim();
 		const remarks = String(req.body.remarks != null ? req.body.remarks : '').trim().slice(0, 500);
 		const parsedAmount = Number(req.body.amount);
+		// join_prev is optional; left out, the row keeps its current setting.
+		const joinPrev = req.body.join_prev === undefined || req.body.join_prev === null
+			? null
+			: (Number(req.body.join_prev) === 1 || req.body.join_prev === true ? 1 : 0);
 		if (!id || id < 1) {
 			return res.status(400).json({ message: 'Invalid entry.' });
 		}
-		if (!category) {
+		// A line under an SOA (joined to the row above) may have no label.
+		if (!category && joinPrev !== 1) {
 			return res.status(400).json({ message: 'SOA is required.' });
 		}
 		if (category.length > 100) {
@@ -4756,7 +4769,7 @@ router.put('/update_soa_fnb_hotel', checkSession, async (req, res) => {
 		if (!/^\d{4}-\d{2}-\d{2}$/.test(soaDate)) {
 			return res.status(400).json({ message: 'Please enter a valid program date (YYYY-MM-DD).' });
 		}
-		if (!Number.isFinite(parsedAmount) || parsedAmount === 0) {
+		if (!Number.isFinite(parsedAmount)) {
 			return res.status(400).json({ message: 'Please enter a valid amount.' });
 		}
 
@@ -4764,9 +4777,9 @@ router.put('/update_soa_fnb_hotel', checkSession, async (req, res) => {
 		const now = new Date();
 		const [result] = await pool.execute(
 			`UPDATE soa_fnb_hotel
-			 SET CATEGORY = ?, AMOUNT = ?, REMARKS = ?, SOA_DATE = ?, UPDATED_BY = ?, UPDATED_DT = ?
+			 SET CATEGORY = ?, AMOUNT = ?, REMARKS = ?, SOA_DATE = ?, JOIN_PREV = COALESCE(?, JOIN_PREV), UPDATED_BY = ?, UPDATED_DT = ?
 			 WHERE IDNo = ? AND ACTIVE = 1`,
-			[category, parsedAmount, remarks || null, soaDate, userId, now, id]
+			[category, parsedAmount, remarks || null, soaDate, joinPrev, userId, now, id]
 		);
 
 		if (!result.affectedRows) {

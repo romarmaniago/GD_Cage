@@ -170,7 +170,7 @@ const incidentalJunketOut = junketServiceOut('incidental');
 
 const wlSharePct = typeof dashboardWlSharePct === 'number' ? dashboardWlSharePct : 65;
 const wlSettlement = Math.round(winLossTotal * (wlSharePct / 100));
-const casinoAnticipatedTotal = wlSettlement - serviceSettleTotal;
+const casinoAnticipatedTotal = wlSettlement + serviceSettleTotal; // SOA is signed (charges negative)
 
 const companyExpenseTotal =
    expenseReset +

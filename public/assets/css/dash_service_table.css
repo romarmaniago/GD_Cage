@@ -225,140 +225,298 @@
   background-color: var(--gd-marker-gold-hover, #faf3dc) !important;
 }
 
-/* SOA (F&B, Hotel) modal */
-.modal-dash-soa-dialog {
-  max-width: 44rem;
-  width: calc(100% - 1.5rem);
+/* SOA (F&B, Hotel) modal — sheet style (same look as the Excel SOA slip) */
+#modal-dash-soa-fnb-hotel .soa-sheet-dialog {
+  --bs-modal-width: min(96vw, 660px);
+  width: min(96vw, 660px) !important;
+  max-width: min(96vw, 660px) !important;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-#modal-dash-soa-fnb-hotel .soa-add-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: 0.75rem;
-  row-gap: 0.65rem;
-  align-items: end;
+/* !important: dashboard_grid.css forces a beige bg + gold border on every .modal-content */
+#modal-dash-soa-fnb-hotel .soa-sheet-content {
+  background: #ffffff !important;
+  border: 1px solid #8f8f8f !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
 }
 
-#modal-dash-soa-fnb-hotel .soa-add-program-date .flatpickr-wrapper,
-#modal-dash-soa-fnb-hotel-edit .flatpickr-wrapper {
-  display: block;
-  width: 100%;
+#modal-dash-soa-fnb-hotel .soa-sheet {
+  background: #ffffff;
+  color: #000;
+  font-family: Calibri, "Segoe UI", Arial, Helvetica, sans-serif;
 }
 
-#modal-dash-soa-fnb-hotel .soa-add-program-date .flatpickr-input.form-control,
-#modal-dash-soa-fnb-hotel-edit .flatpickr-input.form-control {
-  width: 100%;
-}
-
-#modal-dash-soa-fnb-hotel .soa-add-field {
+#modal-dash-soa-fnb-hotel .soa-sheet-header {
   display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-#modal-dash-soa-fnb-hotel .soa-add-program-date {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-#modal-dash-soa-fnb-hotel .soa-add-category {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-#modal-dash-soa-fnb-hotel .soa-add-amount {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-#modal-dash-soa-fnb-hotel .soa-add-remarks {
-  grid-column: 2;
-  grid-row: 2;
-}
-
-#modal-dash-soa-fnb-hotel .soa-add-save {
-  grid-column: 2;
-  grid-row: 3;
-  justify-self: end;
-}
-
-#modal-dash-soa-fnb-hotel .soa-add-save .form-label {
-  line-height: 1.2;
-}
-
-#btn-dash-soa-save {
-  min-width: 4.5rem;
-  height: calc(1.5em + 0.5rem + 2px);
-  padding-left: 0.9rem;
-  padding-right: 0.9rem;
-}
-
-#modal-dash-soa-fnb-hotel .soa-remarks-input,
-#modal-dash-soa-fnb-hotel-edit .soa-remarks-input {
-  resize: none;
-}
-
-/* SOA history table — compact fitted columns */
-#dash-soa-history-tbl {
-  table-layout: fixed;
-  width: 100%;
-  font-size: 0.8125rem;
-}
-
-#dash-soa-history-tbl th,
-#dash-soa-history-tbl td {
-  vertical-align: middle;
-  padding: 0.35rem 0.45rem;
-}
-
-#dash-soa-history-tbl .soa-col-category {
-  width: 22%;
-  overflow: hidden;
-  word-break: break-word;
-}
-
-#dash-soa-history-tbl .soa-col-amount {
-  width: 5.75rem;
-  white-space: nowrap;
-}
-
-#dash-soa-history-tbl .soa-col-remarks {
-  width: auto;
-  overflow: hidden;
-  word-break: break-word;
-}
-
-#dash-soa-history-tbl .soa-col-program-date {
-  width: 6.75rem;
-  white-space: nowrap;
-}
-
-#dash-soa-history-tbl .soa-col-action {
-  width: 4.75rem;
-  white-space: nowrap;
-  text-align: center;
-  padding-left: 0.25rem;
-  padding-right: 0.25rem;
-}
-
-#dash-soa-history-tbl .soa-col-action .btn {
-  padding: 0.12rem 0.35rem;
-}
-
-#dash-soa-history-tbl .soa-col-action .d-inline-flex {
-  gap: 0.2rem !important;
-}
-
-#dash-soa-history-tbl .soa-total-row th {
-  background: #f7efd8;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.8rem;
+  background: linear-gradient(180deg, #f6d77c 0%, #e8b84a 100%);
+  border-bottom: 1px solid #b98d2c;
   font-weight: 700;
-  border-bottom-width: 1px;
+  font-size: 20px;
+  color: #000;
 }
 
-#dash-soa-history-tbl .soa-total-row .soa-total-label {
+#modal-dash-soa-fnb-hotel .soa-sheet-close {
+  border: 0;
+  background: transparent;
+  padding: 0 0.15rem;
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1;
+  color: #000;
+  cursor: pointer;
+}
+
+#modal-dash-soa-fnb-hotel .soa-sheet-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* Label and Amount keep their width; extra modal width goes to Remarks */
+#modal-dash-soa-fnb-hotel .soa-c-label { width: 190px; }
+#modal-dash-soa-fnb-hotel .soa-c-amount { width: 190px; }
+#modal-dash-soa-fnb-hotel .soa-c-remarks { width: auto; }
+
+/* Plain white cells — no dashboard modal stripes / hover */
+/* Rows stay transparent so a later row never paints over a merged label (html2canvas). */
+#modal-dash-soa-fnb-hotel .soa-sheet-table tbody tr,
+#modal-dash-soa-fnb-hotel .soa-sheet-table tbody tr:hover {
+  background-color: transparent !important;
+}
+
+#modal-dash-soa-fnb-hotel .soa-sheet-table tbody tr td,
+#modal-dash-soa-fnb-hotel .soa-sheet-table tbody tr:nth-child(even) td,
+#modal-dash-soa-fnb-hotel .soa-sheet-table tbody tr:hover td {
+  background-color: #ffffff !important;
+}
+
+#modal-dash-soa-fnb-hotel .soa-sheet-table td {
+  border: 1px solid #bdbdbd;
+  padding: 0;
+  height: 1.7rem;
+  vertical-align: middle;
+  color: #000;
+}
+
+#modal-dash-soa-fnb-hotel .soa-sheet-table tr > td:first-child { border-left: 0; }
+#modal-dash-soa-fnb-hotel .soa-sheet-table tr > td:last-child { border-right: 0; }
+
+#modal-dash-soa-fnb-hotel .soa-pd-row td {
+  height: 2.6rem;
+}
+
+#modal-dash-soa-fnb-hotel .soa-pd-cell {
+  text-align: center;
+  padding: 0 0.45rem !important;
+}
+
+#modal-dash-soa-fnb-hotel .soa-pd-value {
+  margin-left: 0.35rem;
+  font-weight: 400;
+}
+
+#modal-dash-soa-fnb-hotel .soa-sheet-table tr.soa-band-row td {
+  background-color: #fde9a6 !important;
+  text-align: center;
+  letter-spacing: 0.2px;
+}
+
+#modal-dash-soa-fnb-hotel .soa-msg-row td {
+  text-align: center;
+  font-weight: 400;
+  color: #6c757d;
+  padding: 0.5rem !important;
+}
+
+/* Joined rows: no line in the SOA label column only; Amount / Remarks keep their lines */
+#modal-dash-soa-fnb-hotel .soa-row:not(.soa-group-first) td.soa-label {
+  border-top: 0;
+}
+
+#modal-dash-soa-fnb-hotel .soa-row:not(.soa-group-last) td.soa-label {
+  border-bottom: 0;
+}
+
+#modal-dash-soa-fnb-hotel td.soa-label {
+  position: relative;
+  text-align: right;
+}
+
+#modal-dash-soa-fnb-hotel td.soa-amount {
+  text-align: right;
+}
+
+#modal-dash-soa-fnb-hotel td.soa-remarks {
+  position: relative;
   text-align: left;
 }
 
-#dash-soa-history-tbl .soa-total-row .soa-total-rest {
-  border-left: 0;
+/* Cells look like sheet cells; the focused one gets an outline */
+#modal-dash-soa-fnb-hotel .soa-cell {
+  display: block;
+  width: 100%;
+  min-height: 1.6rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.2rem 0.45rem;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  outline: none;
+}
+
+#modal-dash-soa-fnb-hotel .soa-label-input {
+  text-transform: uppercase;
+}
+
+#modal-dash-soa-fnb-hotel td.soa-remarks .soa-cell {
+  padding-right: 2.6rem;
+}
+
+#modal-dash-soa-fnb-hotel .soa-amount-input,
+#modal-dash-soa-fnb-hotel #dash-soa-history-total {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Non-negative amounts leave room for the ")" so digits line up with (x) */
+#modal-dash-soa-fnb-hotel .soa-amount-input:not(.is-neg),
+#modal-dash-soa-fnb-hotel td.soa-amount .soa-cell-text:not(.is-neg) {
+  padding-right: calc(0.45rem + 0.33em);
+}
+
+#modal-dash-soa-fnb-hotel #dash-soa-history-total:not(.is-neg) {
+  padding-right: calc(0.45rem + 0.33em);
+}
+
+#modal-dash-soa-fnb-hotel .soa-cell:focus {
+  background: #f3f8ff;
+  box-shadow: inset 0 0 0 2px #2f6fdb;
+}
+
+#modal-dash-soa-fnb-hotel .soa-cell.is-invalid {
+  background: #fdecec;
+  box-shadow: inset 0 0 0 2px #dc3545;
+}
+
+/* Negative amounts in red, as on the sheet */
+#modal-dash-soa-fnb-hotel .is-neg {
+  color: #e60000 !important;
+}
+
+#modal-dash-soa-fnb-hotel .soa-cell::placeholder {
+  color: #b5b5b5;
+  font-weight: 400;
+  font-style: italic;
+  text-transform: none;
+}
+
+#modal-dash-soa-fnb-hotel .soa-sheet-table tr.soa-new-row td {
+  background-color: #fafafa !important;
+}
+
+#modal-dash-soa-fnb-hotel .soa-row-saving {
+  opacity: 0.55;
+}
+
+#modal-dash-soa-fnb-hotel .soa-flash,
+#modal-dash-soa-fnb-hotel .soa-flash td {
+  animation: soa-flash 1.2s ease-out;
+}
+
+@keyframes soa-flash {
+  from { background-color: #dff3e4; }
+  to { background-color: transparent; }
+}
+
+/* "+" line / delete: show on row hover / focus, left out of the copied image */
+#modal-dash-soa-fnb-hotel .soa-row-actions {
+  position: absolute;
+  top: 50%;
+  right: 0.2rem;
+  transform: translateY(-50%);
+  display: inline-flex;
+  gap: 0.15rem;
+  opacity: 0;
+}
+
+#modal-dash-soa-fnb-hotel .soa-row:hover .soa-row-actions,
+#modal-dash-soa-fnb-hotel .soa-row:focus-within .soa-row-actions {
+  opacity: 0.9;
+}
+
+#modal-dash-soa-fnb-hotel .soa-add,
+#modal-dash-soa-fnb-hotel .soa-del {
+  border: 0;
+  background: transparent;
+  padding: 0.1rem 0.2rem;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#modal-dash-soa-fnb-hotel .soa-add {
+  color: #2f6fdb;
+}
+
+#modal-dash-soa-fnb-hotel .soa-del {
+  color: #dc3545;
+}
+
+#modal-dash-soa-fnb-hotel .soa-sheet-table tr.soa-draft-row td {
+  background-color: #f6faff !important;
+}
+
+#modal-dash-soa-fnb-hotel .soa-sheet-table tr.soa-total-row td {
+  background-color: #fdf0c4 !important;
+  border-top: 1px solid #9e9e9e;
+  height: 1.9rem;
+  padding: 0 0.45rem;
+}
+
+/* Copied image: plain text in place of the inputs */
+#modal-dash-soa-fnb-hotel .soa-cell-text {
+  display: block;
+  padding: 0.2rem 0.45rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+#modal-dash-soa-fnb-hotel td.soa-label .soa-cell-text {
+  text-transform: uppercase;
+}
+
+#modal-dash-soa-fnb-hotel .soa-sheet-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.75rem;
+  background: #ffffff;
+}
+
+#modal-dash-soa-fnb-hotel .soa-sheet-copy-btn {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  white-space: nowrap;
+  color: #fff;
+  background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+  border-color: transparent;
+  border-radius: 0.2rem;
+}
+
+#modal-dash-soa-fnb-hotel .soa-sheet-copy-btn:hover,
+#modal-dash-soa-fnb-hotel .soa-sheet-copy-btn:focus {
+  color: #fff;
+  background: linear-gradient(135deg, #3f3f46 0%, #5f5f68 100%);
 }

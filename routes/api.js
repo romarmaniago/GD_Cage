@@ -449,10 +449,10 @@ router.get('/dashboard-statement', async (req, res) => {
     const summary = await computeDashboardPeriodSummary(pool, dateFrom, dateTo);
 
     // Anticipated Profit — same formula as the web dashboard (views/dashboard.ejs):
-    // wlSettlement = W/L * rate%; casinoTotal = wlSettlement - SOA; grandTotal = casinoTotal - companyExpenseTotal.
+    // wlSettlement = W/L * rate%; casinoTotal = wlSettlement + SOA (SOA is signed, charges negative); grandTotal = casinoTotal - companyExpenseTotal.
     const wlRatePct = await loadDashboardWlSharePct(pool, currentMonthKey());
     const wlSettlement = Math.round(summary.win_loss * (wlRatePct / 100));
-    const casinoTotal = wlSettlement - summary.soa;
+    const casinoTotal = wlSettlement + summary.soa;
     const grandTotal = casinoTotal - summary.company_expense_total;
 
     res.json({

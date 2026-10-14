@@ -95,7 +95,7 @@
 		var winLoss = Number(panel.dataset.winLoss) || 0;
 		var serviceSettle = Number(panel.dataset.serviceSettle) || 0;
 		var wlSettlement = Math.round(winLoss * (rate / 100));
-		var casinoTotal = wlSettlement - serviceSettle;
+		var casinoTotal = wlSettlement + serviceSettle; // SOA is signed (charges negative)
 		var grandTotal = casinoTotal - total;
 
 		var wlSettlementEl = document.getElementById('dash-wl-settlement');

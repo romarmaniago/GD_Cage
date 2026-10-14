@@ -152,7 +152,7 @@ function autoFitRowHeights(ws, startRow, endRow) {
 			if (!cell.alignment || !cell.alignment.wrapText) return;
 			const colWidth = ws.getColumn(colNumber).width || 10;
 			const text = cell.value == null || cell.formula ? ''
-				: (cell.value instanceof Date ? '0000-00-00' : String(cell.value));
+				: (cell.value instanceof Date ? String(cell.numFmt || '0000-00-00') : String(cell.value));
 			if (!text) return;
 			let lineCount = 0;
 			text.split(/\r?\n/).forEach((segment) => {
@@ -224,14 +224,14 @@ function addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet
 }
 
 /** "2026-10-09 21:01" → { value: Date, numFmt: 'yyyy-mm-dd hh:mm' }, "2026-10-09" → 'yyyy-mm-dd',
- *  "2026-10" → 'yyyy-mm'; anything else → null. */
-function toExcelDate(raw) {
+ *  "2026-10" → 'yyyy-mm' (only when allowMonth); anything else → null. */
+function toExcelDate(raw, allowMonth) {
 	const s = String(raw == null ? '' : raw).trim();
 	let m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(s);
 	if (m) return { value: new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0))), numFmt: 'yyyy-mm-dd hh:mm' };
 	m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
 	if (m) return { value: new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])), numFmt: 'yyyy-mm-dd' };
-	m = /^(\d{4})-(\d{2})$/.exec(s);
+	m = allowMonth ? /^(\d{4})-(\d{2})$/.exec(s) : null;
 	if (m) return { value: new Date(Date.UTC(+m[1], +m[2] - 1, 1)), numFmt: 'yyyy-mm' };
 	return null;
 }
@@ -392,8 +392,11 @@ async function buildTableExportXlsx(opts) {
 			} else if (profile.zebraRows && rowIdx % 2 === 1) {
 				cell.fill = FILL_ZEBRA;
 			}
-			if (dateSet.has(colNumber)) {
-				const date = toExcelDate(arr[colNumber - 1]);
+			// Date / date & time text stays a date / date & time in Excel. Outside the profile's dateCols
+			// only a full "YYYY-MM-DD[ HH:mm]" is taken (a bare "YYYY-MM" there may not be a month).
+			const isDateCol = dateSet.has(colNumber);
+			if (isDateCol || (!amountSet.has(colNumber) && !percentSet.has(colNumber))) {
+				const date = toExcelDate(arr[colNumber - 1], isDateCol);
 				if (date) {
 					cell.value = date.value;
 					cell.numFmt = date.numFmt;

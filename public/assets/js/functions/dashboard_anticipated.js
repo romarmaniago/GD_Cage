@@ -65,8 +65,8 @@
 
 		return {
 			wlSettlement: wlSettlement,
-			casinoTotal: wlSettlement - serviceSettle,
-			grandTotal: wlSettlement - serviceSettle - companyExpense
+			casinoTotal: wlSettlement + serviceSettle, // SOA is signed (charges negative)
+			grandTotal: wlSettlement + serviceSettle - companyExpense
 		};
 	}
 
