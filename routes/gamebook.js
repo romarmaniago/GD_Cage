@@ -2510,8 +2510,16 @@ router.get('/game_list_available_chips', async (_req, res) => {
 	}
 });
 
-router.get('/game_list_company_balance', async (_req, res) => {
+router.get('/game_list_company_balance', async (req, res) => {
 	try {
+		// ?chips=1 → NN / CC only (New Game modal); skips the full Cage Balance queries.
+		if (req.query.chips === '1') {
+			const [nnChipsBalance, ccChipsBalance] = await Promise.all([
+				dashboardQueries.computeNnChipsBalance(),
+				dashboardQueries.computeCcChipsBalance()
+			]);
+			return res.json({ nnChipsBalance, ccChipsBalance });
+		}
 		const balances = await dashboardQueries.computeHouseBalance();
 		return res.json(balances);
 	} catch (err) {
@@ -3199,6 +3207,12 @@ router.post('/add_game_list_late_cashout', async (req, res) => {
 	const grandTotal = cashTotal + depositTotal;
 	const rateRaw = (req.body.txtCommisionRate ?? '1.5').toString().replace(/,/g, '').trim();
 	const commRate = rateRaw === '' ? 1.5 : parseFloat(rateRaw);
+	// Same presets as New Game: 1 = Rolling, 2 = Share (rate = share %), 3 = Share + Rolling
+	const parsedCommType = parseInt(req.body.txtCommisionType, 10);
+	const commType = [1, 2, 3].includes(parsedCommType) ? parsedCommType : 1;
+	const shareRolling = parseShareRollingInput(req.body);
+	const rawGameType = String(req.body.txtGameType || '').trim().toUpperCase();
+	const gameType = rawGameType === 'LIVE' || rawGameType === 'TELEBET' ? rawGameType : 'N/A';
 	const depositRemarks = (req.body.txtDepositRemarks || '').toString().trim();
 	const balanceBefore = parseFloat((totalBalanceGuest || '0').toString().replace(/,/g, '')) || 0;
 	const encoded_dt = new Date();
@@ -3221,6 +3235,9 @@ router.post('/add_game_list_late_cashout', async (req, res) => {
 	if (!Number.isFinite(commRate) || commRate < 0 || commRate > 100) {
 		return res.status(400).json({ error: 'Invalid game rate.' });
 	}
+	if (shareRolling.error) {
+		return res.status(400).json({ error: shareRolling.error });
+	}
 
 	const cashoutRecordSQL = `INSERT INTO game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 	const ledgerSQL = `INSERT INTO account_ledger(ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
@@ -3234,7 +3251,7 @@ router.post('/add_game_list_late_cashout', async (req, res) => {
 		const [gameResult] = await connection.execute(`
 			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
 			VALUES (?, ?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, guestId, 'N/A', 'SPLIT', 1, commRate, 0, 100, encodedBy, encoded_dt, program_date]
+			[accountId, guestId, gameType, 'SPLIT', commType, commRate, shareRolling.sharePct, shareRolling.rollingPct, encodedBy, encoded_dt, program_date]
 		);
 		gameId = gameResult.insertId;
 

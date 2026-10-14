@@ -56,25 +56,46 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                 <span class="d-none" id="new-game-cc-balance-base" aria-hidden="true">0</span>
                 <span class="d-none" id="new-game-agent-code-label" aria-hidden="true"></span>
                 <span class="d-none" id="new-game-guest-name-label" aria-hidden="true"></span>
-                <div class="row mb-2">
-                    <div class="col-6">
-                        <input type="text" class="form-control" name="txtProgramDate" id="txtProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" style="max-width: 13.5rem;" />
+                <div class="new-game-top-grid mb-2">
+                    <input type="text" class="form-control" name="txtProgramDate" id="txtProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" />
+                    <select class="form-select new-game-preset-select" name="txtCommisionType" id="commissionType" required>
+                        <option value="1" data-preset="A" selected>A - ROLLING 100%</option>
+                        <option value="2" data-preset="B">B - SHARE 50%</option>
+                        <option value="3" data-preset="C">C - SHARE 25% + ROLLING 50%</option>
+                        <option value="3" data-preset="D">D - OPTIONAL</option>
+                    </select>
+
+                    <div>
+                        <input type="hidden" id="txtGuestId" name="txtGuestId" value="">
+                        <select class="js-select2 form-select" id="txtTrans" name="txtAccountCode" style="width: 100%;" data-placeholder="<%= __('modal_new_game_list.choose_account_placeholder') %>" required>
+                        </select>
+                    </div>
+                    <!-- Share / Rolling are fixed by the preset above -->
+                    <div class="new-game-pct-row">
+                        <div class="new-game-pct-box">
+                            <label for="sharePercentage">Share</label>
+                            <span class="new-game-pct-value"><input type="number" class="form-control" step="0.5" min="0" max="100" name="txtSharePercentage" id="sharePercentage" value="0" readonly tabindex="-1" />%</span>
+                        </div>
+                        <div class="new-game-pct-box">
+                            <label for="rollingPercentage">Rolling</label>
+                            <span class="new-game-pct-value"><input type="number" class="form-control" step="0.5" min="0" max="100" name="txtRollingPercentage" id="rollingPercentage" value="100" readonly tabindex="-1" />%</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <select class="js-select2 form-select" id="txtGuestGame" style="width: 100%;" data-placeholder="Select guest (optional)" disabled>
+                            <option value="">--SELECT GUEST--</option>
+                        </select>
+                    </div>
+                    <!-- RATE: editable only for A (Rolling). B (Share) saves 50 in #commissionRate; 1.50 is display only. -->
+                    <div class="new-game-rate-row">
+                        <label class="mb-0" for="commissionRateDisplay">Rate</label>
+                        <div class="new-game-pct-box">
+                            <span class="new-game-pct-value"><input type="number" class="form-control" step="0.05" min="0" max="100" id="commissionRateDisplay" value="1.50" />%</span>
+                        </div>
+                        <input type="hidden" name="txtCommisionRate" id="commissionRate" value="1.5" />
                     </div>
                 </div>
-
-              <div class="row mb-3">
-                  <div class="col-sm-6">
-                      <input type="hidden" id="txtGuestId" name="txtGuestId" value="">
-                      <select class="js-select2 form-select" id="txtTrans" name="txtAccountCode" style="width: 100%;" data-placeholder="<%= __('modal_new_game_list.choose_account_placeholder') %>" required>
-                      </select>
-                  </div>
-
-                  <div class="col-sm-6">
-                    <select class="js-select2 form-select" id="txtGuestGame" style="width: 100%;" data-placeholder="Select guest (optional)" disabled>
-                        <option value="">--SELECT GUEST--</option>
-                    </select>
-                </div>
-              </div>
 
              
 
@@ -112,14 +133,6 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                       </div>
                   </div>
               </div>
-              <hr style="border: 1px solid">
-               <!-- ROLLING CHIPS Section -->
-               <div class="row mb-2">
-                <div class="col-sm-12">
-                    <label class="form-label" for="txtRollerNN"><strong>Rolling Chips</strong></label>
-               
-                </div>
-            </div>
             <div class="row mb-2 align-items-center">
                 <div class="col-sm-6">
                     <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" name="txtRollerNN" id="txtRollerNN" placeholder="Rolling Chips" />
@@ -139,32 +152,6 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                 </div>
             </div>
 
-              <hr style="border: 1px solid">
-              <div class="row mb-2 align-items-center g-2">
-                  <div class="col-sm-5">
-                      <select class="form-select" name="txtCommisionType" id="commissionType" style="width: 100%;" required>
-                          <option value="" disabled><%= __('modal_new_game_list.select_game') %></option>
-                          <option value="1" selected><%= __('modal_new_game_list.rolling_game') %></option>
-                          <option value="2"><%= __('modal_new_game_list.shared_game') %></option>
-                          <option value="3"><%= __('modal_new_game_list.share_rolling_game') %></option>
-                      </select>
-                  </div>
-
-                  <div class="col-sm-2" id="commissionRateWrap">
-                      <input type="number" class="form-control" step="0.1" min="0" max="100" name="txtCommisionRate" id="commissionRate" placeholder="%" />
-                  </div>
-              </div>
-              <!-- Share + Rolling (type 3): Share % of Win/Loss + Rolling % of the rolling rate above -->
-              <div class="row mb-2 align-items-center g-2 d-none" id="shareRollingWrap">
-                  <div class="col-sm-3">
-                      <label class="form-label small mb-1" for="sharePercentage"><%= __('modal_new_game_list.share_pct') %></label>
-                      <input type="number" class="form-control js-pct-0-100" step="0.5" min="0" max="100" name="txtSharePercentage" id="sharePercentage" value="0" />
-                  </div>
-                  <div class="col-sm-3">
-                      <label class="form-label small mb-1" for="rollingPercentage"><%= __('modal_new_game_list.rolling_pct') %></label>
-                      <input type="number" class="form-control js-pct-0-100" step="0.5" min="0" max="100" name="txtRollingPercentage" id="rollingPercentage" value="100" />
-                  </div>
-              </div>
         </div>
         <div class="modal-footer">
             <button type="button" id="late-cashout-btn" class="btn btn-sm btn-warning me-auto">Late Cashout</button>
@@ -313,19 +300,40 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
             <form id="late_cashout_form">
                 <div class="modal-body">
                     <input type="hidden" id="lateCashoutBalance" value="0" />
-                    <div class="row mb-2">
-                        <div class="col-6">
-                            <input type="text" class="form-control" id="lateCashoutProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" style="max-width: 13.5rem;" />
-                        </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-sm-6">
+                    <div class="new-game-top-grid mb-2">
+                        <input type="text" class="form-control" id="lateCashoutProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" />
+                        <select class="form-select new-game-preset-select" id="lateCashoutType" required>
+                            <option value="1" data-preset="A" selected>A - ROLLING 100%</option>
+                            <option value="2" data-preset="B">B - SHARE 50%</option>
+                            <option value="3" data-preset="C">C - SHARE 25% + ROLLING 50%</option>
+                            <option value="3" data-preset="D">D - OPTIONAL</option>
+                        </select>
+
+                        <div>
                             <select class="form-select" id="lateCashoutAccount" style="width: 100%;" data-placeholder="Choose an account..." required></select>
                         </div>
-                        <div class="col-sm-6">
+                        <div class="new-game-pct-row">
+                            <div class="new-game-pct-box">
+                                <label for="lateCashoutShare">Share</label>
+                                <span class="new-game-pct-value"><input type="number" class="form-control" step="0.5" min="0" max="100" id="lateCashoutShare" value="0" readonly tabindex="-1" />%</span>
+                            </div>
+                            <div class="new-game-pct-box">
+                                <label for="lateCashoutRolling">Rolling</label>
+                                <span class="new-game-pct-value"><input type="number" class="form-control" step="0.5" min="0" max="100" id="lateCashoutRolling" value="100" readonly tabindex="-1" />%</span>
+                            </div>
+                        </div>
+
+                        <div>
                             <select class="form-select" id="lateCashoutGuest" style="width: 100%;" data-placeholder="Select guest (optional)" disabled>
                                 <option value="">--SELECT GUEST--</option>
                             </select>
+                        </div>
+                        <div class="new-game-rate-row">
+                            <label class="mb-0" for="lateCashoutRateDisplay">Rate</label>
+                            <div class="new-game-pct-box">
+                                <span class="new-game-pct-value"><input type="number" class="form-control" step="0.05" min="0" max="100" id="lateCashoutRateDisplay" value="1.50" />%</span>
+                            </div>
+                            <input type="hidden" id="lateCashoutRate" value="1.5" />
                         </div>
                     </div>
                     <div class="late-cashout-section">
@@ -340,10 +348,15 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                             <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" placeholder="CC Chips" id="lateCashoutDepCC" autocomplete="off" />
                         </div>
                     </div>
-                    <hr style="border: 1px solid">
-                    <div class="late-cashout-field-grid">
-                        <label class="form-label mb-0" for="lateCashoutRate">Rolling Game</label>
-                        <input type="number" class="form-control text-center" step="0.05" min="0" max="100" id="lateCashoutRate" value="1.5" placeholder="%" />
+                    <div class="late-cashout-type-radios">
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="lateCashoutLive" name="lateCashoutGameType" value="LIVE">
+                            <label class="form-check-label" for="lateCashoutLive">LIVE</label>
+                        </div>
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="lateCashoutTelebet" name="lateCashoutGameType" value="TELEBET">
+                            <label class="form-check-label" for="lateCashoutTelebet">TELEBET</label>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -356,8 +369,13 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
 </div>
 
 <style>
+/* Bootstrap caps .modal-dialog at 500px; let it fit the 40rem content like New Game */
+#modal-late-cashout .modal-dialog {
+    max-width: calc(100vw - 1.5rem);
+    width: max-content;
+}
 #modal-late-cashout .late-cashout-content {
-    width: 32rem;
+    width: 40rem;
     max-width: 100%;
 }
 #modal-late-cashout .select2-container {
@@ -373,15 +391,22 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
 }
 #modal-late-cashout .late-cashout-field-grid {
     display: grid;
-    grid-template-columns: 6.75rem minmax(0, 1fr) minmax(0, 1fr);
-    column-gap: 0.5rem;
+    grid-template-columns: 4.5rem minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 0.75rem;
     align-items: center;
 }
 #modal-late-cashout .late-cashout-field-grid .form-control {
     width: 100%;
     min-width: 0;
 }
+#modal-late-cashout .late-cashout-type-radios {
+    display: flex;
+    justify-content: center;
+    gap: 4rem;
+    margin-top: 0.75rem;
+}
 #modal-late-cashout .late-cashout-field-grid label {
+    text-align: right;
     white-space: nowrap;
     font-weight: 500;
 }
@@ -392,7 +417,7 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
     z-index: 9999;
 }
 #modal-new-game-list .new-game-main-content {
-    width: 32rem;
+    width: 40rem;
     max-width: 100%;
     flex-shrink: 0;
     position: relative;
@@ -845,8 +870,8 @@ body.new-game-side-resize-active {
 
 #modal-new-game-list .new-game-field-grid {
     display: grid;
-    grid-template-columns: 6.75rem minmax(0, 1fr) minmax(0, 1fr);
-    column-gap: 0.5rem;
+    grid-template-columns: 4.5rem minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 0.75rem;
     align-items: center;
 }
 
@@ -858,12 +883,148 @@ body.new-game-side-resize-active {
 #modal-new-game-list .new-game-field-grid label {
     white-space: nowrap;
     font-weight: 500;
+    text-align: right;
 }
 
 #modal-new-game-list .new-game-type-radios {
     justify-content: flex-start;
     padding-left: 2rem;
 }
+
+/* Account / Guest clear "×": right side, beside the arrow, soft gray */
+#modal-new-game-list .select2-container .select2-selection--single,
+#modal-late-cashout .select2-container .select2-selection--single {
+    position: relative;
+}
+#modal-new-game-list .select2-container .select2-selection--single .select2-selection__rendered,
+#modal-late-cashout .select2-container .select2-selection--single .select2-selection__rendered {
+    padding-right: 3rem;
+}
+#modal-new-game-list .select2-container .select2-selection__clear,
+#modal-late-cashout .select2-container .select2-selection__clear {
+    position: absolute;
+    top: 50%;
+    right: 1.75rem;
+    transform: translateY(-50%);
+    float: none;
+    margin: 0;
+    padding: 0 0.25rem;
+    border: 0;
+    background: transparent;
+    color: #adb5bd;
+    font-size: 1.1rem;
+    font-weight: 400;
+    line-height: 1;
+    cursor: pointer;
+}
+#modal-new-game-list .select2-container .select2-selection__clear:hover,
+#modal-late-cashout .select2-container .select2-selection__clear:hover {
+    color: #6c757d;
+}
+
+/* Top block: Date | Preset, Account | Share/Rolling, Guest | RATE */
+#modal-new-game-list .new-game-top-grid,
+#modal-late-cashout .new-game-top-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.5rem 0.75rem;
+    align-items: center;
+}
+
+/* Fit the full "C - SHARE 25% + ROLLING 50%" label */
+#modal-new-game-list .new-game-preset-select,
+#modal-late-cashout .new-game-preset-select {
+    padding-left: 0.6rem;
+    padding-right: 1.75rem;
+    background-position: right 0.5rem center;
+}
+
+#modal-new-game-list .new-game-pct-row,
+#modal-late-cashout .new-game-pct-row {
+    display: flex;
+    gap: 0.75rem;
+}
+
+#modal-new-game-list .new-game-pct-box,
+#modal-late-cashout .new-game-pct-box {
+    display: flex;
+    align-items: stretch;
+    flex: 1 1 0;
+    min-width: 0;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    overflow: hidden;
+    background: #fff;
+}
+
+#modal-new-game-list .new-game-pct-box label,
+#modal-late-cashout .new-game-pct-box label {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0 0.6rem;
+    border-right: 1px solid #dee2e6;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+#modal-new-game-list .new-game-pct-value,
+#modal-late-cashout .new-game-pct-value {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 auto;
+    padding-right: 0.5rem;
+}
+
+#modal-new-game-list .new-game-pct-value .form-control,
+#modal-late-cashout .new-game-pct-value .form-control {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+    text-align: right;
+    padding: 0.375rem 0.15rem 0.375rem 0.25rem;
+    width: 100%;
+    min-width: 2.5rem;
+}
+
+/* Locked values hide the spinner; the editable A rate keeps its up/down arrows */
+#modal-new-game-list .new-game-pct-value .form-control[readonly],
+#modal-late-cashout .new-game-pct-value .form-control[readonly] {
+    -moz-appearance: textfield;
+}
+
+#modal-new-game-list .new-game-pct-value .form-control[readonly]::-webkit-outer-spin-button,
+#modal-late-cashout .new-game-pct-value .form-control[readonly]::-webkit-outer-spin-button,
+#modal-new-game-list .new-game-pct-value .form-control[readonly]::-webkit-inner-spin-button,
+#modal-late-cashout .new-game-pct-value .form-control[readonly]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+#modal-new-game-list .new-game-pct-value .form-control[readonly],
+#modal-late-cashout .new-game-pct-value .form-control[readonly] {
+    cursor: default;
+}
+
+#modal-new-game-list .new-game-rate-row,
+#modal-late-cashout .new-game-rate-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+#modal-new-game-list .new-game-rate-row label,
+#modal-late-cashout .new-game-rate-row label {
+    font-weight: 500;
+}
+
+#modal-new-game-list .new-game-rate-row .new-game-pct-box,
+#modal-late-cashout .new-game-rate-row .new-game-pct-box {
+    flex: 0 0 calc(50% - 0.375rem);
+}
+
 
 .flatpickr-calendar.new-game-date-calendar .flatpickr-day.selected,
 .flatpickr-calendar.new-game-date-calendar .flatpickr-day.startRange,
@@ -1215,129 +1376,121 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 });
     
-function newGameListRefreshCommissionRate() {
-    const commissionType = document.getElementById('commissionType');
-    const commissionRate = document.getElementById('commissionRate');
-    if (!commissionType || !commissionRate) return;
+// Game presets, keyed by the selected option's data-preset (C and D both save type 3).
+// B (Share) saves COMMISSION_PERCENTAGE = 50 (W/L x 50%); its 1.50 RATE is display only.
+// D (Optional) is the free Share + Rolling: Share %, Rolling % and Rate are all editable.
+// Shared by New Game and Late Cashout (see NEW_GAME_PRESET_FORMS).
+var NEW_GAME_COMMISSION_PRESETS = {
+    A: { share: 0, rolling: 100, rate: 1.50, rateEditable: true },
+    B: { share: 50, rolling: 0, rate: 1.50, savedRate: 50 },
+    C: { share: 25, rolling: 50, rate: 1.50 },
+    D: { share: 0, rolling: 0, rate: 1.50, rateEditable: true, splitEditable: true }
+};
+var NEW_GAME_PRESET_FORMS = {
+    newGame: { type: 'commissionType', share: 'sharePercentage', rolling: 'rollingPercentage', rate: 'commissionRateDisplay', saved: 'commissionRate' },
+    lateCashout: { type: 'lateCashoutType', share: 'lateCashoutShare', rolling: 'lateCashoutRolling', rate: 'lateCashoutRateDisplay', saved: 'lateCashoutRate' }
+};
+var newGamePresetApplied = {};
 
-    const defaultRollingGameRate = 1.50;
-    const defaultSharedGameRate = 50;
-    const defaultMarkerRollingRate = 1.50;
+function newGamePresetEls(formKey) {
+    const ids = NEW_GAME_PRESET_FORMS[formKey];
+    return {
+        type: document.getElementById(ids.type),
+        share: document.getElementById(ids.share),
+        rolling: document.getElementById(ids.rolling),
+        rate: document.getElementById(ids.rate),
+        saved: document.getElementById(ids.saved)
+    };
+}
 
-    const shareRollingWrap = document.getElementById('shareRollingWrap');
-    const sharePercentage = document.getElementById('sharePercentage');
-    const rollingPercentage = document.getElementById('rollingPercentage');
-    const isShareRolling = commissionType.value === '3';
-    if (shareRollingWrap) shareRollingWrap.classList.toggle('d-none', !isShareRolling);
-    if (sharePercentage) {
-        sharePercentage.value = 0;
-        sharePercentage.required = isShareRolling;
-    }
-    if (rollingPercentage) {
-        rollingPercentage.value = 100;
-        rollingPercentage.required = isShareRolling;
-    }
+function newGamePresetKey(formKey) {
+    const type = newGamePresetEls(formKey).type;
+    const opt = type && type.options[type.selectedIndex];
+    const key = opt && opt.getAttribute('data-preset');
+    return NEW_GAME_COMMISSION_PRESETS[key] ? key : 'A';
+}
 
-    commissionRate.setAttribute('required', 'required');
-    commissionRate.classList.remove('is-invalid');
-    if (commissionType.value === '1' || isShareRolling) {
-        commissionRate.setAttribute('step', '0.05');
-        commissionRate.setAttribute('min', '0');
-        commissionRate.value = newGameListSplitHasCreditLeg()
-            ? defaultMarkerRollingRate
-            : defaultRollingGameRate;
-    } else if (commissionType.value === '2') {
-        commissionRate.setAttribute('step', '0.1');
-        commissionRate.setAttribute('min', '50');
-        commissionRate.value = defaultSharedGameRate;
-    } else {
-        commissionRate.removeAttribute('required');
-        commissionRate.setAttribute('step', '0.05');
-        commissionRate.removeAttribute('min');
-        commissionRate.value = '';
+/** Copies the visible Rate into the saved rate (B always saves 50). */
+function newGamePresetSyncRate(formKey) {
+    const els = newGamePresetEls(formKey);
+    const preset = NEW_GAME_COMMISSION_PRESETS[newGamePresetKey(formKey)];
+    if (!els.saved || !els.rate) return;
+    els.saved.value = preset.savedRate != null ? preset.savedRate : (els.rate.value || '0');
+}
+
+function newGameListSetEditable(input, editable) {
+    if (!input) return;
+    input.readOnly = !editable;
+    input.tabIndex = editable ? 0 : -1;
+    input.classList.remove('is-invalid');
+}
+
+/** Applies the selected preset. Pass force=true to reset edited values back to the preset defaults. */
+function newGamePresetRefresh(formKey, force) {
+    const els = newGamePresetEls(formKey);
+    if (!els.rate) return;
+
+    const key = newGamePresetKey(formKey);
+    const preset = NEW_GAME_COMMISSION_PRESETS[key];
+    // Keep user-edited values when this runs again without a preset change (not forced).
+    const samePreset = force !== true && newGamePresetApplied[formKey] === key;
+    newGamePresetApplied[formKey] = key;
+
+    if (!(samePreset && preset.splitEditable)) {
+        if (els.share) els.share.value = preset.share;
+        if (els.rolling) els.rolling.value = preset.rolling;
     }
+    if (!(samePreset && preset.rateEditable)) els.rate.value = preset.rate.toFixed(2);
+    newGameListSetEditable(els.share, !!preset.splitEditable);
+    newGameListSetEditable(els.rolling, !!preset.splitEditable);
+    newGameListSetEditable(els.rate, !!preset.rateEditable);
+    newGamePresetSyncRate(formKey);
+}
+
+function newGameListRefreshCommissionRate(force) {
+    newGamePresetRefresh('newGame', force);
+}
+
+/** Wires the preset select, Rate (Arrow Up / Down +/-0.05) and D's Share % / Rolling % (0-100). */
+function newGamePresetBind(formKey) {
+    const els = newGamePresetEls(formKey);
+    if (!els.type || !els.rate) return;
+
+    els.type.addEventListener('change', function () { newGamePresetRefresh(formKey, true); });
+    els.rate.addEventListener('input', function () { newGamePresetSyncRate(formKey); });
+    els.rate.addEventListener('keydown', function (event) {
+        if (els.rate.readOnly || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
+        event.preventDefault();
+        const next = (parseFloat(els.rate.value) || 0) + (event.key === 'ArrowUp' ? 0.05 : -0.05);
+        if (next >= 0 && next <= 100) {
+            els.rate.value = next.toFixed(2);
+            newGamePresetSyncRate(formKey);
+        }
+    });
+    els.rate.addEventListener('blur', function () {
+        if (els.rate.readOnly) return;
+        const v = parseFloat(els.rate.value);
+        els.rate.value = Number.isFinite(v) && v >= 0 ? v.toFixed(2) : '1.50';
+        newGamePresetSyncRate(formKey);
+    });
+    [els.share, els.rolling].forEach(function (el) {
+        if (!el) return;
+        el.addEventListener('blur', function () {
+            if (el.readOnly) return;
+            const v = parseFloat(el.value);
+            el.value = Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : 0;
+        });
+    });
+    newGamePresetRefresh(formKey, true);
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    const commissionType = document.getElementById('commissionType');
-    const commissionRate = document.getElementById('commissionRate');
+    newGamePresetBind('newGame');
+    newGamePresetBind('lateCashout');
+    // form.reset() (New Game close) restores option A but fires no change event
     const form = document.getElementById('add_game_list');
-
-    if (commissionType && commissionRate) {
-        commissionType.addEventListener('change', newGameListRefreshCommissionRate);
-        newGameListRefreshCommissionRate();
-    }
-
-    // Event listener for keydown (Arrow Up & Arrow Down)
-    if (commissionRate && commissionType) {
-        commissionRate.addEventListener('keydown', function (event) {
-            if (commissionType.value === "1" || commissionType.value === "3") { // Rolling / Share + Rolling: increment/decrement by 0.05
-                if (event.key === "ArrowUp") {
-                    event.preventDefault();
-                    incrementRollingGameRate();
-                } else if (event.key === "ArrowDown") {
-                    event.preventDefault();
-                    decrementRollingGameRate();
-                }
-            } else if (commissionType.value === "2") { // Shared Game: increment/decrement by 2.5
-                if (event.key === "ArrowUp") {
-                    event.preventDefault();
-                    incrementSharedGameRate();
-                } else if (event.key === "ArrowDown") {
-                    event.preventDefault();
-                    decrementSharedGameRate();
-                }
-            }
-        });
-    }
-
-    // Function to increment Shared Game commission rate by 2.5%
-    const incrementSharedGameRate = () => {
-        if (!commissionRate) return;
-        let currentRate = parseFloat(commissionRate.value);
-        let newRate = currentRate + 2.5;
-        if (newRate <= 100) { // Limit to max 100%
-            commissionRate.value = newRate.toFixed(1);
-        }
-    };
-
-    // Function to decrement Shared Game commission rate by 2.5%
-    const decrementSharedGameRate = () => {
-        if (!commissionRate) return;
-        let currentRate = parseFloat(commissionRate.value);
-        let newRate = currentRate - 2.5;
-        if (newRate >= 45) { // Limit to min 45%
-            commissionRate.value = newRate.toFixed(1);
-        }
-    };
-
-    // Function to increment Rolling Game commission rate by 0.05%
-    const incrementRollingGameRate = () => {
-        if (!commissionRate) return;
-        let currentRate = parseFloat(commissionRate.value) || 0;
-        let newRate = currentRate + 0.05;
-        if (newRate <= 100) {
-            commissionRate.value = newRate.toFixed(2);
-        }
-    };
-
-    // Function to decrement Rolling Game commission rate by 0.05%
-    const decrementRollingGameRate = () => {
-        if (!commissionRate) return;
-        let currentRate = parseFloat(commissionRate.value) || 0;
-        let newRate = currentRate - 0.05;
-        if (newRate >= 0) {
-            commissionRate.value = newRate.toFixed(2);
-        }
-    };
-
-    // Handle form submission (if needed)
-    form.addEventListener('submit', function (event) {
-        event.preventDefault(); // Prevent default form submission
-        // Perform your submit logic here, e.g., using AJAX
-        // Swal.fire('Game added successfully!'); // Show success message
-        // Close the modal if needed
-        // $('#modal-new-game-list').modal('hide'); // Uncomment if using Bootstrap modal
+    if (form) form.addEventListener('reset', function () {
+        setTimeout(function () { newGameListRefreshCommissionRate(true); }, 0);
     });
 });
 
@@ -1990,7 +2143,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     const loadCompanyBalances = function () {
-        return fetch('/game_list_company_balance', { credentials: 'same-origin' })
+        return fetch('/game_list_company_balance?chips=1', { credentials: 'same-origin' })
             .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
             .then(function (data) {
                 if (nnBaseEl) nnBaseEl.textContent = String(Number(data && data.nnChipsBalance) || 0);
@@ -2065,10 +2218,12 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     };
 
-    const loadModalBalances = function () {
+    // Company NN/CC is not per-account: load it on modal open only, not on every account pick.
+    const loadModalBalances = function (opts) {
+        const skipCompany = !!(opts && opts.skipCompany);
         resetBalanceDisplay();
         syncAgentGuestLabels();
-        return Promise.all([loadCompanyBalances(), loadAccountBalance(), loadCreditContext()])
+        return Promise.all([skipCompany ? Promise.resolve() : loadCompanyBalances(), loadAccountBalance(), loadCreditContext()])
             .then(function () {
                 updateBalanceSummary();
                 // Keep Credit History Buy-in Guarantor / Credit NN after balance reset.
@@ -2234,7 +2389,7 @@ document.addEventListener('DOMContentLoaded', function () {
     syncSidePanelsLayout();
 
     window.refreshNewGameListModalBalances = function () {
-        return loadModalBalances();
+        return loadModalBalances({ skipCompany: true });
     };
     window.updateNewGameBalanceSummary = updateBalanceSummary;
 });
@@ -2251,7 +2406,13 @@ document.addEventListener('DOMContentLoaded', function () {
     function lcSelect2($el, placeholder) {
         if (!$el.length || typeof $el.select2 !== 'function') return;
         if ($el.data('select2')) $el.select2('destroy');
-        $el.select2({ placeholder: placeholder, dropdownParent: $('#modal-late-cashout'), width: '100%' });
+        $el.select2({ placeholder: placeholder, dropdownParent: $('#modal-late-cashout'), width: '100%', allowClear: true });
+        // Select2 opens the dropdown right after a clear "×"; skip that one open
+        $el.off('select2:unselecting.lc select2:opening.lc')
+            .on('select2:unselecting.lc', function () { $el.data('lcClearedAt', Date.now()); })
+            .on('select2:opening.lc', function (e) {
+                if (Date.now() - ($el.data('lcClearedAt') || 0) < 300) e.preventDefault();
+            });
     }
 
     function lcInitDate() {
@@ -2321,7 +2482,9 @@ document.addEventListener('DOMContentLoaded', function () {
     function lcReset() {
         $('#lateCashoutCashNN, #lateCashoutCashCC, #lateCashoutDepNN, #lateCashoutDepCC').val('').removeClass('is-invalid');
         $('#lateCashoutBalance').val(0);
-        $('#lateCashoutRate').val('1.5').removeClass('is-invalid');
+        $('#lateCashoutType').prop('selectedIndex', 0);
+        $('input[name="lateCashoutGameType"]').prop('checked', false);
+        if (typeof newGamePresetRefresh === 'function') newGamePresetRefresh('lateCashout', true);
         $('#late-cashout-submit-btn').prop('disabled', false).text('Save');
     }
 
@@ -2365,30 +2528,41 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         var total = cashNN + cashCC + depNN + depCC;
         if (total <= 0) return fail('Warning', 'Please enter at least one cash-out amount.');
+        var gameType = $('input[name="lateCashoutGameType"]:checked').val() || '';
+        if (!gameType) return fail('Warning', 'Please choose LIVE or TELEBET.');
+        var commType = $('#lateCashoutType').val() || '1';
         var rateRaw = String($('#lateCashoutRate').val() || '').trim();
         var rate = parseFloat(rateRaw);
         if (rateRaw === '' || !Number.isFinite(rate) || rate < 0 || rate > 100) return fail('Invalid Input', 'Please enter a valid game rate (0 - 100).');
+        var sharePct = parseFloat($('#lateCashoutShare').val());
+        var rollingPct = parseFloat($('#lateCashoutRolling').val());
+        if (!Number.isFinite(sharePct) || sharePct < 0 || sharePct > 100 || !Number.isFinite(rollingPct) || rollingPct < 0 || rollingPct > 100) {
+            return fail('Invalid Input', 'Share % and Rolling % must be between 0 and 100.');
+        }
+        var rateShown = parseFloat($('#lateCashoutRateDisplay').val()) || 0;
 
         var accountText = $('#lateCashoutAccount option:selected').text() || accountId;
         var guestId = $('#lateCashoutGuest').val() || '';
         var guestText = guestId ? $('#lateCashoutGuest option:selected').text() : '';
         var fmt = function (n) { return n.toLocaleString('en-US'); };
-        var lines = ['Program date: ' + (programDate || '-'), 'Account: ' + accountText];
-        if (guestText) lines.push('Guest: ' + guestText);
-        if (cashNN > 0) lines.push('Cash (NN): ' + fmt(cashNN));
-        if (cashCC > 0) lines.push('Cash (CC): ' + fmt(cashCC));
-        if (depNN > 0) lines.push('Deposit (NN): ' + fmt(depNN));
-        if (depCC > 0) lines.push('Deposit (CC): ' + fmt(depCC));
-        lines.push('Total Cash-out: ' + fmt(total));
-        lines.push('Rolling Game: ' + rate.toFixed(2) + '%');
+        var rows = [['Program date', programDate || '-'], ['Account', accountText]];
+        if (guestText) rows.push(['Guest', guestText]);
+        if (cashNN > 0) rows.push(['Cash (NN)', fmt(cashNN)]);
+        if (cashCC > 0) rows.push(['Cash (CC)', fmt(cashCC)]);
+        if (depNN > 0) rows.push(['Deposit (NN)', fmt(depNN)]);
+        if (depCC > 0) rows.push(['Deposit (CC)', fmt(depCC)]);
+        rows.push(['Total Cash-out', fmt(total)]);
+        rows.push(['Game Type', gameType]);
+        rows.push(['Type', $('#lateCashoutType option:selected').text() || '-']);
+        rows.push(['Share %', sharePct + '%']);
+        rows.push(['Rolling %', rollingPct + '%']);
+        rows.push(['Rate', rateShown.toFixed(2) + '%']);
 
-        Swal.fire({
+        // Same label/value table as the New Game confirm
+        SwalConfirm.fire({
             title: 'Confirm Late Cashout',
-            html: lines.map(function (l) { return $('<div>').text(l).html(); }).join('<br>'),
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, proceed',
-            cancelButtonText: 'Cancel'
+            rows: rows,
+            message: 'Are you sure you want to proceed?'
         }).then(function (result) {
             if (!result.isConfirmed) return;
             var $btn = $('#late-cashout-submit-btn');
@@ -2406,7 +2580,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     split_cash_cc: cashCC,
                     split_dep_nn: depNN,
                     split_dep_cc: depCC,
-                    txtCommisionRate: rate
+                    txtGameType: gameType,
+                    txtCommisionType: commType,
+                    txtCommisionRate: rate,
+                    txtSharePercentage: sharePct,
+                    txtRollingPercentage: rollingPct
                 },
                 success: function () {
                     $('#modal-late-cashout').modal('hide');

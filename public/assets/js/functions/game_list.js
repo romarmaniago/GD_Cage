@@ -2413,7 +2413,8 @@ function getNewGameSelect2Opts(placeholder) {
 	return {
 		placeholder: placeholder || 'Select an option',
 		dropdownParent: $(NEW_GAME_SELECT2_PARENT),
-		width: '100%'
+		width: '100%',
+		allowClear: true // "×" clears the account / guest
 	};
 }
 
@@ -2431,9 +2432,22 @@ function initNewGameGuestSelect2($guestSelect) {
 
 function bindNewGameSelect2Handlers() {
 	$('#txtTrans, #txtGuestGame')
-		.off('select2:select.newGame select2:opening.newGame')
+		.off('select2:select.newGame select2:opening.newGame select2:unselecting.newGame')
+		.on('select2:unselecting.newGame', function (e) {
+			// Locked (prefilled) selects can't be cleared
+			if ($(this).attr('data-readonly') === '1') {
+				e.preventDefault();
+				return;
+			}
+			// Select2 opens the dropdown right after a clear; skip that one open
+			$(this).data('newGameClearedAt', Date.now());
+		})
 		.on('select2:opening.newGame', function (e) {
 			if ($(this).attr('data-readonly') === '1') {
+				e.preventDefault();
+				return;
+			}
+			if (Date.now() - ($(this).data('newGameClearedAt') || 0) < 300) {
 				e.preventDefault();
 				return;
 			}
@@ -7295,12 +7309,12 @@ $('#add_game_list').submit(function (event) {
         if (splitCreditNN > 0) confirmRows.push(['Credit (NN)', splitCreditNN.toLocaleString('en-US')]);
         if (splitCreditCC > 0) confirmRows.push(['Credit (CC)', splitCreditCC.toLocaleString('en-US')]);
         confirmRows.push(['Total Amount', splitTotal.toLocaleString('en-US')]);
-        confirmRows.push(['Commission Type', commissionTypeText || '-']);
-        if (parseFloat(commissionRate) > 0) confirmRows.push(['Commission Rate', parseFloat(commissionRate).toFixed(2) + '%']);
-        if ($('#commissionType').val() === '3') {
-            confirmRows.push(['Share %', (parseFloat($('#sharePercentage').val()) || 0) + '%']);
-            confirmRows.push(['Rolling %', (parseFloat($('#rollingPercentage').val()) || 0) + '%']);
-        }
+        confirmRows.push(['Type', commissionTypeText || '-']);
+        confirmRows.push(['Share %', (parseFloat($('#sharePercentage').val()) || 0) + '%']);
+        confirmRows.push(['Rolling %', (parseFloat($('#rollingPercentage').val()) || 0) + '%']);
+        // #commissionRateDisplay is what the user sees (B saves 50 behind it)
+        var rateShown = parseFloat($('#commissionRateDisplay').val() || commissionRate);
+        if (rateShown > 0) confirmRows.push(['Rate', rateShown.toFixed(2) + '%']);
 
         SwalConfirm.fire({
             title: 'Confirm New Game',
@@ -12549,6 +12563,8 @@ $('#txtTrans').on('change', function () {
                 console.error('Error fetching account details:', error);
             }
         });
+    } else {
+        $('#total_balanceGuest1').val('');  // account cleared
     }
 });
 
