@@ -100,6 +100,13 @@ const REMARKS_TABLES = {
 		column: 'REMARKS',
 		activeCol: 'ACTIVE',
 		activeValue: 1
+	},
+	gi_agent_group: {
+		table: 'gi_agent_group',
+		column: 'REMARKS',
+		activeCol: 'ACTIVE',
+		activeValue: 1,
+		maxLen: 255
 	}
 };
 
@@ -129,7 +136,7 @@ async function updateRemarks(source, id, rawRemarks, userId) {
 		throw err;
 	}
 
-	const remarks = normalizeRemarks(rawRemarks);
+	const remarks = normalizeRemarks(rawRemarks, config.maxLen);
 	const dateNow = new Date();
 
 	let activeClause = '';

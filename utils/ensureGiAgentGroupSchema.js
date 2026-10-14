@@ -13,12 +13,25 @@ async function tableExists(pool, tableName) {
 	return Number(rows[0]?.cnt || 0) > 0;
 }
 
+async function columnExists(pool, tableName, columnName) {
+	const [rows] = await pool.execute(
+		`SELECT COUNT(*) AS cnt
+		 FROM information_schema.COLUMNS
+		 WHERE TABLE_SCHEMA = DATABASE()
+		   AND TABLE_NAME = ?
+		   AND COLUMN_NAME = ?`,
+		[tableName, columnName]
+	);
+	return Number(rows[0]?.cnt || 0) > 0;
+}
+
 async function ensureGiAgentGroupSchema(pool) {
 	if (!(await tableExists(pool, 'gi_agent_group'))) {
 		await pool.execute(`
 			CREATE TABLE IF NOT EXISTS gi_agent_group (
 				IDNo INT NOT NULL AUTO_INCREMENT,
 				GROUP_NAME VARCHAR(100) NOT NULL,
+				REMARKS VARCHAR(255) NULL DEFAULT NULL,
 				SORT_ORDER INT NOT NULL DEFAULT 0,
 				ENCODED_BY INT NULL DEFAULT NULL,
 				ENCODED_DT DATETIME NULL DEFAULT NULL,
@@ -30,6 +43,12 @@ async function ensureGiAgentGroupSchema(pool) {
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 		`);
 		console.log('[gi_agent_group] Created table gi_agent_group');
+	}
+
+	// Remarks per group (Analytics → Categorize Group panel)
+	if (!(await columnExists(pool, 'gi_agent_group', 'REMARKS'))) {
+		await pool.execute('ALTER TABLE gi_agent_group ADD COLUMN REMARKS VARCHAR(255) NULL DEFAULT NULL AFTER GROUP_NAME');
+		console.log('[gi_agent_group] Added column REMARKS');
 	}
 
 	if (!(await tableExists(pool, 'gi_agent_group_member'))) {

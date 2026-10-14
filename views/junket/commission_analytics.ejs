@@ -11,13 +11,15 @@
 					<h3 class="card-title mb-0">
 						<div class="breadcrumb1 flat">
 							<a href="/dashboard"><span class="fa fa-home"></span></a>
-							<a href="/commission"><%= __('commission.commission') %></a>
-							<a href="/additional_commission">Additional</a>
+							<a href="/game_information"><%= __('sidebar.game_information') %></a>
 							<a href="/commission_analytics" class="active">Analytics</a>
 						
 						</div>
 					</h3>
 					<div class="d-flex flex-wrap gap-2 align-items-center">
+						<button type="button" id="btn-commission-analytics-copy-image" class="btn btn-sm btn-alt-success">
+							<i class="fa fa-image" aria-hidden="true"></i> Copy Image
+						</button>
 						<button type="button" id="btn-commission-analytics-print" class="btn btn-sm btn-alt-success">
 							<i class="fa fa-print" aria-hidden="true"></i> Print
 						</button>
@@ -27,6 +29,7 @@
 					</div>
 				</div>
 				<div class="card-body pt-2 commission-analytics-page">
+					<div id="user-role" data-permissions="<%= permissions %>"></div>
 					<div id="commission-analytics-compare-banner" class="alert alert-info py-2 px-3 mb-3 d-none small"></div>
 					<div id="commission-panel-daterange-mount" class="commission-panel-daterange-mount">
 						<div class="commission-panel-daterange-wrap">
@@ -37,23 +40,77 @@
 							splitLocaleNs: 'commission',
 							splitWrapClass: 'commission-panel-daterange-wrap commission-panel-split-daterange junket-loss-split-daterange house-expense-split-daterange'
 						}) %>
+						<div id="ca-quick-filter-wrapper" class="gi-quick-filter-tabs" role="tablist">
+							<button type="button" class="gi-quick-filter-tab" data-range="grouped">Categorize Group</button>
+							<button type="button" class="gi-quick-filter-tab" data-range="all">All</button>
+							<button type="button" class="gi-quick-filter-tab active" data-range="month">Month</button>
+							<button type="button" class="gi-quick-filter-tab" data-range="today">Today</button>
+							<button type="button" class="gi-quick-filter-tab" data-range="yesterday">Yesterday</button>
+						</div>
 					</div>
-					<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+					<div class="ca-layout">
+					<div class="ca-groups-panel">
+						<div class="ca-groups-title">
+							<span>Categorize Group</span>
+							<div class="ca-group-filter">
+								<button type="button" id="btn-ca-group-new" class="btn btn-sm ca-group-btn" title="New Group" data-view-only-disable>
+									<i class="fa fa-plus" aria-hidden="true"></i>
+								</button>
+								<button type="button" id="btn-ca-group-edit" class="btn btn-sm ca-group-btn d-none" title="Edit Group" data-view-only-disable>
+									<i class="fa fa-pencil" aria-hidden="true"></i>
+								</button>
+								<button type="button" id="btn-ca-group-delete" class="btn btn-sm ca-group-btn ca-group-btn-danger d-none" title="Delete Group" data-view-only-disable>
+									<i class="fa fa-trash" aria-hidden="true"></i>
+								</button>
+							</div>
+						</div>
+						<div class="ca-groups-scroll">
+							<table id="ca-groups-tbl" class="table mb-0">
+								<thead>
+									<tr>
+										<th>Group Name</th>
+										<th class="text-center">Agent</th>
+										<th>List</th>
+										<th class="text-center">Remarks</th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr class="ca-groups-empty"><td colspan="4">No groups yet. Click <b>+ Group</b> to add one.</td></tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+					<div class="ca-ranking-panel marker-balance-dt-wrap marker-balance-card table-responsive">
 						<table id="commission-panel-tbl" class="table marker-balance-tbl nowrap small-text w-100 mb-0">
 							<thead>
 								<tr>
 									<th>Ranking #</th>
-									<th>Account Name</th>
-									<th class="commission-rank-sortable" data-rank-key="totalBuyIn">Total Buy-In <span class="commission-rank-sort-indicator"></span></th>
-									<th class="commission-rank-sortable" data-rank-key="totalChipsReturn">Total Chips Return <span class="commission-rank-sort-indicator"></span></th>
-									<th class="commission-rank-sortable" data-rank-key="winLoss">Win/Loss <span class="commission-rank-sort-indicator"></span></th>
-									<th class="commission-rank-sortable" data-rank-key="totalRolling">Total Rolling <span class="commission-rank-sort-indicator"></span></th>
-									<th class="commission-rank-sortable" data-rank-key="commission">Commission <span class="commission-rank-sort-indicator"></span></th>
-									<th class="commission-rank-sortable" data-rank-key="ngr">NGR <span class="commission-rank-sort-indicator">-</span></th>
+									<th>Acc &amp; Name</th>
+									<th class="commission-rank-sortable sorting" data-rank-key="totalBuyIn">Buy In</th>
+									<th class="commission-rank-sortable sorting" data-rank-key="totalChipsReturn">Cash Out</th>
+									<th class="commission-rank-sortable sorting" data-rank-key="winLoss">Win/Loss</th>
+									<th class="commission-rank-sortable sorting" data-rank-key="totalRolling">Rolling</th>
+									<th class="commission-rank-sortable sorting" data-rank-key="commission">Settlement</th>
+									<th class="commission-rank-sortable sorting" data-rank-key="ngr">NGR</th>
+									<th class="text-center">Action</th>
 								</tr>
 							</thead>
 							<tbody></tbody>
+							<tfoot>
+								<tr class="ca-rank-total-row">
+									<th></th>
+									<th>Total</th>
+									<th></th>
+									<th></th>
+									<th></th>
+									<th></th>
+									<th></th>
+									<th></th>
+									<th></th>
+								</tr>
+							</tfoot>
 						</table>
+					</div>
 					</div>
 				</div>
 			</div>
@@ -97,16 +154,16 @@
 						</colgroup>
 						<thead>
 							<tr>
-								<th class="commission-sortable-col" data-sort-key="gameNo">Game # <span class="commission-sort-indicator">-</span></th>
-								<th class="commission-sortable-col" data-sort-key="totalBuyIn">Buy-In <span class="commission-sort-indicator">-</span></th>
-								<th class="commission-sortable-col" data-sort-key="chipsReturn">Chips Return <span class="commission-sort-indicator">-</span></th>
-								<th class="commission-sortable-col" data-sort-key="winLoss">Win/Loss <span class="commission-sort-indicator">-</span></th>
-								<th class="commission-sortable-col" data-sort-key="totalRolling">Rolling <span class="commission-sort-indicator">-</span></th>
-								<th class="commission-sortable-col" data-sort-key="rollingRate">Rate <span class="commission-sort-indicator">-</span></th>
-								<th class="commission-sortable-col" data-sort-key="settlement">Settlement <span class="commission-sort-indicator">-</span></th>
-								<th class="commission-sortable-col" data-sort-key="fnb">F&amp;B <span class="commission-sort-indicator">-</span></th>
-								<th class="commission-sortable-col" data-sort-key="payment">Payment <span class="commission-sort-indicator">-</span></th>
-								<th class="commission-sortable-col" data-sort-key="dateTime">Date &amp; Time <span class="commission-sort-indicator">-</span></th>
+								<th class="commission-sortable-col sorting" data-sort-key="gameNo">Game #</th>
+								<th class="commission-sortable-col sorting" data-sort-key="totalBuyIn">Buy-In</th>
+								<th class="commission-sortable-col sorting" data-sort-key="chipsReturn">Chips Return</th>
+								<th class="commission-sortable-col sorting" data-sort-key="winLoss">Win/Loss</th>
+								<th class="commission-sortable-col sorting" data-sort-key="totalRolling">Rolling</th>
+								<th class="commission-sortable-col sorting" data-sort-key="rollingRate">Rate</th>
+								<th class="commission-sortable-col sorting" data-sort-key="settlement">Settlement</th>
+								<th class="commission-sortable-col sorting" data-sort-key="fnb">F&amp;B</th>
+								<th class="commission-sortable-col sorting" data-sort-key="payment">Payment</th>
+								<th class="commission-sortable-col sorting" data-sort-key="dateTime">Date &amp; Time</th>
 							</tr>
 						</thead>
 					</table>
@@ -163,11 +220,379 @@
 	</div>
 </div>
 
+<%- include('../modals/game_information/agent_group') %>
+<%- include('../modals/game_book/game_start_receipt') %>
+<%- include('../partials/permission_view_only_script') %>
 <%- include('../partials/footer') %>
 <script src="/assets/js/functions/num_paren_align.js"></script>
-<script src="/assets/js/functions/commission_analytics.js?v=2"></script>
+<script src="/assets/js/functions/game_information_receipt.js?v=2"></script>
+<script src="/assets/js/functions/commission_analytics.js?v=31"></script>
 
 <style>
+#modal-gi-agent-group .select2-container {
+	width: 100% !important;
+}
+#modal-gi-agent-group .select2-container--default .select2-selection--single {
+	border: 1px solid #ced4da;
+	border-radius: 0.375rem;
+	height: calc(1.5em + 0.75rem + 2px);
+}
+#modal-gi-agent-group .select2-container--default .select2-selection--single .select2-selection__rendered {
+	display: flex;
+	align-items: center;
+	padding-left: 0.75rem;
+	height: calc(1.5em + 0.75rem + 2px);
+	line-height: 1.5;
+}
+#modal-gi-agent-group .select2-container--default .select2-selection--single .select2-selection__arrow {
+	height: calc(1.5em + 0.75rem + 2px);
+}
+#modal-gi-agent-group .select2-container--default .select2-selection--single .select2-selection__placeholder {
+	color: #8A92A6;
+}
+#modal-gi-agent-group .select2-dropdown {
+	z-index: 1060;
+	border-color: #ced4da;
+}
+#modal-gi-agent-group .select2-search--dropdown .select2-search__field {
+	border: 1px solid #ced4da;
+	border-radius: 0.25rem;
+	padding: 0.35rem 0.5rem;
+}
+#modal-gi-agent-group .select2-container--default.select2-container--focus .select2-selection--single,
+#modal-gi-agent-group .select2-container--default.select2-container--open .select2-selection--single {
+	border-color: #86b7fe;
+	box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.15);
+}
+.gi-agent-selected-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	min-height: 0;
+}
+.gi-agent-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	background: #f6f3ec;
+	border: 1px solid rgba(200, 162, 76, 0.55);
+	border-radius: 999px;
+	padding: 0.2rem 0.55rem;
+	font-size: 0.8125rem;
+	color: #3a2e12;
+	line-height: 1.4;
+}
+.gi-agent-chip-remove {
+	border: none;
+	background: transparent;
+	color: #6b7280;
+	font-size: 1rem;
+	line-height: 1;
+	padding: 0 0.15rem;
+	cursor: pointer;
+}
+.gi-agent-chip-remove:hover {
+	color: #dc3545;
+}
+
+/* Group filter (replaces the Categorize Group page) */
+.ca-group-filter {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+/* Categorize Group / All / Month / Today / Yesterday — same look as the Game List tabs */
+#ca-quick-filter-wrapper {
+	align-items: stretch;
+	/* Sits in the middle of the free space between the date range and Search */
+	margin-left: auto;
+	margin-right: auto;
+}
+#commission-panel-tbl_wrapper .commission-analytics-controls-highlight .commission-panel-daterange-mount.is-placed {
+	flex: 1 1 auto;
+}
+#ca-quick-filter-wrapper .gi-quick-filter-tab {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 0.55rem;
+	font-size: 14px;
+	line-height: 1;
+}
+.gi-quick-filter-tabs {
+	display: inline-flex;
+	align-items: stretch;
+	height: 34px;
+	border: 1px solid #e0e0e0;
+	border-radius: 999px;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	overflow: hidden;
+}
+.gi-quick-filter-tab {
+	border: none;
+	background: transparent;
+	padding: 0 0.95rem;
+	font-size: 15px;
+	font-weight: 500;
+	color: #666;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+.gi-quick-filter-tab + .gi-quick-filter-tab {
+	border-left: 1px solid #e0e0e0;
+}
+.gi-quick-filter-tab:hover:not(.active) {
+	background: #f5f2ec;
+	color: #333;
+}
+.gi-quick-filter-tab.active {
+	background: #c8a24c;
+	color: #fff;
+	font-weight: 600;
+}
+.gi-quick-filter-tab:focus {
+	outline: none;
+}
+
+#commission-panel-tbl tfoot th {
+	background: #f5f5f5 !important;
+	color: #3a2e12;
+	font-weight: 700;
+	padding: 12px 15px;
+	border-top: 1px solid #e0e0e0;
+	white-space: nowrap;
+	text-align: right;
+}
+#commission-panel-tbl tfoot th:nth-child(1),
+#commission-panel-tbl tfoot th:nth-child(2) {
+	text-align: left;
+}
+#commission-panel-tbl tfoot th:nth-child(2) {
+	padding-left: 20px;
+}
+#commission-panel-tbl tfoot th:nth-child(n+3) {
+	padding-right: 20px;
+}
+
+/* Receipt: same yellow "* … *" header and icon look as Game Information */
+#modal-game-start-receipt .gsr-header.gsr-header--gi {
+	background: #ffd966;
+	color: #000;
+}
+#commission-panel-tbl thead th:last-child {
+	text-align: center;
+}
+.ca-rank-action-cell .gi-manual-actions {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+.ca-rank-action-cell .gi-manual-actions .btn,
+.ca-rank-action-cell .gi-manual-actions .btn:hover,
+.ca-rank-action-cell .gi-manual-actions .btn:focus,
+.ca-rank-action-cell .gi-manual-actions .btn:active {
+	background: transparent !important;
+	border-color: transparent !important;
+	box-shadow: none !important;
+	padding: 0.15rem 0.1rem;
+	line-height: 1.2;
+}
+.ca-rank-action-cell .gi-manual-actions .btn i.fa-receipt {
+	font-size: 1.2rem;
+	color: #212529;
+	transition: transform 0.15s ease;
+}
+.ca-rank-action-cell .gi-manual-actions .btn:hover i.fa-receipt {
+	transform: translateY(-1px);
+	filter: brightness(0.82);
+}
+
+.ca-layout {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+}
+.ca-ranking-panel {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.ca-groups-panel {
+	flex: 0 0 700px;
+	max-width: 700px;
+	background: #fff;
+	border: 1px solid #e8ecf1;
+	border-radius: 10px;
+	overflow: hidden;
+	/* Height is set in JS to match the ranking table; the group list scrolls inside */
+	display: flex;
+	flex-direction: column;
+}
+.ca-groups-title {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	font-size: 16px;
+	font-weight: 700;
+	color: #3a2e12;
+	padding: 10px 12px;
+	flex-shrink: 0;
+	border-bottom: 1px solid #e8ecf1;
+}
+.ca-groups-scroll {
+	flex: 1 1 0;
+	min-height: 0;
+	overflow-y: auto;
+	overflow-x: hidden;
+	scrollbar-width: thin;
+	scrollbar-color: #d9b96a transparent;
+}
+.ca-groups-scroll::-webkit-scrollbar {
+	width: 6px;
+}
+.ca-groups-scroll::-webkit-scrollbar-track {
+	background: transparent;
+}
+.ca-groups-scroll::-webkit-scrollbar-thumb {
+	background: #d9b96a;
+	border-radius: 999px;
+}
+#ca-groups-tbl {
+	font-size: 15px;
+	margin: 0;
+}
+#ca-groups-tbl thead th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	background: #f5f5f5;
+	color: #555;
+	font-weight: 500;
+	padding: 10px;
+	border-bottom: 1px solid #e0e0e0;
+	white-space: nowrap;
+	vertical-align: middle;
+}
+#ca-groups-tbl tbody td {
+	padding: 8px 10px;
+	vertical-align: top;
+	border-bottom: 1px solid #eee;
+	color: #495057;
+}
+#ca-groups-tbl tbody tr.ca-group-row {
+	cursor: pointer;
+}
+#ca-groups-tbl tbody tr.ca-group-row:hover td {
+	background: #faf3dc;
+}
+#ca-groups-tbl tbody tr.ca-group-row.is-selected td {
+	background: #f6ecd0;
+}
+#ca-groups-tbl tbody tr.ca-group-row.is-selected td:first-child {
+	box-shadow: inset 3px 0 0 #c8a24c;
+}
+#ca-groups-tbl td.ca-group-remarks {
+	text-align: center;
+	max-width: 140px;
+	white-space: normal;
+	word-break: break-word;
+	font-size: 15px;
+	color: #6b7280;
+}
+#ca-groups-tbl td.ca-group-remarks.is-editable {
+	cursor: pointer;
+}
+#ca-groups-tbl td.ca-group-remarks.is-editable:hover {
+	background: #fff8e6 !important;
+	box-shadow: inset 0 0 0 1px #d9b96a;
+}
+#ca-groups-tbl .ca-group-name {
+	font-weight: 600;
+	color: #3a2e12;
+}
+#ca-groups-tbl .ca-group-agent-item {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	margin: 0;
+	white-space: normal;
+	cursor: pointer;
+}
+#ca-groups-tbl .ca-group-agent-item + .ca-group-agent-item {
+	margin-top: 3px;
+}
+#ca-groups-tbl .ca-group-agent-item input {
+	margin: 2px 0 0;
+	accent-color: #c8a24c;
+}
+#ca-groups-tbl .ca-group-agent-item.is-checked span {
+	color: #3a2e12;
+	font-weight: 600;
+}
+#ca-groups-tbl .ca-group-select-all {
+	padding-bottom: 4px;
+	margin-bottom: 4px !important;
+	border-bottom: 1px dashed #e0d3ad;
+	color: #8a6d1f;
+	font-weight: 600;
+}
+#ca-groups-tbl .ca-group-count {
+	border: 0;
+	background: transparent;
+	color: #b8963e;
+	padding: 0;
+	font: inherit;
+	cursor: pointer;
+}
+#ca-groups-tbl .ca-group-count.is-open {
+	text-decoration: underline;
+}
+#ca-groups-tbl tr.ca-groups-empty td {
+	text-align: center;
+	color: #8a92a6;
+	padding: 16px 10px;
+}
+@media (max-width: 1199.98px) {
+	.ca-layout {
+		flex-direction: column;
+		align-items: stretch;
+	}
+	.ca-groups-panel {
+		flex-basis: auto;
+		max-width: none;
+	}
+	.ca-groups-scroll {
+		flex: 0 1 auto;
+		max-height: 320px;
+	}
+}
+.ca-group-btn {
+	width: 31px;
+	height: 31px;
+	padding: 0;
+	border-radius: 50%;
+	border: 1px solid #d9b96a;
+	background: #fff;
+	color: #3a2e12;
+	font-size: 12px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+.ca-group-btn:hover {
+	background: #faf3dc;
+	color: #3a2e12;
+}
+.ca-group-btn-danger:hover {
+	border-color: #dc3545;
+	color: #dc3545;
+	background: #fff;
+}
+
+
 /* Card — cream gradient */
 .card {
 	background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
@@ -236,7 +661,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 12px;
+	gap: 8px;
 	padding: 8px 12px;
 	margin: 0;
 	background: #fff;
@@ -288,7 +713,8 @@
 	padding: 6px 10px;
 	font-size: 15px;
 	color: #333;
-	min-width: 160px;
+	min-width: 0;
+	width: 120px;
 }
 
 #commission-panel-tbl_wrapper #commission-panel-tbl_filter .commission-analytics-filter-highlight label input::placeholder {
@@ -338,7 +764,7 @@
 	display: inline-flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 8px;
+	gap: 6px;
 }
 
 .commission-panel-split-daterange,
@@ -352,7 +778,7 @@
 .commission-panel-split-daterange input.split-date-input {
 	display: inline-block !important;
 	width: auto !important;
-	min-width: 7.5rem;
+	min-width: 5.5rem;
 	max-width: none !important;
 	cursor: text;
 }
@@ -448,25 +874,6 @@
 #commission-panel-tbl thead th.commission-rank-sortable {
 	cursor: pointer;
 	user-select: none;
-}
-
-#commission-panel-tbl thead th.commission-rank-sortable:hover {
-	background: #ececec !important;
-}
-
-#commission-panel-tbl thead th.commission-rank-sortable.is-active {
-	background: #ececec !important;
-	color: #333;
-}
-
-.commission-rank-sort-indicator {
-	font-size: 12px;
-	margin-left: 4px;
-	color: #555;
-}
-
-#commission-panel-tbl tbody td.commission-rank-metric-cell.is-active {
-	background: #f6f3ec !important;
 }
 
 #commission-panel-tbl tbody tr {
@@ -609,15 +1016,42 @@
 	background: #ececec !important;
 }
 
-.commission-sort-indicator {
-	font-size: 12px;
-	margin-left: 4px;
-	color: #555;
+/* Sort arrows for the modal header (not a DataTable) — same look as DataTables */
+#commission-panel-modal-head-table thead th.sorting,
+#commission-panel-modal-head-table thead th.sorting_asc,
+#commission-panel-modal-head-table thead th.sorting_desc {
+	cursor: pointer;
+	position: relative;
+	padding-right: 26px;
 }
-
-#commission-panel-modal-head-table th.commission-panel-modal-col-active-header {
-	background: #ececec !important;
-	color: #333 !important;
+#commission-panel-modal-head-table thead th.sorting:before,
+#commission-panel-modal-head-table thead th.sorting:after,
+#commission-panel-modal-head-table thead th.sorting_asc:before,
+#commission-panel-modal-head-table thead th.sorting_asc:after,
+#commission-panel-modal-head-table thead th.sorting_desc:before,
+#commission-panel-modal-head-table thead th.sorting_desc:after {
+	position: absolute;
+	display: block;
+	opacity: .125;
+	right: 10px;
+	line-height: 9px;
+	font-size: .8em;
+}
+#commission-panel-modal-head-table thead th.sorting:before,
+#commission-panel-modal-head-table thead th.sorting_asc:before,
+#commission-panel-modal-head-table thead th.sorting_desc:before {
+	bottom: 50%;
+	content: "▲";
+}
+#commission-panel-modal-head-table thead th.sorting:after,
+#commission-panel-modal-head-table thead th.sorting_asc:after,
+#commission-panel-modal-head-table thead th.sorting_desc:after {
+	top: 50%;
+	content: "▼";
+}
+#commission-panel-modal-head-table thead th.sorting_asc:before,
+#commission-panel-modal-head-table thead th.sorting_desc:after {
+	opacity: .6;
 }
 
 #commission-panel-modal-body-table tbody td {
@@ -639,11 +1073,6 @@
 
 #commission-panel-modal-body-table tbody tr:hover td {
 	background: #f6f3ec;
-}
-
-#commission-panel-modal-body-table tbody td.commission-panel-modal-col-active,
-#commission-panel-modal-foot-table tfoot th.commission-panel-modal-col-active {
-	background: #f6f3ec !important;
 }
 
 #commission-panel-modal-foot-table tfoot th {

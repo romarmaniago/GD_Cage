@@ -198,6 +198,31 @@ $(document).ready(function () {
         });
     }
 
+    // Categorize Group panel ends at the ranking table's last row (not the info/pagination row)
+    function syncGroupsPanelHeight() {
+        var $panel = $('.ca-groups-panel');
+        var $shell = $('#commission-panel-tbl_wrapper .commission-analytics-panel-shell');
+        if (!$panel.length || !$shell.length) return;
+        var $title = $panel.find('.ca-groups-title');
+        var $groupHead = $('#ca-groups-tbl thead th');
+        if (window.matchMedia('(max-width: 1199.98px)').matches) {
+            $panel.css('height', '');
+            $title.css('height', '');
+            $groupHead.css('height', '');
+            return;
+        }
+        // Title lines up with the Show/Search bar, column headers with the ranking headers
+        var $controls = $shell.children('.commission-analytics-controls-highlight');
+        var $rankHead = $('#commission-panel-tbl thead tr').first();
+        if ($controls.length) $title.css('height', Math.round($controls.outerHeight()) + 'px');
+        if ($rankHead.length) $groupHead.css('height', Math.round($rankHead.outerHeight()) + 'px');
+        // Never shorter than the screen space below it, so a short/empty table doesn't squeeze the groups
+        var screenRoom = Math.round($(window).height() - $panel.offset().top - 40);
+        $panel.css('height', Math.max(420, screenRoom, Math.round($shell.outerHeight())) + 'px');
+    }
+
+    $(window).on('resize', syncGroupsPanelHeight);
+
     function placeCommissionPanelDateFilter() {
         var $mount = $('#commission-panel-daterange-mount');
         var $length = $('#commission-panel-tbl_length');
@@ -247,6 +272,7 @@ $(document).ready(function () {
                 toDate = swap;
             }
             commissionPanelSplitOverrideRange = { start: fromDate, end: toDate };
+            clearCaQuickFilter();
             loadRankingData();
         }
     })) || { syncFromRange: function () {}, fitWidths: function () {}, isSyncing: function () { return false; } };
@@ -264,7 +290,103 @@ $(document).ready(function () {
         return ($('#commission-panel-daterange').val() || '').trim();
     }
 
+    // ── All / Month / Today / Yesterday — same behaviour as Game Information ──
+    var caQuickFilter = 'month';
+    var caDayFilter = { today: false, yesterday: false };
+    var caGroupedOnly = false; // "Categorize Group" tab: only agents that belong to any group
+    var CA_ALL_RANGE = { start: '2000-01-01', end: '2099-12-31' };
+
+    function caLocalYmd(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    function syncCaQuickFilterTabs() {
+        $('#ca-quick-filter-wrapper .gi-quick-filter-tab').each(function () {
+            var range = $(this).data('range');
+            var on = range === 'grouped' ? caGroupedOnly
+                : (range === 'today' || range === 'yesterday' ? !!caDayFilter[range] : range === caQuickFilter);
+            $(this).toggleClass('active', on);
+        });
+    }
+
+    function clearCaQuickFilter() {
+        if (!caQuickFilter) return;
+        caQuickFilter = null;
+        caDayFilter = { today: false, yesterday: false };
+        syncCaQuickFilterTabs();
+    }
+
+    /** Tab click: All / Month pick one; Today and Yesterday toggle and can be on together. */
+    function onCaQuickFilterTab(range) {
+        if (range === 'grouped') {
+            caGroupedOnly = !caGroupedOnly;
+            syncCaQuickFilterTabs();
+            applyGroupFilter();
+            return;
+        }
+        if (range === 'today' || range === 'yesterday') {
+            caDayFilter[range] = !caDayFilter[range];
+            applyCaQuickFilter(caDayFilter.today || caDayFilter.yesterday ? 'days' : 'month');
+            return;
+        }
+        applyCaQuickFilter(range);
+    }
+
+    function applyCaQuickFilter(range) {
+        var pickerEl = document.getElementById('commission-panel-daterange');
+        var fp = pickerEl && pickerEl._flatpickr;
+        var from = null;
+        var to = null;
+        var apiTo = null;
+
+        if (range === 'days') {
+            var today = new Date();
+            var yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            from = caLocalYmd(caDayFilter.yesterday ? yesterday : today);
+            to = caLocalYmd(caDayFilter.today ? today : yesterday);
+            apiTo = to;
+        } else {
+            caDayFilter = { today: false, yesterday: false };
+            if (range === 'month' && window.MonthEndCutoffRange) {
+                var cutoff = window.MonthEndCutoffRange.getMonthEndCutoffRange();
+                from = cutoff.startDate;
+                to = cutoff.endDate;
+                apiTo = cutoff.endDateApi || cutoff.endDate;
+            } else if (range === 'month') {
+                var now = new Date();
+                from = caLocalYmd(new Date(now.getFullYear(), now.getMonth(), 1));
+                to = caLocalYmd(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+                apiTo = to;
+            } else {
+                range = 'all';
+            }
+        }
+
+        caQuickFilter = range;
+        syncCaQuickFilterTabs();
+        $('#commission-panel-start-date, #commission-panel-end-date').val('');
+
+        commissionPanelSkipMonthRange = true;
+        if (fp) {
+            if (from) fp.setDate([from, to], false);
+            else fp.clear(false);
+        }
+        commissionPanelSkipMonthRange = false;
+        if (commissionPanelSplitDateRange && typeof commissionPanelSplitDateRange.syncFromRange === 'function') {
+            commissionPanelSplitDateRange.syncFromRange();
+        }
+
+        commissionPanelSplitOverrideRange = from ? { start: from, end: apiTo } : { start: CA_ALL_RANGE.start, end: CA_ALL_RANGE.end };
+        loadRankingData();
+    }
+
+    $(document).on('click', '#ca-quick-filter-wrapper .gi-quick-filter-tab', function () {
+        onCaQuickFilterTab(String($(this).data('range')));
+    });
+
     function getCommissionPanelDateRangeLabel() {
+        if (caQuickFilter === 'all') return 'All';
         var el = document.getElementById('commission-panel-daterange');
         if (el && el._flatpickr && el._flatpickr.altInput && el._flatpickr.altInput.value) {
             return el._flatpickr.altInput.value.trim();
@@ -272,16 +394,23 @@ $(document).ready(function () {
         return getCommissionPanelDateRangeValue();
     }
 
+    // Columns 0–7 are data; the last one holds the receipt button and is left out of totals/print/export
+    var RANK_ACTION_COL = 8;
+
     var rankTable = $('#commission-panel-tbl').DataTable({
         ordering: false,
-        pageLength: 25,
+        pageLength: -1,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
         columnDefs: [
             { targets: 0, className: 'text-center' },
-            { targets: [2, 3, 4, 5, 6, 7], className: 'text-end' }
+            { targets: [2, 3, 4, 5, 6, 7], className: 'text-end' },
+            { targets: RANK_ACTION_COL, className: 'text-center ca-rank-action-cell', searchable: false }
         ],
         drawCallback: function () {
             layoutCommissionAnalyticsControls();
             $('#commission-panel-tbl').css({ width: '100%', maxWidth: '100%' });
+            renderRankTotals(this.api());
+            syncGroupsPanelHeight();
         },
         language: {
             search: '',
@@ -304,7 +433,7 @@ $(document).ready(function () {
 
     var drilldownState = {
         agents: {},
-        rankingSortKey: 'commission',
+        rankingSortKey: 'ngr',
         rankingSortDir: 'desc',
         panelTxnSortKey: 'dateTime',
         panelTxnSortDir: 'desc',
@@ -314,20 +443,20 @@ $(document).ready(function () {
 
     var RANKING_METRIC_KEYS = ['totalBuyIn', 'totalChipsReturn', 'winLoss', 'totalRolling', 'commission', 'ngr'];
     var RANKING_METRIC_LABELS = {
-        totalBuyIn: 'Total Buy-In',
-        totalChipsReturn: 'Total Chips Return',
+        totalBuyIn: 'Buy In',
+        totalChipsReturn: 'Cash Out',
         winLoss: 'Win/Loss',
-        totalRolling: 'Total Rolling',
-        commission: 'Commission',
+        totalRolling: 'Rolling',
+        commission: 'Settlement',
         ngr: 'NGR'
     };
 
     function getRankingMetricColumnOrder() {
-        var active = drilldownState.rankingSortKey || 'commission';
-        return [active].concat(RANKING_METRIC_KEYS.filter(function (k) { return k !== active; }));
+        return RANKING_METRIC_KEYS.slice();
     }
 
     function getCommissionAnalyticsExportFilename() {
+        if (caQuickFilter === 'all') return 'CommissionAnalytics_All.xlsx';
         if (commissionPanelSplitOverrideRange && commissionPanelSplitOverrideRange.start && commissionPanelSplitOverrideRange.end) {
             return 'CommissionAnalytics_' + commissionPanelSplitOverrideRange.start + '_to_' + commissionPanelSplitOverrideRange.end + '.xlsx';
         }
@@ -391,20 +520,59 @@ $(document).ready(function () {
             });
     }
 
+    // "(1,234)" → -1234, "1,234" → 1234
+    function parseShownAmount(text) {
+        var s = String(text == null ? '' : text).trim();
+        var neg = /^\(.*\)$/.test(s) || /^-/.test(s);
+        var n = Number(s.replace(/[^0-9.]/g, '')) || 0;
+        return neg ? -n : n;
+    }
+
+    function formatShownAmount(n) {
+        return n < 0 ? '(' + formatNumber(Math.abs(n)) + ')' : formatNumber(n);
+    }
+
+    // Total of the visible (filtered) rows for the amount columns (index 2+)
+    function buildRankTotalRow(rows) {
+        var sums = [];
+        (rows || []).forEach(function (row) {
+            for (var i = 2; i < row.length; i++) sums[i] = (sums[i] || 0) + parseShownAmount(row[i]);
+        });
+        var out = ['', 'Total'];
+        for (var i = 2; i < sums.length; i++) out.push(formatShownAmount(sums[i] || 0));
+        return out;
+    }
+
+    // api: the DataTable API — passed from drawCallback, where rankTable is not assigned yet on the first draw
+    function renderRankTotals(api) {
+        api = api || rankTable;
+        if (!api) return;
+        var rows = [];
+        api.rows({ search: 'applied' }).every(function () {
+            rows.push((this.data() || []).slice(0, RANK_ACTION_COL).map(stripHtml));
+        });
+        var total = buildRankTotalRow(rows);
+        $('#commission-panel-tbl tfoot th').each(function (i) {
+            if (i < 2 || i >= RANK_ACTION_COL) return;
+            var text = total[i] != null ? total[i] : formatShownAmount(0);
+            $(this).html(/^\(/.test(text) ? '<span style="color:#dc2626;">' + escapeHtml(text) + '</span>' : escapeHtml(text));
+        });
+    }
+
     function getCommissionAnalyticsTablePayload() {
         var headers = [];
-        $('#commission-panel-tbl thead tr:first th').each(function () {
+        $('#commission-panel-tbl thead tr:first th').slice(0, RANK_ACTION_COL).each(function () {
             headers.push($(this).clone().children().remove().end().text().trim());
         });
 
         var rows = [];
         rankTable.rows({ search: 'applied' }).every(function () {
-            var data = this.data() || [];
+            var data = (this.data() || []).slice(0, RANK_ACTION_COL);
             var cells = data.map(stripHtml);
             if (cells.length) rows.push(cells);
         });
 
-        return { headers: headers, rows: rows };
+        return { headers: headers, rows: rows, totalRow: rows.length ? buildRankTotalRow(rows) : null };
     }
 
     function getSortedPanelTransactions(agent) {
@@ -545,8 +713,9 @@ $(document).ready(function () {
         var headerHtml = payload.headers.map(function (h) {
             return '<th>' + escapeHtml(h) + '</th>';
         }).join('');
-        var rowsHtml = payload.rows.map(function (row) {
-            return '<tr>' + row.map(function (cell) {
+        var rowsHtml = payload.rows.concat(payload.totalRow ? [payload.totalRow] : []).map(function (row, r) {
+            var isTotal = payload.totalRow && r === payload.rows.length;
+            return '<tr' + (isTotal ? ' style="font-weight:700;background:#f4f6fa;"' : '') + '>' + row.map(function (cell) {
                 return '<td>' + escapeHtml(cell) + '</td>';
             }).join('') + '</tr>';
         }).join('');
@@ -568,7 +737,7 @@ $(document).ready(function () {
             getCommissionAnalyticsPrintStyles(),
             '</style></head><body><div class="print-wrap">',
             '<h2>Commission Analytics</h2>',
-            '<div class="subtitle">', escapeHtml(dateRange), '</div>',
+            '<div class="subtitle">', escapeHtml(dateRange), getSelectedGroup() ? ' — ' + escapeHtml(getSelectedGroup().group_name) : '', '</div>',
             '<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
             '</div></body></html>'
         ].join(''));
@@ -658,13 +827,18 @@ $(document).ready(function () {
         }, 250);
     }
 
+    // Settlement column = Total Settlement, same as Game Information: −commission + Add Charge
+    function getAgentTotalSettlement(row) {
+        return -(Number(row.commission) || 0) + (Number(row.fnb) || 0);
+    }
+
     function getAgentRankingSortValue(row, key) {
         if (!row) return 0;
         if (key === 'totalBuyIn') return Number(row.totalBuyIn) || 0;
         if (key === 'totalChipsReturn') return Number(row.totalChipsReturn) || 0;
         if (key === 'winLoss') return Number(row.winLoss) || 0;
         if (key === 'totalRolling') return Number(row.totalRolling) || 0;
-        if (key === 'commission') return Number(row.commission) || 0;
+        if (key === 'commission') return getAgentTotalSettlement(row);
         if (key === 'ngr') return Number(row.ngr) || 0;
         return Number(row.commission) || 0;
     }
@@ -688,10 +862,10 @@ $(document).ready(function () {
         $('#commission-panel-tbl thead th.commission-rank-sortable').each(function (idx) {
             var $th = $(this);
             var thKey = colOrder[idx];
-            var indicator = '-';
-            if (thKey === key) indicator = dir === 'asc' ? '▲' : '▼';
             $th.attr('data-rank-key', thKey);
-            $th.html((RANKING_METRIC_LABELS[thKey] || thKey) + ' <span class="commission-rank-sort-indicator">' + indicator + '</span>');
+            $th.text(RANKING_METRIC_LABELS[thKey] || thKey);
+            $th.removeClass('sorting sorting_asc sorting_desc')
+                .addClass(thKey === key ? (dir === 'asc' ? 'sorting_asc' : 'sorting_desc') : 'sorting');
             $th.toggleClass('is-active', thKey === key);
         });
     }
@@ -731,12 +905,400 @@ $(document).ready(function () {
         return drilldownState.compareFilter.indexOf(code) >= 0;
     }
 
+    // ── Agent groups (filter) — stored in gi_agent_group / gi_agent_group_member ──
+    var caGroups = [];
+    var caSelectedGroupId = '';
+    var caAgentOptions = null;
+    var caSelectedAgents = [];
+    var caEditingGroupId = null;
+    var caCheckedByGroup = {}; // groupId -> { agentId: true } — when any are checked, only those show in the table
+    var caExpandedGroups = {}; // groupId -> true when its agent list is shown
+
+    function isViewOnly() {
+        var roleEl = document.getElementById('user-role');
+        return !!roleEl && String(roleEl.getAttribute('data-permissions') || '') === '2';
+    }
+
+    function getSelectedGroup() {
+        if (!caSelectedGroupId) return null;
+        return caGroups.find(function (g) { return String(g.group_id) === String(caSelectedGroupId); }) || null;
+    }
+
+    function isAgentChecked(groupId, agentId) {
+        var map = caCheckedByGroup[String(groupId)];
+        return !!(map && map[String(agentId)]);
+    }
+
+    function hasCheckedAgents(groupId) {
+        var map = caCheckedByGroup[String(groupId)];
+        return !!map && Object.keys(map).length > 0;
+    }
+
+    // Selected group → its agents; if some are checked in its list, only those
+    function agentMatchesGroupFilter(item) {
+        var group = getSelectedGroup();
+        if (!group) {
+            if (!caGroupedOnly) return true;
+            return caGroups.some(function (g) {
+                return (g.agents || []).some(function (a) { return String(a.agent_id) === String(item.key); });
+            });
+        }
+        var onlyChecked = hasCheckedAgents(group.group_id);
+        return (group.agents || []).some(function (a) {
+            if (String(a.agent_id) !== String(item.key)) return false;
+            return !onlyChecked || isAgentChecked(group.group_id, a.agent_id);
+        });
+    }
+
+    function renderGroupFilterOptions() {
+        var $tbody = $('#ca-groups-tbl tbody');
+        if (!getSelectedGroup()) caSelectedGroupId = '';
+        $('#btn-ca-group-edit, #btn-ca-group-delete').toggleClass('d-none', !caSelectedGroupId);
+        if (!caGroups.length) {
+            $tbody.html('<tr class="ca-groups-empty"><td colspan="4">No groups yet. Click <b>+ Group</b> to add one.</td></tr>');
+            return;
+        }
+        $tbody.html(caGroups.map(function (g) {
+            var gid = String(g.group_id);
+            var agents = g.agents || [];
+            var expanded = !!caExpandedGroups[gid];
+            var list = !expanded ? '' : agents.map(function (a) {
+                var on = isAgentChecked(gid, a.agent_id);
+                return '<label class="ca-group-agent-item' + (on ? ' is-checked' : '') + '">' +
+                    '<input type="checkbox" class="ca-group-agent-check" data-group-id="' + escapeHtml(gid) + '" data-agent-id="' + escapeHtml(a.agent_id) + '"' + (on ? ' checked' : '') + '>' +
+                    '<span>' + escapeHtml(a.label || a.agent_id) + '</span>' +
+                    '</label>';
+            }).join('');
+            if (expanded && agents.length > 1) {
+                var checkedCount = agents.filter(function (a) { return isAgentChecked(gid, a.agent_id); }).length;
+                list = '<label class="ca-group-agent-item ca-group-select-all">' +
+                    '<input type="checkbox" class="ca-group-agent-check-all" data-group-id="' + escapeHtml(gid) + '"' +
+                        (checkedCount === agents.length ? ' checked' : '') +
+                        (checkedCount > 0 && checkedCount < agents.length ? ' data-indeterminate="1"' : '') + '>' +
+                    '<span>Select all</span>' +
+                    '</label>' + list;
+            }
+            return '<tr class="ca-group-row' + (gid === caSelectedGroupId ? ' is-selected' : '') + '" data-group-id="' + escapeHtml(gid) + '">' +
+                '<td class="ca-group-name">' + escapeHtml(g.group_name) + '</td>' +
+                '<td class="text-center"><button type="button" class="ca-group-count' + (expanded ? ' is-open' : '') + '" data-group-id="' + escapeHtml(gid) + '" title="' + (expanded ? 'Hide list' : 'Show list') + '">' +
+                    agents.length + '</button></td>' +
+                '<td>' + list + '</td>' +
+                '<td class="ca-group-remarks' + (isViewOnly() ? '' : ' is-editable') + '" data-group-id="' + escapeHtml(gid) + '" title="' + (isViewOnly() ? '' : 'Click to add/edit remarks') + '">' +
+                    (g.remarks ? escapeHtml(g.remarks) : '-') +
+                '</td>' +
+                '</tr>';
+        }).join(''));
+        $tbody.find('.ca-group-agent-check-all[data-indeterminate]').prop('indeterminate', true);
+    }
+
+    function selectGroup(groupId) {
+        caSelectedGroupId = String(groupId || '');
+        renderGroupFilterOptions();
+        applyGroupFilter();
+    }
+
+    function loadAgentGroups() {
+        return $.ajax({ url: '/categorize_group_groups', method: 'GET' }).then(function (rows) {
+            caGroups = Array.isArray(rows) ? rows : [];
+            renderGroupFilterOptions();
+        }, function () {
+            caGroups = [];
+            renderGroupFilterOptions();
+        });
+    }
+
+    function applyGroupFilter() {
+        renderRankTable(buildSortedAgentRowsFromState());
+    }
+
+    function loadGroupAgentOptions() {
+        if (caAgentOptions) return $.Deferred().resolve().promise();
+        return $.ajax({ url: '/agent_data', method: 'GET' }).then(function (rows) {
+            caAgentOptions = (rows || []).map(function (row) {
+                var id = row.agent_id || row.IDNo;
+                var code = String(row.agent_code || row.AGENT_CODE || '').trim();
+                var name = String(row.NAME || row.agent_name || '').trim();
+                return {
+                    id: id,
+                    label: code && name ? code + ' - ' + name : (code || name || String(id)),
+                    lineId: String(row.agency_id || row.AGENCY || ''),
+                    lineName: String(row.agency_name || '').trim()
+                };
+            });
+        });
+    }
+
+    // Line = the agent's agency; picking one limits the Agents list to that line
+    function renderGroupLineOptions(selectedLineId) {
+        var $line = $('#gi-agent-group-line');
+        if (!$line.length) return;
+        var seen = {};
+        var lines = [];
+        (caAgentOptions || []).forEach(function (opt) {
+            if (!opt.lineId || seen[opt.lineId]) return;
+            seen[opt.lineId] = true;
+            lines.push({ id: opt.lineId, name: opt.lineName || opt.lineId });
+        });
+        lines.sort(function (a, b) {
+            return a.name.replace(/^[\s*]+/, '').localeCompare(b.name.replace(/^[\s*]+/, ''));
+        });
+        if ($.fn.select2 && $line.hasClass('select2-hidden-accessible')) {
+            try { $line.select2('destroy'); } catch (e) { /* ignore */ }
+        }
+        $line.empty().append(new Option('All Lines', '', false, false));
+        lines.forEach(function (l) {
+            $line.append(new Option(l.name, l.id, false, false));
+        });
+        $line.val(selectedLineId || '');
+        if ($.fn.select2) {
+            $line.select2({
+                width: '100%',
+                dropdownParent: $('#modal-gi-agent-group'),
+                minimumResultsForSearch: 0
+            });
+        }
+    }
+
+    // When editing, start on the members' line if they all share one
+    function getGroupMembersLineId(agents) {
+        var lineId = '';
+        for (var i = 0; i < agents.length; i++) {
+            var opt = (caAgentOptions || []).find(function (o) { return String(o.id) === String(agents[i].agent_id); });
+            if (!opt || !opt.lineId) return '';
+            if (lineId && lineId !== opt.lineId) return '';
+            lineId = opt.lineId;
+        }
+        return lineId;
+    }
+
+    function destroyGroupAgentPicker() {
+        var $picker = $('#gi-agent-group-agent-picker');
+        if ($picker.length && $.fn.select2 && $picker.hasClass('select2-hidden-accessible')) {
+            try { $picker.select2('destroy'); } catch (e) { /* ignore */ }
+        }
+    }
+
+    function refreshGroupAgentPicker() {
+        var $picker = $('#gi-agent-group-agent-picker');
+        if (!$picker.length) return;
+        var selectedIds = caSelectedAgents.map(function (a) { return String(a.agent_id); });
+        var lineId = String($('#gi-agent-group-line').val() || '');
+        destroyGroupAgentPicker();
+        $picker.empty().append(new Option('', '', false, false));
+        (caAgentOptions || []).forEach(function (opt) {
+            if (lineId && opt.lineId !== lineId) return;
+            if (selectedIds.indexOf(String(opt.id)) === -1) {
+                $picker.append(new Option(opt.label, opt.id, false, false));
+            }
+        });
+        if ($.fn.select2) {
+            $picker.select2({
+                width: '100%',
+                placeholder: $picker.data('placeholder') || 'Search agent...',
+                allowClear: true,
+                dropdownParent: $('#modal-gi-agent-group'),
+                minimumResultsForSearch: 0
+            });
+        }
+        $picker.val(null).trigger('change.select2');
+    }
+
+    function renderGroupSelectedAgents() {
+        $('#gi-agent-group-selected').html(caSelectedAgents.map(function (agent) {
+            return '<span class="gi-agent-chip" data-id="' + escapeHtml(agent.agent_id) + '">' +
+                escapeHtml(agent.label) +
+                '<button type="button" class="gi-agent-chip-remove" data-id="' + escapeHtml(agent.agent_id) + '" aria-label="Remove">&times;</button>' +
+                '</span>';
+        }).join(''));
+    }
+
+    function openGroupModal(group) {
+        caEditingGroupId = group ? group.group_id : null;
+        $('#modal-gi-agent-group-title').text(group ? 'Edit Group' : 'New Group');
+        $('#gi-agent-group-id').val(caEditingGroupId || '');
+        $('#gi-agent-group-name').val(group ? group.group_name || '' : '');
+        $('#gi-agent-group-remarks').val(group ? group.remarks || '' : '');
+        caSelectedAgents = ((group && group.agents) || []).map(function (a) {
+            return { agent_id: a.agent_id, label: a.label || String(a.agent_id) };
+        });
+        loadGroupAgentOptions().then(function () {
+            var $modal = $('#modal-gi-agent-group').appendTo('body');
+            $modal.off('shown.bs.modal.caGroups').on('shown.bs.modal.caGroups', function () {
+                renderGroupLineOptions(getGroupMembersLineId(caSelectedAgents));
+                refreshGroupAgentPicker();
+                renderGroupSelectedAgents();
+            });
+            $modal.off('hidden.bs.modal.caGroups').on('hidden.bs.modal.caGroups', destroyGroupAgentPicker);
+            bootstrap.Modal.getOrCreateInstance($modal[0]).show();
+        });
+    }
+
+    function closeGroupModal() {
+        var inst = bootstrap.Modal.getInstance($('#modal-gi-agent-group')[0]);
+        if (inst) inst.hide();
+        $('#form-gi-agent-group')[0].reset();
+        caSelectedAgents = [];
+        renderGroupSelectedAgents();
+        caEditingGroupId = null;
+    }
+
+    function saveGroup() {
+        var groupName = String($('#gi-agent-group-name').val() || '').trim();
+        var agentIds = caSelectedAgents.map(function (a) { return a.agent_id; });
+        if (!groupName) return;
+        if (!agentIds.length) {
+            Swal.fire({ icon: 'warning', title: 'Select at least one agent.' });
+            return;
+        }
+        var editing = caEditingGroupId;
+        $.ajax({
+            url: editing ? '/categorize_group_groups/' + editing : '/categorize_group_groups',
+            method: editing ? 'PUT' : 'POST',
+            data: { groupName: groupName, agentIds: agentIds, remarks: String($('#gi-agent-group-remarks').val() || '').trim() }
+        }).done(function (res) {
+            closeGroupModal();
+            caSelectedGroupId = String(editing || (res && res.group_id) || '');
+            loadAgentGroups().then(applyGroupFilter);
+            Swal.fire({ icon: 'success', title: editing ? 'Updated' : 'Saved', timer: 1500, showConfirmButton: false });
+        }).fail(function (xhr) {
+            var msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to save';
+            Swal.fire({ icon: 'error', title: 'Error', text: msg });
+        });
+    }
+
+    function deleteSelectedGroup() {
+        var group = getSelectedGroup();
+        if (!group) return;
+        Swal.fire({
+            title: 'Delete group "' + group.group_name + '"?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes'
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+            $.ajax({ url: '/categorize_group_groups/remove/' + group.group_id, method: 'PUT' }).done(function () {
+                caSelectedGroupId = '';
+                loadAgentGroups().then(applyGroupFilter);
+                Swal.fire({ icon: 'success', title: 'Deleted', timer: 1500, showConfirmButton: false });
+            }).fail(function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to delete';
+                Swal.fire({ icon: 'error', title: 'Error', text: msg });
+            });
+        });
+    }
+
+    // Remarks: click the cell to open the shared remarks modal (remarks_editor.js)
+    $(document).on('click', '#ca-groups-tbl td.ca-group-remarks.is-editable', function (e) {
+        e.stopPropagation();
+        if (!window.RemarksEditor) return;
+        var gid = String($(this).data('group-id'));
+        var group = caGroups.find(function (g) { return String(g.group_id) === gid; });
+        if (!group) return;
+        window.RemarksEditor.openEditor(group.remarks || '', function (value) {
+            window.RemarksEditor.patchRemarks('gi_agent_group', gid, value, {
+                onSuccess: function (res) {
+                    group.remarks = (res && res.remarks != null) ? String(res.remarks) : value;
+                    renderGroupFilterOptions();
+                },
+                onError: function (err) {
+                    Swal.fire({ icon: 'error', title: 'Error', text: (err && err.message) || 'Could not update remarks.' });
+                }
+            });
+        });
+    });
+
+    // Click a group to filter the table; click it again to show all agents
+    $(document).on('click', '#ca-groups-tbl tr.ca-group-row', function (e) {
+        if ($(e.target).closest('.ca-group-agent-item, .ca-group-count, td.ca-group-remarks.is-editable').length) return;
+        var gid = String($(this).data('group-id'));
+        selectGroup(gid === caSelectedGroupId ? '' : gid);
+    });
+
+    // Click the agent count to show/hide that group's agent list
+    $(document).on('click', '#ca-groups-tbl .ca-group-count', function (e) {
+        e.stopPropagation();
+        var gid = String($(this).data('group-id'));
+        if (caExpandedGroups[gid]) delete caExpandedGroups[gid];
+        else caExpandedGroups[gid] = true;
+        renderGroupFilterOptions();
+    });
+
+    // Select all / clear all agents in that group's list
+    $(document).on('change', '#ca-groups-tbl .ca-group-agent-check-all', function () {
+        var gid = String($(this).data('group-id'));
+        var group = caGroups.find(function (g) { return String(g.group_id) === gid; });
+        if (!group) return;
+        caCheckedByGroup[gid] = {};
+        if (this.checked) {
+            (group.agents || []).forEach(function (a) { caCheckedByGroup[gid][String(a.agent_id)] = true; });
+        }
+        selectGroup(gid);
+    });
+
+    // Check agents to show only them; none checked = the whole group
+    $(document).on('change', '#ca-groups-tbl .ca-group-agent-check', function () {
+        var gid = String($(this).data('group-id'));
+        var aid = String($(this).data('agent-id'));
+        if (!caCheckedByGroup[gid]) caCheckedByGroup[gid] = {};
+        if (this.checked) caCheckedByGroup[gid][aid] = true;
+        else delete caCheckedByGroup[gid][aid];
+        selectGroup(gid);
+    });
+
+    $('#btn-ca-group-new').on('click', function () {
+        if (isViewOnly()) return;
+        openGroupModal(null);
+    });
+
+    $('#btn-ca-group-edit').on('click', function () {
+        if (isViewOnly()) return;
+        var group = getSelectedGroup();
+        if (group) openGroupModal(group);
+    });
+
+    $('#btn-ca-group-delete').on('click', function () {
+        if (isViewOnly()) return;
+        deleteSelectedGroup();
+    });
+
+    $('#form-gi-agent-group').on('submit', function (e) {
+        e.preventDefault();
+        if (isViewOnly()) return;
+        saveGroup();
+    });
+
+    $('#gi-agent-group-line').on('change', function () {
+        refreshGroupAgentPicker();
+    });
+
+    $('#gi-agent-group-agent-picker').on('change', function () {
+        var val = $(this).val();
+        if (!val) return;
+        var opt = (caAgentOptions || []).find(function (o) { return String(o.id) === String(val); });
+        if (!opt) return;
+        caSelectedAgents.push({ agent_id: opt.id, label: opt.label });
+        refreshGroupAgentPicker();
+        renderGroupSelectedAgents();
+    });
+
+    $(document).on('click', '#gi-agent-group-selected .gi-agent-chip-remove', function () {
+        var id = String($(this).data('id'));
+        caSelectedAgents = caSelectedAgents.filter(function (a) { return String(a.agent_id) !== id; });
+        refreshGroupAgentPicker();
+        renderGroupSelectedAgents();
+    });
+
+    var NGR_WINLOSS_SHARE = 0.65;
+
     function buildSortedAgentRowsFromState() {
         var rows = Object.keys(drilldownState.agents || {}).map(function (k) {
             var item = drilldownState.agents[k];
-            item.ngr = (Number(item.winLoss) || 0) - (Number(item.commission) || 0);
+            // NGR = Win/Loss × 65% + Total Settlement (−commission + Add Charge)
+            item.ngr = Math.round((Number(item.winLoss) || 0) * NGR_WINLOSS_SHARE + getAgentTotalSettlement(item));
             return item;
-        }).filter(agentMatchesCompareFilter);
+        }).filter(agentMatchesCompareFilter).filter(agentMatchesGroupFilter);
         return sortAgentRowsForRanking(rows);
     }
 
@@ -779,9 +1341,8 @@ $(document).ready(function () {
         $('#commission-panel-modal-head-table thead th.commission-sortable-col').each(function () {
             var $th = $(this);
             var thKey = $th.attr('data-sort-key');
-            var indicator = '-';
-            if (thKey === key) indicator = dir === 'asc' ? '▲' : '▼';
-            $th.find('.commission-sort-indicator').text(indicator);
+            $th.removeClass('sorting sorting_asc sorting_desc')
+                .addClass(thKey === key ? (dir === 'asc' ? 'sorting_asc' : 'sorting_desc') : 'sorting');
         });
     }
 
@@ -828,8 +1389,11 @@ $(document).ready(function () {
             ];
             metricOrder.forEach(function (metricKey) {
                 var value = getAgentRankingSortValue(row, metricKey);
-                rowData.push(formatAmountHtml(value, metricKey === 'ngr'));
+                rowData.push(formatAmountHtml(value));
             });
+            rowData.push('<div class="gi-manual-actions">' +
+                '<button type="button" class="btn btn-sm btn-alt-secondary js-ca-receipt" data-agent-key="' + key + '" title="Receipt" aria-label="Receipt">' +
+                '<i class="fa fa-receipt"></i></button></div>');
             rankTable.row.add(rowData);
         });
         rankTable.draw();
@@ -997,6 +1561,7 @@ $(document).ready(function () {
                             winLoss: 0,
                             totalRolling: 0,
                             commission: 0,
+                            fnb: 0,
                             ngr: 0,
                             transactions: []
                         };
@@ -1007,6 +1572,7 @@ $(document).ready(function () {
                     a.winLoss += Number(r.txn.winLoss) || 0;
                     a.totalRolling += Number(r.txn.totalRolling) || 0;
                     a.commission += Number(r.txn.settlement) || 0;
+                    a.fnb += Number(r.txn.fnb) || 0;
                     a.transactions.push(r.txn);
                 });
 
@@ -1045,9 +1611,123 @@ $(document).ready(function () {
             return;
         }
 
+        if (payload.totalRow) rows = rows.concat([payload.totalRow]);
+
         var outName = getCommissionAnalyticsExportFilename();
         var $btn = $(this);
         downloadCommissionXlsx(headers, rows, outName, $btn, 'commissionAnalytics');
+    });
+
+    // ── Copy Image: the full ranking table (all filtered rows) as a PNG on the clipboard ──
+    var CA_HTML2CANVAS_SRC = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+    var caHtml2CanvasPromise = null;
+
+    function loadCaHtml2Canvas() {
+        if (typeof html2canvas !== 'undefined') return Promise.resolve();
+        if (caHtml2CanvasPromise) return caHtml2CanvasPromise;
+        caHtml2CanvasPromise = new Promise(function (resolve, reject) {
+            var script = document.createElement('script');
+            script.src = CA_HTML2CANVAS_SRC;
+            script.onload = function () { resolve(); };
+            script.onerror = function () {
+                caHtml2CanvasPromise = null;
+                reject(new Error('Failed to load the image library.'));
+            };
+            document.head.appendChild(script);
+        });
+        return caHtml2CanvasPromise;
+    }
+
+    function buildCommissionAnalyticsImageNode(payload) {
+        var group = getSelectedGroup();
+        var cell = 'padding:8px 14px;border-bottom:1px solid #eee;white-space:nowrap;';
+        var head = payload.headers.map(function (h, i) {
+            var align = i === 0 ? 'center' : (i === 1 ? 'left' : 'right');
+            return '<th style="' + cell + 'text-align:' + align + ';background:#f5f5f5;color:#555;font-weight:600;border-bottom:1px solid #e0e0e0;">' + escapeHtml(h) + '</th>';
+        }).join('');
+        var body = payload.rows.map(function (row, r) {
+            var bg = r % 2 ? '#f4f1ea' : '#ffffff';
+            return '<tr style="background:' + bg + ';">' + row.map(function (v, i) {
+                var align = i === 0 ? 'center' : (i === 1 ? 'left' : 'right');
+                var color = i === 1 ? '#8a6d1f;font-weight:600' : (/^\(/.test(String(v)) ? '#dc2626' : '#495057');
+                return '<td style="' + cell + 'text-align:' + align + ';color:' + color + ';">' + escapeHtml(v) + '</td>';
+            }).join('') + '</tr>';
+        }).join('');
+        if (payload.totalRow) {
+            body += '<tr style="background:#f5f5f5;">' + payload.totalRow.map(function (v, i) {
+                var align = i === 0 ? 'center' : (i === 1 ? 'left' : 'right');
+                var color = /^\(/.test(String(v)) ? '#dc2626' : '#3a2e12';
+                return '<td style="' + cell + 'text-align:' + align + ';color:' + color + ';font-weight:700;border-top:1px solid #e0e0e0;">' + escapeHtml(v) + '</td>';
+            }).join('') + '</tr>';
+        }
+
+        var node = document.createElement('div');
+        node.style.cssText = 'position:fixed;left:-10000px;top:0;background:#ffffff;padding:18px 20px;' +
+            'font-family:' + window.getComputedStyle(document.body).fontFamily + ';font-size:14px;';
+        node.innerHTML =
+            '<div style="font-size:18px;font-weight:700;color:#3a2e12;text-align:center;">Analytics</div>' +
+            ((group || caGroupedOnly) ? '<div style="font-size:15px;font-weight:700;color:#3a2e12;text-align:center;margin-top:2px;">' + escapeHtml(group ? group.group_name : 'Categorize Group') + '</div>' : '') +
+            '<div style="font-size:13px;color:#666;text-align:center;margin:2px 0 12px;">' + escapeHtml(getCommissionPanelDateRangeLabel()) + '</div>' +
+            '<table style="border-collapse:collapse;border:1px solid #e0e0e0;"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table>';
+        return node;
+    }
+
+    function renderCommissionAnalyticsImageBlob(payload) {
+        return loadCaHtml2Canvas().then(function () {
+            var node = buildCommissionAnalyticsImageNode(payload);
+            document.body.appendChild(node);
+            return html2canvas(node, { backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false })
+                .then(function (canvas) {
+                    node.parentNode.removeChild(node);
+                    return new Promise(function (resolve, reject) {
+                        canvas.toBlob(function (blob) {
+                            if (blob) resolve(blob);
+                            else reject(new Error('Could not build the image.'));
+                        }, 'image/png');
+                    });
+                }, function (err) {
+                    if (node.parentNode) node.parentNode.removeChild(node);
+                    throw err;
+                });
+        });
+    }
+
+    $('#btn-commission-analytics-copy-image').on('click', function (e) {
+        e.preventDefault();
+        var btn = this;
+        if (btn.disabled) return;
+        var payload = getCommissionAnalyticsTablePayload();
+        if (!payload.rows.length) {
+            notifyNoCommissionAnalyticsRows('Copy Image');
+            return;
+        }
+        var originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Copying...';
+        var restore = function () { btn.disabled = false; btn.innerHTML = originalHtml; };
+        var ok = function (text) { Swal.fire({ icon: 'success', title: 'Copied', text: text, timer: 1800, showConfirmButton: false }); };
+        var fail = function (err) { Swal.fire({ icon: 'error', title: 'Copy failed', text: (err && err.message) || 'Unable to copy the image.' }); };
+
+        if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+            navigator.clipboard.write([new ClipboardItem({ 'image/png': renderCommissionAnalyticsImageBlob(payload) })])
+                .then(function () { ok('Table image copied to clipboard.'); })
+                .catch(fail)
+                .finally(restore);
+        } else {
+            renderCommissionAnalyticsImageBlob(payload)
+                .then(function (blob) {
+                    var link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = getCommissionAnalyticsExportFilename().replace(/\.xlsx$/, '.png');
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+                    ok('Image downloaded.');
+                })
+                .catch(fail)
+                .finally(restore);
+        }
     });
 
     $('#btn-commission-analytics-print').on('click', function (e) {
@@ -1068,6 +1748,35 @@ $(document).ready(function () {
     $('#btn-commission-panel-modal-print').on('click', function (e) {
         e.preventDefault();
         printCommissionPanelModalTable();
+    });
+
+    // Receipt: same card as Game Information, with the account's totals for the selected range
+    $(document).on('click', '#commission-panel-tbl .js-ca-receipt', function (e) {
+        e.preventDefault();
+        if (!window.GameInfoReceipt) return;
+        var agent = drilldownState.agents[decodeURIComponent($(this).attr('data-agent-key') || '')];
+        if (!agent) return;
+        var row = window.GameInfoReceipt.row;
+        var games = (agent.transactions || []).length;
+        window.GameInfoReceipt.open({
+            header: '* Analytics *',
+            date_label: caLocalYmd(new Date()).replace(/-/g, '/'), // date the receipt was opened (same format as Game Information)
+            agent_code: agent.name,
+            game_line: games + (games === 1 ? ' GAME' : ' GAMES'),
+            sections: [
+                { cls: 'gsr-section-buyin', rows: [row('* BUY IN', agent.totalBuyIn)] },
+                { cls: 'gsr-section-cashout', rows: [row('* CASH OUT', -Math.abs(Number(agent.totalChipsReturn) || 0))] },
+                { cls: 'gsr-section-summary', rows: [
+                    row('* WIN/LOSS', agent.winLoss, '', '* WIN / LOSS'),
+                    row('* ROLLING', agent.totalRolling)
+                ] },
+                { cls: 'gsr-section-settlement', rows: [
+                    row('* SETTLEMENT', -(Number(agent.commission) || 0), 'gsr-settle-row'),
+                    row('* ADD CHARGE', agent.fnb, 'gsr-charge-row'),
+                    row('* PAYMENT', getAgentTotalSettlement(agent), 'gsr-act-row')
+                ] }
+            ]
+        });
     });
 
     $(document).on('click', '.js-open-agent-modal', function (e) {
@@ -1130,18 +1839,22 @@ $(document).ready(function () {
                 window.styleFlatpickrMonthNameClickable(instance);
             }
             if (commissionPanelSkipMonthRange) return;
+            clearCaQuickFilter();
             applyFullMonthRangeForVisibleLeft(instance);
         },
         onClose: function (selectedDates) {
             if (selectedDates.length === 2) {
                 commissionPanelSplitOverrideRange = null;
+                clearCaQuickFilter();
                 loadRankingData();
             }
         }
     };
     if (compareStartFromUrl && compareEndFromUrl) {
         commissionPanelRangeConfig.defaultDate = [compareStartFromUrl, compareEndFromUrl];
+        caQuickFilter = null;
     }
+    syncCaQuickFilterTabs();
     flatpickr('#commission-panel-daterange', commissionPanelRangeConfig);
     if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
         var panelDr = document.getElementById('commission-panel-daterange');
@@ -1153,11 +1866,12 @@ $(document).ready(function () {
     }
 
     updateCompareModeBanner();
+    loadAgentGroups();
     loadRankingData();
 
     // Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
     if (window.gdAlignParenNumbers) {
-        window.gdAlignParenNumbers('.commission-analytics-page', ['#commission-panel-tbl tbody td:nth-child(n+3)']);
+        window.gdAlignParenNumbers('.commission-analytics-page', ['#commission-panel-tbl tbody td:nth-child(n+3)', '#commission-panel-tbl tfoot th:nth-child(n+3)']);
         window.gdAlignParenNumbers('#modal-commission-panel-transactions', ['td.text-end', 'tfoot th.text-end']);
     }
 });

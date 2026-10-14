@@ -88,6 +88,8 @@
 	var programFrom = null;
 	var programTo = null;
 	var giSplitOverrideRange = null;
+	var giQuickFilter = 'month';
+	var giDayFilter = { today: false, yesterday: false };
 	var giSplitDateRange = null;
 	var manualGamesById = {};
 	var giAccountGuestResetting = false;
@@ -104,10 +106,16 @@
 		return formatGameStart(row.GAME_ENDED);
 	}
 
+	function buildReceiptButton() {
+		return '<button type="button" class="btn btn-sm btn-alt-secondary gi-receipt-btn" title="Receipt" aria-label="Receipt">' +
+			'<i class="fa fa-receipt"></i></button>';
+	}
+
 	function buildManualActionCell(manualId) {
 		if (!hasActionColumn()) return '';
 		return (
 			'<div class="gi-manual-actions">' +
+			buildReceiptButton() +
 			'<button type="button" class="btn btn-sm btn-alt-primary gi-manual-edit" data-id="' + manualId + '" title="' + t('editGame', 'Edit') + '" data-view-only-disable>' +
 			'<i class="fa fa-pencil"></i></button>' +
 			'<button type="button" class="btn btn-sm btn-alt-danger gi-manual-delete" data-id="' + manualId + '" title="' + t('deleteGame', 'Delete') + '" data-view-only-disable>' +
@@ -277,7 +285,7 @@
 			formatManualGameEnd(row)
 		];
 		if (gamebookRow) {
-			if (hasActionColumn()) cells.push('');
+			if (hasActionColumn()) cells.push('<div class="gi-manual-actions">' + buildReceiptButton() + '</div>');
 		} else {
 			var actionCell = buildManualActionCell(row.manual_id);
 			if (actionCell !== '') cells.push(actionCell);
@@ -291,6 +299,22 @@
 			commission: displayCommission,
 			addChg: addChg,
 			settle: displaySettle
+		});
+
+		// Receipt card (game_information_receipt.js): same values as the row, settlement-receipt layout
+		$(rowNode).data('giReceipt', {
+			program_date: ymd(row.PROGRAM_DATE) || '',
+			agent_code: row.AGENT_CODE || '',
+			guest_name: row.GUEST_NAME && row.GUEST_NAME !== '-' ? row.GUEST_NAME : '',
+			game_type: gameType,
+			game_no: row.GAME_NO || '',
+			buy_in: parseFloat(row.BUY_IN) || 0,
+			cash_out: parseFloat(row.CASH_OUT) || 0,
+			win_loss: parseFloat(row.WIN_LOSS) || 0,
+			rolling: parseFloat(row.ROLLING) || 0,
+			settlement: displayCommission,
+			add_charge: addChg,
+			payment: displaySettle
 		});
 
 		var settlementValue = displayCommission;
@@ -316,7 +340,79 @@
 		});
 	}
 
+	function localYmd(d) {
+		return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+	}
+
+	function syncGiQuickFilterTabs() {
+		$('#gi-quick-filter-wrapper .gi-quick-filter-tab').each(function () {
+			var range = $(this).data('range');
+			var on = range === 'today' || range === 'yesterday' ? !!giDayFilter[range] : range === giQuickFilter;
+			$(this).toggleClass('active', on);
+		});
+	}
+
+	/** Tab click: All / Month pick one; Today and Yesterday toggle and can be on together. */
+	function onGiQuickFilterTab(range) {
+		if (range === 'today' || range === 'yesterday') {
+			giDayFilter[range] = !giDayFilter[range];
+			applyGiQuickFilter(giDayFilter.today || giDayFilter.yesterday ? 'days' : 'month');
+			return;
+		}
+		applyGiQuickFilter(range);
+	}
+
+	/** Loads the range for 'all', 'month' or 'days' (Today / Yesterday). Picking dates by hand switches the tabs off. */
+	function applyGiQuickFilter(range) {
+		var pickerEl = document.getElementById('gi-program-date-range-picker');
+		var fp = pickerEl && pickerEl._flatpickr;
+		var from = null;
+		var to = null;
+
+		if (range === 'days') {
+			var today = new Date();
+			var yesterday = new Date();
+			yesterday.setDate(yesterday.getDate() - 1);
+			from = localYmd(giDayFilter.yesterday ? yesterday : today);
+			to = localYmd(giDayFilter.today ? today : yesterday);
+		} else {
+			giDayFilter = { today: false, yesterday: false };
+			if (range === 'month') {
+				var cutoff = getDefaultCutoffRange();
+				from = cutoff.startDate;
+				to = cutoff.endDate;
+			} else {
+				range = 'all';
+			}
+		}
+
+		giQuickFilter = range;
+		giSplitOverrideRange = null;
+		$('#game-information-start-date, #game-information-end-date').val('');
+		syncGiQuickFilterTabs();
+
+		if (fp) {
+			if (from) fp.setDate([from, to], false);
+			else fp.clear(false);
+		} else if (pickerEl) {
+			pickerEl.value = from ? from + ' to ' + to : '';
+		}
+
+		programFrom = from;
+		programTo = to;
+		selectedProgramDate = from;
+		reloadData();
+	}
+
+	function clearGiQuickFilter() {
+		if (!giQuickFilter) return;
+		giQuickFilter = null;
+		giDayFilter = { today: false, yesterday: false };
+		syncGiQuickFilterTabs();
+	}
+
 	function applyGiProgramRange(fromDate, toDate) {
+		clearGiQuickFilter();
 		var from = fromDate;
 		var to = toDate;
 		if (from > to) {
@@ -414,8 +510,8 @@
 	function initDataTable() {
 		dataTable = $('#game_information-tbl').DataTable({
 			paging: true,
-			pageLength: 25,
-			lengthMenu: [10, 25, 50, 100],
+			pageLength: -1,
+			lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
 			info: true,
 			searching: true,
 			ordering: true,
@@ -493,19 +589,17 @@
 
 	function initProgramDatePicker() {
 		var $input = $('#gi-program-date-range-picker');
-		var defaultRange = getDefaultCutoffRange();
-		programFrom = defaultRange.startDate;
-		programTo = defaultRange.endDate;
-		selectedProgramDate = programFrom;
 
 		if (typeof flatpickr === 'undefined') {
-			$input.val((programFrom || '') + ' to ' + (programTo || ''));
-			reloadData();
+			applyGiQuickFilter('month');
 			return;
 		}
 
 		flatpickr($input[0], {
 			mode: 'range',
+			// Start empty; applyGiQuickFilter('month') fills in the default range.
+			skipMonthEndCutoff: true,
+			defaultDate: null,
 			showMonths: 3,
 			allowInput: false,
 			onReady: function (_selectedDates, _dateStr, instance) {
@@ -532,7 +626,7 @@
 			}
 		});
 
-		reloadData();
+		applyGiQuickFilter('month');
 	}
 
 	function getManualModalEl() {
@@ -1127,6 +1221,10 @@
 		initGiSplitDateRange();
 		initProgramDatePicker();
 		initManualGameHandlers();
+
+		$(document).on('click', '#gi-quick-filter-wrapper .gi-quick-filter-tab', function () {
+			onGiQuickFilterTab($(this).data('range'));
+		});
 
 		$('#btn-gi-print').on('click', function (e) {
 			e.preventDefault();

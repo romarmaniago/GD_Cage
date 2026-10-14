@@ -172,10 +172,9 @@ router.get('/game_information', checkSession, function (req, res) {
 	res.render('game_information/game_information', data);
 });
 
+// Categorize Group page retired — groups are now managed as a filter on Analytics.
 router.get('/categorize_group', checkSession, function (req, res) {
-	const data = sessions(req, 'game_information');
-	data.permissions = req.session.permissions;
-	res.render('game_information/categorize_group', data);
+	res.redirect(302, '/commission_analytics');
 });
 
 /**
@@ -336,6 +335,23 @@ router.put('/game_information_data/remove/:id', checkSession, async (req, res) =
 	}
 });
 
+/** True when another active group already uses this name (case/space-insensitive). */
+async function isGroupNameTaken(groupName, excludeGroupId) {
+	let sql = 'SELECT IDNo FROM gi_agent_group WHERE ACTIVE = 1 AND LOWER(TRIM(GROUP_NAME)) = LOWER(TRIM(?))';
+	const params = [groupName];
+	if (excludeGroupId) {
+		sql += ' AND IDNo <> ?';
+		params.push(excludeGroupId);
+	}
+	const [rows] = await pool.execute(sql + ' LIMIT 1', params);
+	return rows.length > 0;
+}
+
+function parseGroupRemarks(body) {
+	const remarks = String(body.remarks || '').trim().slice(0, 255);
+	return remarks || null;
+}
+
 function parseAgentIdArray(body) {
 	const raw = body.agentIds ?? body.agent_ids;
 	if (Array.isArray(raw)) {
@@ -363,24 +379,6 @@ function agentDisplayLabel(code, name) {
 	const n = String(name || '').trim();
 	if (c && n) return `${c} - ${n}`;
 	return c || n || '—';
-}
-
-async function findAgentsAssignedToOtherGroups(agentIds, excludeGroupId) {
-	if (!agentIds.length) return [];
-	const placeholders = agentIds.map(() => '?').join(', ');
-	const params = [...agentIds];
-	let sql = `
-		SELECT m.AGENT_ID, g.GROUP_NAME, ag.AGENT_CODE, ag.NAME AS agent_name
-		FROM gi_agent_group_member m
-		JOIN gi_agent_group g ON g.IDNo = m.GROUP_ID AND g.ACTIVE = 1
-		JOIN agent ag ON ag.IDNo = m.AGENT_ID
-		WHERE m.AGENT_ID IN (${placeholders})`;
-	if (excludeGroupId) {
-		sql += ' AND m.GROUP_ID <> ?';
-		params.push(excludeGroupId);
-	}
-	const [rows] = await pool.execute(sql, params);
-	return rows;
 }
 
 async function replaceGroupMembers(groupId, agentIds) {
@@ -421,7 +419,7 @@ function sumGameTotals(rows) {
 router.get('/categorize_group_groups', checkSession, async (req, res) => {
 	try {
 		const [groups] = await pool.execute(
-			`SELECT IDNo AS group_id, GROUP_NAME, SORT_ORDER
+			`SELECT IDNo AS group_id, GROUP_NAME, REMARKS, SORT_ORDER
 			 FROM gi_agent_group
 			 WHERE ACTIVE = 1
 			 ORDER BY SORT_ORDER ASC, GROUP_NAME ASC`
@@ -451,6 +449,7 @@ router.get('/categorize_group_groups', checkSession, async (req, res) => {
 			return {
 				group_id: g.group_id,
 				group_name: g.GROUP_NAME,
+				remarks: g.REMARKS || '',
 				sort_order: g.SORT_ORDER,
 				agents,
 				agents_text: agents.map((a) => a.label).join(', ')
@@ -472,19 +471,15 @@ router.post('/categorize_group_groups', checkSession, async (req, res) => {
 		const agentIds = parseAgentIdArray(req.body);
 		if (!agentIds.length) return res.status(400).json({ error: 'Select at least one agent.' });
 
-		const conflicts = await findAgentsAssignedToOtherGroups(agentIds, null);
-		if (conflicts.length) {
-			const names = conflicts
-				.map((c) => `${agentDisplayLabel(c.AGENT_CODE, c.agent_name)} (${c.GROUP_NAME})`)
-				.join(', ');
-			return res.status(400).json({ error: `Agent already in another group: ${names}` });
+		if (await isGroupNameTaken(groupName, null)) {
+			return res.status(400).json({ error: `Group name "${groupName}" already exists.` });
 		}
 
 		const now = new Date();
 		const [insertResult] = await pool.execute(
-			`INSERT INTO gi_agent_group (GROUP_NAME, SORT_ORDER, ENCODED_BY, ENCODED_DT)
-			 VALUES (?, ?, ?, ?)`,
-			[groupName, parseInt(req.body.sortOrder, 10) || 0, req.session.user_id, now]
+			`INSERT INTO gi_agent_group (GROUP_NAME, REMARKS, SORT_ORDER, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, ?)`,
+			[groupName, parseGroupRemarks(req.body), parseInt(req.body.sortOrder, 10) || 0, req.session.user_id, now]
 		);
 
 		await replaceGroupMembers(insertResult.insertId, agentIds);
@@ -506,20 +501,18 @@ router.put('/categorize_group_groups/:id', checkSession, async (req, res) => {
 		const agentIds = parseAgentIdArray(req.body);
 		if (!agentIds.length) return res.status(400).json({ error: 'Select at least one agent.' });
 
-		const conflicts = await findAgentsAssignedToOtherGroups(agentIds, groupId);
-		if (conflicts.length) {
-			return res.status(400).json({
-				error: `One or more agents are already assigned to another group (${conflicts[0].GROUP_NAME}).`
-			});
+		if (await isGroupNameTaken(groupName, groupId)) {
+			return res.status(400).json({ error: `Group name "${groupName}" already exists.` });
 		}
 
 		const now = new Date();
 		const [result] = await pool.execute(
 			`UPDATE gi_agent_group SET
-				GROUP_NAME = ?, SORT_ORDER = ?, EDITED_BY = ?, EDITED_DT = ?
+				GROUP_NAME = ?, REMARKS = ?, SORT_ORDER = ?, EDITED_BY = ?, EDITED_DT = ?
 			 WHERE IDNo = ? AND ACTIVE = 1`,
 			[
 				groupName,
+				parseGroupRemarks(req.body),
 				parseInt(req.body.sortOrder, 10) || 0,
 				req.session.user_id,
 				now,

@@ -252,7 +252,7 @@ router.get("/additional_commission", checkSession, function (req, res) {
 });
 
 router.get("/commission_analytics", checkSession, function (req, res) {
-	const data = sessions(req, 'commission');
+	const data = sessions(req, 'commission_analytics');
 	data.permissions = req.session.permissions;
 	res.render("junket/commission_analytics", data);
 });

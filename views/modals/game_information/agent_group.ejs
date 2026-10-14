@@ -1,6 +1,6 @@
 <div class="modal fade" id="modal-gi-agent-group" role="dialog" aria-labelledby="modal-gi-agent-group-title"
 	aria-hidden="true" data-keyboard="false" data-bs-backdrop="static">
-	<div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+	<div class="modal-dialog modal-dialog-centered" role="document">
 		<div class="modal-content">
 			<div class="modal-header bg-primary">
 				<h5 class="block-title text-white" id="modal-gi-agent-group-title"><%= __('categorize_group.new_group') %></h5>
@@ -15,6 +15,12 @@
 							placeholder="<%= __('categorize_group.group_name_placeholder') %>" required maxlength="100" />
 					</div>
 					<div class="mb-3">
+						<label class="form-label" for="gi-agent-group-line">Line</label>
+						<select class="form-select" id="gi-agent-group-line" style="width: 100%;">
+							<option value="">All Lines</option>
+						</select>
+					</div>
+					<div class="mb-3">
 						<label class="form-label" for="gi-agent-group-agent-picker"><%= __('categorize_group.select_agents') %></label>
 						<select class="form-select" id="gi-agent-group-agent-picker" style="width: 100%;"
 							data-placeholder="<%= __('categorize_group.search_agent_placeholder') %>">
@@ -22,6 +28,11 @@
 						</select>
 						<div class="form-text"><%= __('categorize_group.select_agents_hint') %></div>
 						<div id="gi-agent-group-selected" class="gi-agent-selected-list mt-2" aria-live="polite"></div>
+					</div>
+					<div class="mb-3">
+						<label class="form-label" for="gi-agent-group-remarks">Remarks</label>
+						<textarea class="form-control" id="gi-agent-group-remarks" name="remarks" rows="2" maxlength="255"
+							placeholder="Optional"></textarea>
 					</div>
 					<div class="modal-footer px-0 pb-0">
 						<button type="submit" class="btn btn-sm btn-primary" data-view-only-disable><%= __('categorize_group.save') %></button>
