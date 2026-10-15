@@ -1,6 +1,6 @@
 /**
  * Idempotent DB setup for the Agent Portal MEMO (sticky note per agent):
- * agent.MEMO (sanitized HTML, text colors only).
+ * agent.MEMO (sanitized HTML, text colors only) and agent.MEMO_COLOR (note background).
  */
 
 async function columnExists(pool, tableName, columnName) {
@@ -20,10 +20,9 @@ async function ensureAgentMemoSchema(pool) {
 		await pool.execute(`ALTER TABLE agent ADD COLUMN MEMO MEDIUMTEXT NULL DEFAULT NULL`);
 		console.log('[agent] Added column MEMO');
 	}
-	// MEMO_COLOR (sticky-note background) was dropped from the feature — remove the leftover column.
-	if (await columnExists(pool, 'agent', 'MEMO_COLOR')) {
-		await pool.execute(`ALTER TABLE agent DROP COLUMN MEMO_COLOR`);
-		console.log('[agent] Dropped unused column MEMO_COLOR');
+	if (!(await columnExists(pool, 'agent', 'MEMO_COLOR'))) {
+		await pool.execute(`ALTER TABLE agent ADD COLUMN MEMO_COLOR VARCHAR(20) NULL DEFAULT NULL`);
+		console.log('[agent] Added column MEMO_COLOR');
 	}
 }
 

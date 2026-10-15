@@ -715,10 +715,11 @@
                             '<button type="button" class="btn btn-sm btn-icon-plain btn-marker-receipt" ' +
                             'data-id="' + id + '" title="' + receiptTitle + '"><i class="fa fa-receipt"></i></button>';
                         if (canEditMarker) {
+                            var hasRemarks = row.REMARKS != null && String(row.REMARKS).trim() !== '';
                             html +=
-                                '<button type="button" class="btn btn-sm btn-icon-plain btn-edit-marker-remarks" ' +
+                                '<button type="button" class="btn btn-sm btn-icon-plain btn-edit-marker-remarks' + (hasRemarks ? ' has-remarks' : '') + '" ' +
                                 'data-id="' + id + '" data-remarks="' + remarksEnc + '" ' +
-                                'title="' + editRemarksTitle + '"><i class="fa fa-sticky-note"></i></button>';
+                                'title="' + (hasRemarks ? escapeHtml(String(row.REMARKS)) : editRemarksTitle) + '"><i class="fa fa-sticky-note"></i></button>';
                         }
                         if (canEditMarker) {
                             html +=
