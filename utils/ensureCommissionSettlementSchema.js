@@ -4,7 +4,8 @@
  * A settlement batch settles every settled game (game_list.SETTLED = 1) whose program date falls in
  * DATE_FROM..DATE_TO: the commission (plus the game's "Settle"-paid Add Charge) moves into junket_capital
  * as 'Settlement'. Games get game_list.COMMISSION_SETTLEMENT_ID (locked in Gamebook); their Add Charge
- * rows get game_services.COMMISSION_SETTLEMENT_ID so the dashboard's Add Charge drops them too.
+ * rows get game_services.COMMISSION_SETTLEMENT_ID (locked from edits; the dashboard's Add Charge and the
+ * Add Charge settle only look at SERVICE_SETTLEMENT_ID, so they still count them).
  * See utils/commissionSettlement.js.
  */
 

@@ -3,7 +3,9 @@
  *
  * Same games as the Commission table (/commission_data: settled, by program date) and the same per-game
  * math as the dashboard (gameFiguresFromRecords + computeGameCommission). Each game's Add Charge paid via
- * "Settle" (game_services TRANSACTION_ID = 3) rides along, unless already settled on the Add Charge page.
+ * "Settle" (game_services TRANSACTION_ID = 3) rides along, even when already settled on the Add Charge page:
+ * that settle books the junket's cost, this one recovers it from the commission (SERVICE_ / COMMISSION_
+ * SETTLEMENT_ID are independent).
  *
  * Slip lines are signed from the junket's side: commission paid out is negative, Add Charge positive.
  */
@@ -59,7 +61,7 @@ async function loadCommissionGames(db, { fromDate, toDate, settlementId, forUpda
 
 /**
  * Per-game figures + slip. `settlementId` set → the Add Charge rows already tagged to that batch;
- * otherwise the game's still-unsettled "Settle" Add Charge rows.
+ * otherwise the game's "Settle" Add Charge rows not yet in a commission batch.
  */
 async function buildCommissionSettlement(db, games, { settlementId = null } = {}) {
 	const groups = new Map();
@@ -83,7 +85,7 @@ async function buildCommissionSettlement(db, games, { settlementId = null } = {}
 				   WHERE GAME_ID = ? AND ACTIVE = 1 AND TRANSACTION_ID = 3 AND COMMISSION_SETTLEMENT_ID = ?`
 				: `SELECT IDNo, AMOUNT FROM game_services
 				   WHERE GAME_ID = ? AND ACTIVE = 1 AND TRANSACTION_ID = 3
-					AND SERVICE_SETTLEMENT_ID IS NULL AND COMMISSION_SETTLEMENT_ID IS NULL`,
+					AND COMMISSION_SETTLEMENT_ID IS NULL`,
 			settlementId ? [game.IDNo, settlementId] : [game.IDNo]
 		);
 		const addCharge = (services || []).reduce((s, r) => s + (Number(r.AMOUNT) || 0), 0);

@@ -45,14 +45,16 @@ function pickServiceCategories(categories, name) {
 	return hit ? [hit] : null;
 }
 
-/** Unsettled rows whose program date is within fromDate..toDate (lock them when forUpdate). */
+/**
+ * Rows not yet in an Add Charge batch whose program date is within fromDate..toDate (lock them when
+ * forUpdate). A Commission settle does not count here — it recovers the charge, this books the cost.
+ */
 async function loadUnsettledServiceRows(db, fromDate, toDate, { forUpdate = false } = {}) {
 	const [rows] = await db.execute(
 		`SELECT IDNo, SERVICE_TYPE, SOURCE_TYPE, AMOUNT
 		 FROM game_services
 		 WHERE ACTIVE = 1
 			AND SERVICE_SETTLEMENT_ID IS NULL
-			AND COMMISSION_SETTLEMENT_ID IS NULL
 			AND TRANSACTION_ID IN (1, 2, 3)
 			AND SOURCE_TYPE IN ('JUNKET', 'GUEST')
 			AND COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) BETWEEN ? AND ?
