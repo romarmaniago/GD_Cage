@@ -7347,6 +7347,7 @@ $('#add_game_list').submit(function (event) {
                 txtDepositRemarks: ($('#new-game-deposit-remarks').val() || '').toString().trim(),
                 txtCreditRemarks: ($('#new-game-credit-remarks').val() || '').toString().trim(),
                 txtCreditGuarantor: ($('#new-game-credit-guarantor').val() || '').toString().trim(),
+                txtCreditDebtorAccountId: ($('#new-game-credit-debtor-account-id').val() || '').toString().trim(),
                 txtCashRemarks: ($('#new-game-cash-remarks').val() || '').toString().trim()
             };
 
@@ -7469,6 +7470,7 @@ $('#add_buyin').submit(function (event) {
 				txtDepositRemarks: ($('#buyin-deposit-remarks').val() || '').toString().trim(),
 				txtCreditRemarks: ($('#buyin-credit-remarks').val() || '').toString().trim(),
 				txtCreditGuarantor: ($('#buyin-credit-guarantor').val() || '').toString().trim(),
+				txtCreditDebtorAccountId: ($('#buyin-credit-debtor-account-id').val() || '').toString().trim(),
 				txtCashRemarks: ($('#buyin-cash-remarks').val() || '').toString().trim()
 			},
 			success: function () {
@@ -7573,7 +7575,6 @@ $('#add_buyin').submit(function (event) {
 			var ccCash = parseSplitNum($ccCashInput);
 			var ccDep = parseSplitNum($ccDepInput);
 			var ccCredit = parseSplitNum($ccCreditInput);
-			var markerChipsReturnSplit = parseFloat(($('#MarkerChipsReturn').val() || '0').replace(/,/g, '')) || 0;
 
 			if (!Number.isFinite(nnCash) || !Number.isFinite(nnDep) || !Number.isFinite(nnCredit) ||
 				!Number.isFinite(ccCash) || !Number.isFinite(ccDep) || !Number.isFinite(ccCredit)) {
@@ -7590,6 +7591,20 @@ $('#add_buyin').submit(function (event) {
 			var totalNN = nnCash + nnDep + nnCredit;
 			var totalCC = ccCash + ccDep + ccCredit;
 			var totalChips = totalNN + totalCC;
+
+			var creditReturn = nnCredit + ccCredit;
+			if (creditReturn > 0 && typeof window.getCashoutCreditDebtorOwed === 'function') {
+				var creditOwed = window.getCashoutCreditDebtorOwed();
+				if (creditOwed !== null && creditReturn > creditOwed) {
+					Swal.fire({
+						icon: 'error',
+						title: 'Insufficient Balance',
+						text: 'Credit return exceeds the current credit balance of ' + Math.round(creditOwed).toLocaleString('en-US') + '.'
+					});
+					$btn.prop('disabled', false).html('Save');
+					return;
+				}
+			}
 
 			var tipValidation = validateCashoutTipAmounts($btn);
 			if (!tipValidation.ok) {
@@ -7633,16 +7648,8 @@ $('#add_buyin').submit(function (event) {
 				}
 
 				var creditLeg = nnCredit + ccCredit;
+				// Credit return vs. balance is checked above against the debtor account (getCashoutCreditDebtorOwed).
 				if (creditLeg > 0) {
-					if (nnCredit > markerChipsReturnSplit || ccCredit > markerChipsReturnSplit || creditLeg > markerChipsReturnSplit) {
-						Swal.fire({
-							icon: 'warning',
-							title: 'Invalid Input',
-							text: 'Credit return cannot exceed Credit Balance: ' + formatNumberWithCommas(markerChipsReturnSplit)
-						});
-						$btn.prop('disabled', false).html('Save');
-						return;
-					}
 					if (!validateCreditGuarantorRequired(creditLeg, '#cashout-credit-guarantor', function () {
 						$btn.prop('disabled', false).html('Save');
 					})) {
@@ -7767,7 +7774,8 @@ $('#add_buyin').submit(function (event) {
 					txtTipStatus: ($('#cashout-tip-roller-status').val() || '').toString().trim(),
 					txtDepositRemarks: ($('#cashout-deposit-remarks').val() || '').toString().trim(),
 					txtCreditRemarks: ($('#cashout-credit-remarks').val() || '').toString().trim(),
-					txtCreditGuarantor: ($('#cashout-credit-guarantor').val() || '').toString().trim()
+					txtCreditGuarantor: ($('#cashout-credit-guarantor').val() || '').toString().trim(),
+					txtCreditDebtorAccountId: ($('#cashout-credit-debtor-account-id').val() || '').toString().trim()
 				});
 
 				$.ajax({

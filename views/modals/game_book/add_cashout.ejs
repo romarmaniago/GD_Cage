@@ -70,8 +70,8 @@
 
 			<div class="cashout-side-panels cashout-side-panels-empty" id="cashout-side-panels">
 				<div class="cashout-side-resize-handle" id="cashout-side-resize-handle" title="Drag to resize" aria-hidden="true">⇔</div>
-				<!-- Cash: two Excel-style boxes — company balance, then the Cash entry -->
-				<div class="cashout-side-panel cashout-xl-panel d-none" id="cashout-cash-panel" aria-hidden="true">
+				<!-- Company balance: one box for Cash and Dealer Tip (both are paid out of company cash) -->
+				<div class="cashout-side-panel cashout-xl-panel d-none" id="cashout-company-panel" aria-hidden="true">
 					<div class="xl-box">
 						<div class="xl-grid xl-grid-2">
 							<div class="xl-head">Current Balance of Company</div>
@@ -80,6 +80,9 @@
 							<div class="xl-value" id="cashout-cash-anticipated">—</div>
 						</div>
 					</div>
+				</div>
+				<!-- Cash entry -->
+				<div class="cashout-side-panel cashout-xl-panel d-none" id="cashout-cash-panel" aria-hidden="true">
 					<div class="xl-box">
 						<div class="xl-title">Cash</div>
 						<div class="xl-grid xl-grid-1">
@@ -134,13 +137,17 @@
 				<div class="cashout-side-panel cashout-xl-panel d-none cashout-side-panel-credit" id="cashout-credit-panel" aria-hidden="true">
 					<div class="xl-box">
 						<div class="xl-title">Credit</div>
-						<!-- Columns flow head-over-value; guest columns are added by renderGuestCreditBreakdown() -->
-						<div class="xl-grid xl-grid-cols">
+						<!-- Current | Anticipated | Debtor (the account the credit is booked to; pick another to change it) -->
+						<div class="xl-grid xl-grid-cols xl-grid-credit-top">
 							<div class="xl-head" id="cashout-credit-current-label">Current Credit Balance of Account</div>
 							<div class="xl-value xl-row-sep" id="cashout-credit-current">—</div>
 							<div class="xl-head" id="cashout-credit-anticipated-label">Anticipated Credit Balance of Account</div>
 							<div class="xl-value xl-row-sep" id="cashout-credit-anticipated">—</div>
-							<div class="xl-contents" id="cashout-credit-guest-cols"></div>
+							<div class="xl-head xl-input-cell" id="cashout-credit-debtor-col-label">
+								<input type="hidden" id="cashout-credit-debtor-account-id" value="">
+								<select class="form-select" id="cashout-credit-debtor-select" style="width: 100%;"></select>
+							</div>
+							<div class="xl-value xl-row-sep" id="cashout-credit-debtor-col">—</div>
 						</div>
 						<div class="xl-grid xl-grid-4">
 							<div class="xl-head">Processing Amount</div>
@@ -151,7 +158,6 @@
 								<span id="cashout-credit-processing">0</span>
 							</div>
 							<div class="xl-value xl-debtor-cell" id="cashout-credit-debtor">
-								<div id="cashout-credit-debtor-account">—</div>
 								<div class="xl-debtor-guest" id="cashout-credit-debtor-guest">—</div>
 							</div>
 							<div class="xl-value xl-input-cell">
@@ -609,20 +615,16 @@ body.cashout-side-resize-active {
 	font-size: 0.68rem;
 	text-transform: uppercase;
 }
-/* Ledger columns sit on the same 8-unit grid as the Excel sheet (fixed widths, not content-sized):
-   Deposit = 1 | 1 | 1 | 3 | 2, Credit = 8 x 1 — so the lines meet the 4- / 2-column rows above. */
+/* Deposit / Credit ledgers: every column fits its full text (no "…", no wrap); the panel widens to fit them */
+#modal-add-cashout .xl-box,
+#modal-add-cashout .xl-history-wrap {
+	/* the ledger scrolls sideways inside the box instead of stretching it past the panel */
+	min-width: 0;
+	max-width: 100%;
+}
 #modal-add-cashout table.xl-deposit-tbl,
 #modal-add-cashout table.xl-credit-tbl {
-	table-layout: fixed;
-}
-#modal-add-cashout table.xl-deposit-tbl th:nth-child(-n+3) { width: 12.5%; }
-#modal-add-cashout table.xl-deposit-tbl th:nth-child(4) { width: 37.5%; }
-#modal-add-cashout table.xl-deposit-tbl th:nth-child(5) { width: 25%; }
-#modal-add-cashout table.xl-credit-tbl th { width: 12.5%; }
-#modal-add-cashout table.xl-deposit-tbl td,
-#modal-add-cashout table.xl-credit-tbl td {
-	overflow: hidden;
-	text-overflow: ellipsis;
+	table-layout: auto;
 }
 #modal-add-cashout div.xl-history-wrap {
 	overflow-x: hidden;
@@ -913,16 +915,28 @@ document.addEventListener('DOMContentLoaded', function () {
 	const creditAnticipatedLabelEl = document.getElementById('cashout-credit-anticipated-label');
 	const creditCurrentEl = document.getElementById('cashout-credit-current');
 	const creditAnticipatedEl = document.getElementById('cashout-credit-anticipated');
-	const creditGuestColsEl = document.getElementById('cashout-credit-guest-cols');
+	const creditDebtorColEl = document.getElementById('cashout-credit-debtor-col');
+	// Debtor account select: credit can be booked to another account; the game stays on its own.
+	const creditDebtorPicker = window.CreditDebtorSelect ? window.CreditDebtorSelect.create({
+		modal: modal,
+		selectEl: document.getElementById('cashout-credit-debtor-select'),
+		hiddenInput: document.getElementById('cashout-credit-debtor-account-id'),
+		valueEl: creditDebtorColEl,
+		getGameAccountId: function () {
+			const el = modal.querySelector('.txtAccountCode');
+			return el ? el.value : '';
+		},
+		onChange: function () { updateCreditPanel(); }
+	}) : null;
 	const creditProcessingEl = document.getElementById('cashout-credit-processing');
 	const creditProcessingWrap = document.getElementById('cashout-credit-processing-wrap');
-	const creditDebtorAccountEl = document.getElementById('cashout-credit-debtor-account');
 	const creditDebtorGuestEl = document.getElementById('cashout-credit-debtor-guest');
 	const creditGuarantorInput = document.getElementById('cashout-credit-guarantor');
 	const creditRemarksInput = document.getElementById('cashout-credit-remarks');
 	const creditHistoryBody = document.getElementById('cashout-credit-history-body');
 	const tipRollerPanel = document.getElementById('cashout-tip-roller-panel');
 	const tipDealerPanel = document.getElementById('cashout-tip-dealer-panel');
+	const companyPanel = document.getElementById('cashout-company-panel');
 	const tipRollerCurrentEl = document.getElementById('cashout-tip-roller-current');
 	const tipRollerAnticipatedEl = document.getElementById('cashout-tip-roller-anticipated');
 	const tipRollerProcessingEl = document.getElementById('cashout-tip-roller-processing');
@@ -1065,27 +1079,15 @@ document.addEventListener('DOMContentLoaded', function () {
 		return { remarks: remarksPart, guarantor: guarantor };
 	};
 
-	const renderGuestCreditBreakdown = function () {
-		if (!creditGuestColsEl) return;
-		const guests = Array.isArray(creditMeta.guestBalances) ? creditMeta.guestBalances : [];
-		if (!guests.length) {
-			creditGuestColsEl.innerHTML = '';
-			return;
-		}
-		// The debtor guest's column already includes the amount being paid back.
-		const debtorGuest = String(getGuestName() || '').trim().toUpperCase();
+	// Third top column: the debtor account's anticipated balance.
+	const renderDebtorColumn = function () {
+		if (!creditDebtorColEl) return;
+		const debtor = creditDebtorPicker && creditDebtorPicker.get();
 		const pending = shouldShowCreditPanel() ? computeCreditProcessing() : 0;
-		let html = '';
-		guests.forEach(function (g) {
-			const name = (g.guestName || '').trim() || 'Guest';
-			let bal = Number(g.creditBalance) || 0;
-			if (pending > 0 && debtorGuest && name.toUpperCase() === debtorGuest) bal = Math.max(0, bal - pending);
-			if (bal <= 0) return;
-			// Head and value are separate grid cells (the wrapper is display: contents).
-			html += '<div class="xl-head">' + escapeCell(name.toUpperCase()) + '</div>' +
-				'<div class="xl-value xl-row-sep text-amount-negative">' + formatCreditOwed(bal) + '</div>';
-		});
-		creditGuestColsEl.innerHTML = html;
+		const bal = (debtor ? debtor.totalCredit : parseAmt(creditMeta.totalCredit)) - pending;
+		creditDebtorColEl.textContent = formatCreditOwed(bal);
+		creditDebtorColEl.classList.remove('text-amount-negative', 'text-amount-positive');
+		creditDebtorColEl.classList.add(creditAmountClass(bal));
 	};
 
 	const getDebtorLine = function () {
@@ -1095,13 +1097,13 @@ document.addEventListener('DOMContentLoaded', function () {
 		return code || guest || '—';
 	};
 
+	// Debtor is always an account: the picked one, else the game account.
 	const updateDebtorDisplay = function () {
-		const code = getAgentCode();
-		const guest = getGuestName();
-		if (creditDebtorAccountEl) creditDebtorAccountEl.textContent = code || '—';
+		if (creditDebtorPicker) creditDebtorPicker.sync();
+		const debtor = creditDebtorPicker && creditDebtorPicker.get();
 		if (creditDebtorGuestEl) {
-			creditDebtorGuestEl.textContent = guest || '—';
-			creditDebtorGuestEl.classList.toggle('d-none', !guest);
+			creditDebtorGuestEl.textContent = (debtor ? debtor.code : getAgentCode()) || '—';
+			creditDebtorGuestEl.classList.remove('d-none');
 		}
 	};
 
@@ -1235,13 +1237,37 @@ document.addEventListener('DOMContentLoaded', function () {
 		const tipsOpen =
 			(tipRollerPanel && !tipRollerPanel.classList.contains('d-none')) ||
 			(tipDealerPanel && !tipDealerPanel.classList.contains('d-none'));
-		sidePanels.style.width = (creditOpen || tipsOpen) ? '50rem' : '30rem';
+		const base = (creditOpen || tipsOpen) ? '50rem' : '30rem';
+		sidePanels.style.width = sidePanels.dataset.ledgerFit ? 'max(' + base + ', ' + sidePanels.dataset.ledgerFit + ')' : base;
+	};
+
+	// Deposit / Credit ledger columns fit their full text: widen the side panels to fit the widest (not past
+	// the screen, and not when the user dragged the width); a ledger that still doesn't fit scrolls sideways.
+	const fitLedgerWidths = function () {
+		const sidePanels = document.getElementById('cashout-side-panels');
+		if (!sidePanels) return;
+		const wraps = Array.prototype.filter.call(sidePanels.querySelectorAll('.xl-history-wrap'), function (w) {
+			return w.offsetWidth > 0 && w.querySelector('table');
+		});
+		// The table is sized to the wrap (under its scrollbar); anything past that is text that doesn't fit.
+		const extraOf = function (w) { return Math.ceil(w.querySelector('table').offsetWidth - w.offsetWidth); };
+		const extra = wraps.reduce(function (max, w) { return Math.max(max, extraOf(w)); }, 0);
+		if (extra > 0 && sidePanels.dataset.userSized !== '1') {
+			const mainContent = modal.querySelector('.cashout-main-content');
+			const mainWidth = mainContent ? mainContent.getBoundingClientRect().width : 512;
+			const maxWidth = window.innerWidth - 24 - mainWidth - 12 - 32;
+			const width = Math.min(maxWidth, sidePanels.getBoundingClientRect().width + extra + 2);
+			sidePanels.dataset.ledgerFit = width + 'px';
+			sidePanels.style.width = width + 'px';
+		}
+		wraps.forEach(function (w) { w.style.overflowX = extraOf(w) > 0 ? 'auto' : ''; });
 	};
 
 	const resetSidePanelsWidth = function () {
 		const sidePanels = document.getElementById('cashout-side-panels');
 		if (!sidePanels) return;
 		delete sidePanels.dataset.userSized;
+		delete sidePanels.dataset.ledgerFit;
 		sidePanels.style.width = '';
 	};
 
@@ -1391,6 +1417,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		}
 		historyBody.innerHTML = html;
 		requestAnimationFrame(function () {
+			fitLedgerWidths();
 			applyHistoryWrapHeights();
 			revealPendingRow(historyBody);
 		});
@@ -1472,6 +1499,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		const show = tipDealerEngaged || shouldShowTipDealerPanel();
 		if (!show) {
 			togglePanel(tipDealerPanel, false);
+			updateCompanyPanel();
 			return;
 		}
 
@@ -1494,6 +1522,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			'Dealer Tip'
 		);
 		togglePanel(tipDealerPanel, true);
+		updateCompanyPanel();
 	};
 
 	const getCreditReturnSourceLabel = function (desc) {
@@ -1559,7 +1588,9 @@ document.addEventListener('DOMContentLoaded', function () {
 	const renderCreditHistoryTable = function (pendingAmount, pendingRemarks, pendingGuarantor) {
 		if (!creditHistoryBody) return;
 		alignCreditDigits();
-		const rows = creditHistory.slice().sort(function (a, b) {
+		// The ledger follows the debtor: another account's own credit history and balance.
+		const ledgerDebtor = creditDebtorPicker && creditDebtorPicker.get();
+		const rows = (ledgerDebtor ? ledgerDebtor.history : creditHistory).slice().sort(function (a, b) {
 			const ta = new Date(a.ENCODED_DT || a.encoded_date).getTime() || 0;
 			const tb = new Date(b.ENCODED_DT || b.encoded_date).getTime() || 0;
 			return ta - tb || (Number(a.CREDIT_TXN_ID) || 0) - (Number(b.CREDIT_TXN_ID) || 0);
@@ -1571,7 +1602,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			const isOut = isCreditOutTxn(row);
 			const debtor = getCreditHistoryDebtorParts(row);
 			const parsed = parseCreditRemarks(row.REMARKS);
-			html += creditLedgerRow('', row.ENCODED_DT || row.encoded_date, debtor.account, debtor.guest,
+			html += creditLedgerRow('', row.ENCODED_DT || row.encoded_date, debtor.account, row.AGENT_NAME || debtor.guest,
 				isOut ? formatNegativeAmt(amount) : formatAmt(amount), isOut,
 				parseAmt(row.BALANCE_AFTER), row.GUARANTOR || parsed.guarantor,
 				creditLedgerTransactionText(row), parsed.remarks);
@@ -1579,9 +1610,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
 		// Cash Out pays the credit back with chips.
 		if (pendingAmount > 0) {
-			const pendingBalance = parseAmt(creditMeta.totalCredit) - pendingAmount;
+			const pendingBalance = parseAmt(ledgerDebtor ? ledgerDebtor.totalCredit : creditMeta.totalCredit) - pendingAmount;
 			const gameId = currentGameId();
-			html += creditLedgerRow('is-pending', new Date(), getAgentCode(), getGuestName(),
+			html += creditLedgerRow('is-pending', new Date(), getAgentCode(), ledgerDebtor ? (ledgerDebtor.name || ledgerDebtor.code) : (creditMeta.agentName || getAgentCode()),
 				formatAmt(pendingAmount), false, pendingBalance, pendingGuarantor,
 				'Chips Return' + (gameId ? ' - #' + gameId : ''), pendingRemarks);
 		}
@@ -1592,6 +1623,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 		creditHistoryBody.innerHTML = html;
 		requestAnimationFrame(function () {
+			fitLedgerWidths();
 			applyHistoryWrapHeights();
 			revealPendingRow(creditHistoryBody);
 		});
@@ -1608,7 +1640,8 @@ document.addEventListener('DOMContentLoaded', function () {
 		const base = parseAmt(creditMeta.totalCredit);
 		const processing = computeCreditProcessing();
 		const hasInput = shouldShowCreditPanel();
-		const anticipated = base - processing;
+		// Another account as debtor: the game account's own credit doesn't change.
+		const anticipated = base - (creditDebtorPicker && creditDebtorPicker.get() ? 0 : processing);
 		const pendingRemarks = creditRemarksInput ? creditRemarksInput.value.trim() : '';
 		const pendingGuarantor = creditGuarantorInput ? creditGuarantorInput.value.trim() : '';
 
@@ -1624,7 +1657,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			creditAnticipatedEl.classList.remove('text-amount-negative', 'text-amount-positive');
 			if (hasInput) creditAnticipatedEl.classList.add(creditAmountClass(anticipated));
 		}
-		renderGuestCreditBreakdown();
+		renderDebtorColumn();
 		setProcessingDisplay(creditProcessingEl, creditProcessingWrap, hasInput ? processing : 0);
 		updateDebtorDisplay();
 
@@ -1632,21 +1665,37 @@ document.addEventListener('DOMContentLoaded', function () {
 		togglePanel(creditPanel, true);
 	};
 
+	// One company-balance box for Cash and Dealer Tip, both paid out of company cash:
+	// anticipated = current - cash - dealer tip (computeCashProcessing is already negative).
+	const updateCompanyPanel = function () {
+		const cashShown = cashPanel && !cashPanel.classList.contains('d-none');
+		const tipShown = tipDealerPanel && !tipDealerPanel.classList.contains('d-none');
+		if (!cashShown && !tipShown) {
+			togglePanel(companyPanel, false);
+			return;
+		}
+		const base = parseAmt(companyBaseEl && companyBaseEl.textContent);
+		const cashOut = shouldShowCashPanel() ? computeCashProcessing() : 0;
+		const tip = shouldShowTipDealerPanel() ? computeTipDealerProcessing() : 0;
+		const hasInput = shouldShowCashPanel() || shouldShowTipDealerPanel();
+		if (cashCurrentEl) cashCurrentEl.textContent = formatAmt(base);
+		if (cashAnticipatedEl) cashAnticipatedEl.textContent = hasInput ? formatAmt(base + cashOut - tip) : '—';
+		togglePanel(companyPanel, true);
+	};
+
 	const updateCashPanel = function () {
 		const show = cashEngaged || shouldShowCashPanel();
 		if (!show) {
 			togglePanel(cashPanel, false);
+			updateCompanyPanel();
 			return;
 		}
 
 		togglePanel(cashPanel, true);
-		const base = parseAmt(companyBaseEl && companyBaseEl.textContent);
 		const processing = computeCashProcessing();
 		const hasInput = shouldShowCashPanel();
-
-		if (cashCurrentEl) cashCurrentEl.textContent = formatAmt(base);
-		if (cashAnticipatedEl) cashAnticipatedEl.textContent = hasInput ? formatAmt(base + processing) : '—';
 		setProcessingDisplay(cashProcessingEl, cashProcessingWrap, hasInput ? processing : 0);
+		updateCompanyPanel();
 	};
 
 	const updateDepositPanel = function () {
@@ -1681,6 +1730,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	};
 
 	const resetBalanceDisplay = function () {
+		if (creditDebtorPicker) creditDebtorPicker.reset();
 		cashEngaged = false;
 		depositEngaged = false;
 		creditEngaged = false;
@@ -1691,6 +1741,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		togglePanel(depositPanel, false);
 		togglePanel(creditPanel, false);
 		togglePanel(tipRollerPanel, false);
+		togglePanel(companyPanel, false);
 		togglePanel(tipDealerPanel, false);
 		if (remarksInput) remarksInput.value = '';
 		if (creditRemarksInput) creditRemarksInput.value = '';
@@ -1705,7 +1756,6 @@ document.addEventListener('DOMContentLoaded', function () {
 		rollerTipBalance = 0;
 		dealerTipBalance = 0;
 		creditMeta = { totalCredit: 0, balanceCredit: 0, balanceBuyin: 0, guestBalances: [], agentCode: '', agentName: '', agencyName: '' };
-		if (creditGuestColsEl) creditGuestColsEl.innerHTML = '';
 		if (historyBody) {
 			historyBody.innerHTML = '<tr class="text-muted"><td colspan="4" class="text-center small py-2">No history.</td></tr>';
 		}
@@ -1783,7 +1833,6 @@ document.addEventListener('DOMContentLoaded', function () {
 		if (!accountId) {
 			creditHistory = [];
 			creditMeta = { totalCredit: 0, balanceCredit: 0, balanceBuyin: 0, guestBalances: [], agentCode: '', agentName: '', agencyName: '' };
-			if (creditGuestColsEl) creditGuestColsEl.innerHTML = '';
 			return Promise.resolve();
 		}
 
@@ -1808,7 +1857,6 @@ document.addEventListener('DOMContentLoaded', function () {
 			.catch(function () {
 				creditHistory = [];
 				creditMeta = { totalCredit: 0, balanceCredit: 0, balanceBuyin: 0, guestBalances: [], agentCode: '', agentName: '', agencyName: '' };
-				if (creditGuestColsEl) creditGuestColsEl.innerHTML = '';
 				initCreditGuarantorAutocomplete();
 			});
 	};
@@ -2014,23 +2062,8 @@ document.addEventListener('DOMContentLoaded', function () {
 				updateBalanceSummary();
 			});
 
+			// Credit return vs. balance is checked on Save (the debtor can still change while typing).
 			inputEl.addEventListener('input', function () {
-				if (type === 'credit') {
-					const totalOwed = parseAmt(creditMeta.totalCredit);
-					const processing = computeCreditProcessing();
-					if (processing > 0 && processing > totalOwed) {
-						Swal.fire({
-							icon: 'error',
-							title: 'Insufficient Balance',
-							text: 'Credit return exceeds the current credit balance of ' + formatAmt(totalOwed) + '.',
-							confirmButtonColor: '#3a57e8'
-						});
-						inputEl.value = '';
-						updateBalanceSummary();
-						inputEl.focus();
-						return;
-					}
-				}
 				updateBalanceSummary();
 			});
 
@@ -2125,6 +2158,14 @@ document.addEventListener('DOMContentLoaded', function () {
 		resetBalanceDisplay();
 	});
 	syncSidePanelsLayout();
+
+	// Save checks the credit return against this: the debtor account's balance (the game account unless another is picked).
+	// null while a picked debtor's balance is still loading — the server checks it then.
+	window.getCashoutCreditDebtorOwed = function () {
+		const debtor = creditDebtorPicker && creditDebtorPicker.get();
+		if (debtor && !debtor.loaded) return null;
+		return parseAmt(debtor ? debtor.totalCredit : creditMeta.totalCredit);
+	};
 
 	window.refreshCashoutModalBalances = function (agentCode, guestName) {
 		if (agentCodeEl) agentCodeEl.textContent = agentCode || '';

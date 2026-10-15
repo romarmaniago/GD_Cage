@@ -11,7 +11,7 @@ const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/Exce
 const { buildGameBookGroupedExportXlsx } = require('../utils/GameBookExportService');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { isTipEnabled, parseTipSplitAmounts, saveCashoutTips, archiveTipsForCashout, CASHOUT_TRANSACTION, parseRollerName, parseTipStatus } = require('../utils/saveCashoutTips');
-const { insertCreditRecord, creditWaterfallDisplaySql, getCreditHistorySql } = require('../utils/creditService');
+const { insertCreditRecord, creditWaterfallDisplaySql, getCreditHistorySql, softDeleteCreditByLedgerId } = require('../utils/creditService');
 const { resolveActiveServiceCategory } = require('../utils/serviceCategoryHelpers');
 const { COMMISSION_TYPE, computeGameCommission, getShareRollingSplit, isRollingBasedType, commissionTypeLabel, parseShareRollingInput } = require('../utils/commissionCalc');
 const { DEFAULT_ROLLING_RATE_PERCENT } = require('../utils/commissionSettlementCalc');
@@ -1882,6 +1882,37 @@ function creditGuarantorRequiredError(creditTotal, creditGuarantor) {
 	return null;
 }
 
+// Credit leg debtor: another active account can owe it (txtCreditDebtorAccountId); the game itself
+// stays on gameAccountId. Returns { accountId, isOther, code } or { error }.
+async function resolveCreditDebtorAccount(db, gameAccountId, rawDebtorId) {
+	const gameAcct = parseInt(gameAccountId, 10) || null;
+	const debtorId = parseInt(rawDebtorId, 10) || null;
+	if (!debtorId || debtorId === gameAcct) return { accountId: gameAcct, isOther: false, code: '' };
+	const [rows] = await db.execute(
+		`SELECT account.IDNo, agent.AGENT_CODE
+		 FROM account
+		 LEFT JOIN agent ON agent.IDNo = account.AGENT_ID
+		 WHERE account.IDNo = ? AND account.ACTIVE = 1
+		 LIMIT 1`,
+		[debtorId]
+	);
+	if (!rows.length) return { error: 'Invalid debtor account.' };
+	return { accountId: debtorId, isOther: true, code: rows[0].AGENT_CODE || String(debtorId) };
+}
+
+// Telegram Credit line suffix when the credit is booked to another account: " (Debtor: GD084)".
+function creditDebtorTelegramNote(creditDebtor) {
+	return creditDebtor && creditDebtor.isOther ? ` (Debtor: ${creditDebtor.code})` : '';
+}
+
+// Keep credit_transaction (what credit balances read) in step when a credit ledger row's amount is edited.
+async function updateCreditAmountByLedgerId(db, ledgerId, amount, editedBy, editedDt) {
+	await db.execute(
+		'UPDATE credit_transaction SET AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE LEDGER_ID = ? AND ACTIVE = 1',
+		[amount, editedBy, editedDt, ledgerId]
+	);
+}
+
 // game_record.TRANSACTION for a pending-resolve Loss Amount buy-in: counts toward the guest's buy-in
 // (W/L) but is not cash, deposit or credit — no ledger row, excluded from every cash total.
 const GAME_RECORD_TRANS_LOSS = 7;
@@ -3028,6 +3059,15 @@ router.post('/add_game_list_split', async (req, res) => {
 	const guarantorErr = creditGuarantorRequiredError(creditTotal, creditGuarantor);
 	if (guarantorErr) return res.status(400).json({ error: guarantorErr });
 
+	// Debtor: another account can owe the credit leg; the game itself stays on accountId.
+	const creditDebtor = creditTotal > 0
+		? await resolveCreditDebtorAccount(pool, accountId, req.body.txtCreditDebtorAccountId)
+		: { accountId, isOther: false };
+	if (creditDebtor.error) return res.status(400).json({ error: creditDebtor.error });
+	const creditAccountId = creditDebtor.accountId;
+	// The game's guest only owes it when the game account is the debtor.
+	const creditGuestId = creditDebtor.isOther ? null : guestId;
+
 	const gameRecordSQL = GAME_RECORD_BUYIN_SQL;
 	const ledgerDepositSQL = `
 		INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, AUTO_REMARKS, ENCODED_BY, ENCODED_DT)
@@ -3078,7 +3118,7 @@ router.post('/add_game_list_split', async (req, res) => {
 		}
 		if (creditTotal > 0) {
 			const [ledgerResult] = await connection.execute(ledgerCreditSQL, [
-				accountId,
+				creditAccountId,
 				gameId,
 				10,
 				3,
@@ -3089,8 +3129,8 @@ router.post('/add_game_list_split', async (req, res) => {
 				encoded_dt
 			]);
 			await insertCreditRecord(connection, {
-				accountId,
-				guestId,
+				accountId: creditAccountId,
+				guestId: creditGuestId,
 				creditAction: 'Buy-in',
 				creditSource: 'BUYIN',
 				amount: creditTotal,
@@ -3140,12 +3180,12 @@ router.post('/add_game_list_split', async (req, res) => {
 				const splitLinesGuest = [];
 				if (cashTotal > 0) splitLinesGuest.push(`Cash: ${cashTotal.toLocaleString('en-US')}`);
 				if (depositTotal > 0) splitLinesGuest.push(`Deposit: ${depositTotal.toLocaleString('en-US')}`);
-				if (creditTotal > 0) splitLinesGuest.push(`Credit: ${creditTotal.toLocaleString('en-US')}`);
+				if (creditTotal > 0) splitLinesGuest.push(`Credit: ${creditTotal.toLocaleString('en-US')}${creditDebtorTelegramNote(creditDebtor)}`);
 				const splitTextBlockGuest = splitLinesGuest.join('\n');
 				const splitLinesMgmt = [];
 				if (cashTotal > 0) splitLinesMgmt.push(`Cash: ${cashTotal.toLocaleString('en-US')}`);
 				if (depositTotal > 0) splitLinesMgmt.push(`Deposit: ${depositTotal.toLocaleString('en-US')}`);
-				if (creditTotal > 0) splitLinesMgmt.push(`Credit: ${creditTotal.toLocaleString('en-US')}`);
+				if (creditTotal > 0) splitLinesMgmt.push(`Credit: ${creditTotal.toLocaleString('en-US')}${creditDebtorTelegramNote(creditDebtor)}`);
 				const splitTextBlockMgmt = splitLinesMgmt.join('\n');
 				const splitGt = telegramGameTypeLabels(gameType);
 				// Shared / Share + Rolling: same "Game type" line as the legacy /add_game_list Telegram.
@@ -4766,6 +4806,14 @@ router.delete('/game_list/delete/:id', checkSession, commissionLock(gameFromPara
 
 		// 4. Soft delete account_ledger entries (game_record-related only, EXCLUDE game_services)
 		// 4a. Direct link: soft delete all entries with GAME_ID = gameId (exclude SERVICES)
+		// Their credit_transaction rows go too (credit balances read only that table; the debtor may be another account).
+		await connection.execute(
+			`UPDATE credit_transaction ct
+			 JOIN account_ledger al ON al.IDNo = ct.LEDGER_ID
+			 SET ct.ACTIVE = 0, ct.EDITED_BY = ?, ct.EDITED_DT = ?
+			 WHERE al.GAME_ID = ? AND al.ACTIVE = 1 AND COALESCE(al.TRANSACTION_DESC, '') != 'SERVICES' AND ct.ACTIVE = 1`,
+			[editedBy, date_now, gameId]
+		);
 		await connection.execute(
 			`UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE GAME_ID = ? AND ACTIVE = 1 AND COALESCE(TRANSACTION_DESC, '') != 'SERVICES'`,
 			[editedBy, date_now, gameId]
@@ -6668,6 +6716,11 @@ router.post('/game_list/add/buyin_split', commissionLock(gameFromBody), async (r
 	}
 	const guarantorErr = creditGuarantorRequiredError(creditTotal, creditGuarantor);
 	if (guarantorErr) return res.status(400).json({ error: guarantorErr });
+	// Debtor: another account can owe the credit leg; the game itself stays on txtAccountCode.
+	const creditDebtor = creditTotal > 0
+		? await resolveCreditDebtorAccount(pool, txtAccountCode, req.body.txtCreditDebtorAccountId)
+		: { accountId: txtAccountCode, isOther: false };
+	if (creditDebtor.error) return res.status(400).json({ error: creditDebtor.error });
 
 	const gameRecordSQL = GAME_RECORD_BUYIN_SQL;
 	const ledgerDepositSQL = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, AUTO_REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
@@ -6693,7 +6746,7 @@ router.post('/game_list/add/buyin_split', commissionLock(gameFromBody), async (r
 			await connection.execute(GAME_RECORD_BUYIN_WITH_REMARKS_SQL, [game_id, date_now, 1, 0, creditNn, creditCc, 3, creditGameRecordRemarks, req.session.user_id, date_now]);
 			await connection.execute(gameRecordSQL, [game_id, date_now, 3, 0, creditNn, creditCc, 3, req.session.user_id, date_now]);
 			const [ledgerResult] = await connection.execute(ledgerCreditSQL, [
-				txtAccountCode,
+				creditDebtor.accountId,
 				game_id,
 				10,
 				3,
@@ -6704,9 +6757,10 @@ router.post('/game_list/add/buyin_split', commissionLock(gameFromBody), async (r
 				date_now
 			]);
 			const programDate = await getGameProgramDate(connection, game_id);
-			const guestId = await getGameGuestId(connection, game_id);
+			// The game's guest only owes it when the game account is the debtor.
+			const guestId = creditDebtor.isOther ? null : await getGameGuestId(connection, game_id);
 			await insertCreditRecord(connection, {
-				accountId: txtAccountCode,
+				accountId: creditDebtor.accountId,
 				guestId,
 				creditAction: 'Buy-in',
 				creditSource: 'BUYIN',
@@ -6765,12 +6819,12 @@ router.post('/game_list/add/buyin_split', commissionLock(gameFromBody), async (r
 				const splitLinesGuest = [];
 				if (cashTotal > 0) splitLinesGuest.push(`Cash: ${cashTotal.toLocaleString('en-US')}`);
 				if (depositTotal > 0) splitLinesGuest.push(`Deposit: ${depositTotal.toLocaleString('en-US')}`);
-				if (creditTotal > 0) splitLinesGuest.push(`Credit: ${creditTotal.toLocaleString('en-US')}`);
+				if (creditTotal > 0) splitLinesGuest.push(`Credit: ${creditTotal.toLocaleString('en-US')}${creditDebtorTelegramNote(creditDebtor)}`);
 				const splitTextBlockGuest = splitLinesGuest.join('\n');
 				const splitLinesMgmt = [];
 				if (cashTotal > 0) splitLinesMgmt.push(`Cash: ${cashTotal.toLocaleString('en-US')}`);
 				if (depositTotal > 0) splitLinesMgmt.push(`Deposit: ${depositTotal.toLocaleString('en-US')}`);
-				if (creditTotal > 0) splitLinesMgmt.push(`Credit: ${creditTotal.toLocaleString('en-US')}`);
+				if (creditTotal > 0) splitLinesMgmt.push(`Credit: ${creditTotal.toLocaleString('en-US')}${creditDebtorTelegramNote(creditDebtor)}`);
 				const splitTextBlockMgmt = splitLinesMgmt.join('\n');
 				const priorBuyinTotal = parseFloat((txtTotalAmountBuyin || '0').toString().replace(/,/g, '')) || 0;
 				const totalBuyin = priorBuyinTotal + grandTotal;
@@ -7100,6 +7154,11 @@ router.post('/game_list/add/cashout_split', commissionLock(gameFromBody), async 
 	if (splitGrandTotal <= 0 && tipGrandTotal <= 0) {
 		return res.status(400).json({ error: 'Enter a cash-out amount and/or a tip amount.' });
 	}
+	// Debtor: the credit returned can pay down another account's credit; the game stays on txtAccountCode.
+	const creditDebtor = creditLeg > 0
+		? await resolveCreditDebtorAccount(pool, txtAccountCode, req.body.txtCreditDebtorAccountId)
+		: { accountId: txtAccountCode, isOther: false };
+	if (creditDebtor.error) return res.status(400).json({ error: creditDebtor.error });
 	if (splitGrandTotal > 0 && creditLeg > 0) {
 		// Re-check server-side against credit_transaction (same source the modal's own
 		// "Current Credit Balance" reads from — see /game_list_cashout_credit/:accountId)
@@ -7107,7 +7166,7 @@ router.post('/game_list/add/cashout_split', commissionLock(gameFromBody), async 
 		// was populated from a separate, now-stale account_ledger-only query.
 		const [[creditRow]] = await pool.execute(
 			`SELECT net.NET_TOTAL FROM (${creditWaterfallDisplaySql()}) net WHERE net.ACCOUNT_ID = ?`,
-			[txtAccountCode]
+			[creditDebtor.accountId]
 		);
 		const currentOwed = creditRow ? parseFloat(creditRow.NET_TOTAL) || 0 : 0;
 		if (creditNn > currentOwed || creditCc > currentOwed || creditLeg > currentOwed) {
@@ -7209,7 +7268,7 @@ router.post('/game_list/add/cashout_split', commissionLock(gameFromBody), async 
 			}
 			const creditRemarksVal = buildCreditLedgerRemarks();
 			const [ledgerResult] = await connection.execute(query2Credit, [
-				txtAccountCode,
+				creditDebtor.accountId,
 				game_id,
 				1,
 				4,
@@ -7220,8 +7279,9 @@ router.post('/game_list/add/cashout_split', commissionLock(gameFromBody), async 
 				date_now
 			]);
 			await insertCreditRecord(connection, {
-				accountId: txtAccountCode,
-				guestId,
+				accountId: creditDebtor.accountId,
+				// The game's guest only pays it down when the game account is the debtor.
+				guestId: creditDebtor.isOther ? null : guestId,
 				creditAction: 'Cash-in',
 				creditSource: 'BUYIN',
 				amount: creditLeg,
@@ -7365,8 +7425,8 @@ router.post('/game_list/add/cashout_split', commissionLock(gameFromBody), async 
 			const combinedGrandTotal = splitGrandTotal + tipGrandTotal;
 			const cutoffTelegram = await resolveCutoffTelegramGameContext(pool, game_id);
 			const telegramGameNo = cutoffTelegram.telegramGameNo;
-			const creditLineGuest = creditTotal > 0 ? `\nCredit: ${creditTotal.toLocaleString('en-US')}` : '';
-			const creditLineMgmt = creditTotal > 0 ? `\nCredit: ${creditTotal.toLocaleString('en-US')}` : '';
+			const creditLineGuest = creditTotal > 0 ? `\nCredit: ${creditTotal.toLocaleString('en-US')}${creditDebtorTelegramNote(creditDebtor)}` : '';
+			const creditLineMgmt = creditTotal > 0 ? `\nCredit: ${creditTotal.toLocaleString('en-US')}${creditDebtorTelegramNote(creditDebtor)}` : '';
 			const tipLineGuest = tipGrandTotal > 0 ? `\nTip: ${tipGrandTotal.toLocaleString('en-US')}` : '';
 			const tipLineMgmt = tipGrandTotal > 0 ? `\nTip: ${tipGrandTotal.toLocaleString('en-US')}` : '';
 			const text = `GD Cage\n\n* Cash-out *${cutoffTelegram.cutoffTitle.agentTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${telegramGameNo}${cashoutSplitGameLineAgent}\n\nCash: ${cashTotal.toLocaleString('en-US')}\nDeposit: ${depTotal.toLocaleString('en-US')}${creditLineGuest}${tipLineGuest}\nTotal Cash-out: ${combinedGrandTotal.toLocaleString('en-US')}\nBalance: ${currentBalanceAfterSplit.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
@@ -7831,18 +7891,20 @@ router.put('/game_record/edit/:id', checkSession, commissionLock(gameFromRecordP
 				if (transaction == 3) {
 					// Marker: update account_ledger
 					const [iouRows] = await pool.execute(
-						`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 10 AND TRANSACTION_TYPE = 3 AND (TRANSACTION_DESC IS NULL OR TRANSACTION_DESC = '') AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
-						[accountId, gameId, oldTotal, encodedDt]
+						`SELECT IDNo FROM account_ledger WHERE (GAME_ID = ? OR (GAME_ID IS NULL AND ACCOUNT_ID = ?)) AND TRANSACTION_ID = 10 AND TRANSACTION_TYPE = 3 AND (TRANSACTION_DESC IS NULL OR TRANSACTION_DESC = '') AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+						[gameId, accountId, oldTotal, encodedDt]
 					);
 					if (iouRows.length > 0) {
 						await pool.execute(`UPDATE account_ledger SET AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`, [newTotal, req.session.user_id, date_now, iouRows[0].IDNo]);
+						await updateCreditAmountByLedgerId(pool, iouRows[0].IDNo, newTotal, req.session.user_id, date_now);
 					} else {
 						const [iouRows2] = await pool.execute(
-							`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 10 AND TRANSACTION_TYPE = 3 AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
-							[accountId, gameId, oldTotal, encodedDt]
+							`SELECT IDNo FROM account_ledger WHERE (GAME_ID = ? OR (GAME_ID IS NULL AND ACCOUNT_ID = ?)) AND TRANSACTION_ID = 10 AND TRANSACTION_TYPE = 3 AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+							[gameId, accountId, oldTotal, encodedDt]
 						);
 						if (iouRows2.length > 0) {
 							await pool.execute(`UPDATE account_ledger SET AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`, [newTotal, req.session.user_id, date_now, iouRows2[0].IDNo]);
+							await updateCreditAmountByLedgerId(pool, iouRows2[0].IDNo, newTotal, req.session.user_id, date_now);
 						}
 					}
 				}
@@ -7855,11 +7917,13 @@ router.put('/game_record/edit/:id', checkSession, commissionLock(gameFromRecordP
 			if (gameListRows.length > 0) {
 				const accountId = gameListRows[0].ACCOUNT_ID;
 				const [ledgerRows] = await pool.execute(
-					`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 1 AND TRANSACTION_TYPE = ? AND TRANSACTION_DESC = 'Chips Returned' AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
-					[accountId, gameId, transaction, oldTotal, encodedDt]
+					`SELECT IDNo FROM account_ledger WHERE (GAME_ID = ? OR (GAME_ID IS NULL AND ACCOUNT_ID = ?)) AND TRANSACTION_ID = 1 AND TRANSACTION_TYPE = ? AND TRANSACTION_DESC = 'Chips Returned' AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+					[gameId, accountId, transaction, oldTotal, encodedDt]
 				);
 				if (ledgerRows.length > 0) {
 					await pool.execute(`UPDATE account_ledger SET AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`, [newTotal, req.session.user_id, date_now, ledgerRows[0].IDNo]);
+					// Credit return (TRANSACTION 4): its credit_transaction row too
+					if (transaction == 4) await updateCreditAmountByLedgerId(pool, ledgerRows[0].IDNo, newTotal, req.session.user_id, date_now);
 				}
 			}
 			// cash_transaction: TRANSACTION_ID = game_record.IDNo for cash out
@@ -7929,14 +7993,16 @@ router.put('/game_record/remove/:id', checkSession, commissionLock(gameFromRecor
 				
 				// Soft delete account_ledger (new: GAME_ID = gameId, old: GAME_ID IS NULL)
 				const [ledgerRows] = await pool.execute(
-					`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 1 AND TRANSACTION_TYPE = ? AND TRANSACTION_DESC = 'Chips Returned' AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
-					[accountId, gameId, transaction, totalAmount, encodedDt]
+					`SELECT IDNo FROM account_ledger WHERE (GAME_ID = ? OR (GAME_ID IS NULL AND ACCOUNT_ID = ?)) AND TRANSACTION_ID = 1 AND TRANSACTION_TYPE = ? AND TRANSACTION_DESC = 'Chips Returned' AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+					[gameId, accountId, transaction, totalAmount, encodedDt]
 				);
 				if (ledgerRows.length > 0) {
 					await pool.execute(
 						'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
 						[req.session.user_id, date_now, ledgerRows[0].IDNo]
 					);
+					// Credit return (TRANSACTION 4): its credit_transaction row too
+					if (transaction == 4) await softDeleteCreditByLedgerId(pool, ledgerRows[0].IDNo, req.session.user_id, date_now);
 				}
 			}
 
@@ -8018,24 +8084,26 @@ router.put('/game_record/remove/:id', checkSession, commissionLock(gameFromRecor
 					const softDeleteBy = req.session.user_id;
 					const softDeleteDt = date_now;
 					const [iouRows] = await pool.execute(
-						`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 10 AND TRANSACTION_TYPE = 3 AND (TRANSACTION_DESC IS NULL OR TRANSACTION_DESC = '') AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
-						[accountId, gameId, totalAmount, encodedDt]
+						`SELECT IDNo FROM account_ledger WHERE (GAME_ID = ? OR (GAME_ID IS NULL AND ACCOUNT_ID = ?)) AND TRANSACTION_ID = 10 AND TRANSACTION_TYPE = 3 AND (TRANSACTION_DESC IS NULL OR TRANSACTION_DESC = '') AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+						[gameId, accountId, totalAmount, encodedDt]
 					);
 					if (iouRows.length > 0) {
 						await pool.execute(
 							'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
 							[softDeleteBy, softDeleteDt, iouRows[0].IDNo]
 						);
+						await softDeleteCreditByLedgerId(pool, iouRows[0].IDNo, softDeleteBy, softDeleteDt);
 					} else {
 						const [iouRows2] = await pool.execute(
-							`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 10 AND TRANSACTION_TYPE = 3 AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
-							[accountId, gameId, totalAmount, encodedDt]
+							`SELECT IDNo FROM account_ledger WHERE (GAME_ID = ? OR (GAME_ID IS NULL AND ACCOUNT_ID = ?)) AND TRANSACTION_ID = 10 AND TRANSACTION_TYPE = 3 AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+							[gameId, accountId, totalAmount, encodedDt]
 						);
 						if (iouRows2.length > 0) {
 							await pool.execute(
 								'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
 								[softDeleteBy, softDeleteDt, iouRows2[0].IDNo]
 							);
+							await softDeleteCreditByLedgerId(pool, iouRows2[0].IDNo, softDeleteBy, softDeleteDt);
 						}
 					}
 				}
