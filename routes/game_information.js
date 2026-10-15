@@ -172,6 +172,165 @@ router.get('/game_information', checkSession, function (req, res) {
 	res.render('game_information/game_information', data);
 });
 
+router.get('/game_information_report', checkSession, function (req, res) {
+	const data = sessions(req, 'game_information_report');
+	data.permissions = req.session.permissions;
+	res.render('game_information/report', data);
+});
+
+/** Report name corrections: { agentId: name } — replaces the account owner's name on the Report only */
+router.get('/game_information_report/names', checkSession, async (req, res) => {
+	try {
+		const [rows] = await pool.execute('SELECT AGENT_ID, NAME FROM gi_report_name');
+		const names = {};
+		for (const row of rows) names[row.AGENT_ID] = row.NAME;
+		res.json(names);
+	} catch (err) {
+		console.error('[game_information_report/names]', err);
+		res.status(500).json({ error: 'Error fetching names' });
+	}
+});
+
+/** Saves a corrected name; an empty name removes the correction (back to the owner's name) */
+router.put('/game_information_report/name/:agentId', checkSession, async (req, res) => {
+	try {
+		const p = req.session.permissions;
+		if (p === 2 || p === '2') return res.status(403).json({ error: 'Forbidden' });
+
+		const agentId = parseInt(req.params.agentId, 10);
+		if (!agentId) return res.status(400).json({ error: 'Invalid account' });
+		const name = String((req.body && req.body.name) || '').replace(/\s+/g, ' ').trim().slice(0, 150);
+
+		if (!name) {
+			await pool.execute('DELETE FROM gi_report_name WHERE AGENT_ID = ?', [agentId]);
+		} else {
+			await pool.execute(
+				`INSERT INTO gi_report_name (AGENT_ID, NAME, EDITED_BY, EDITED_DT) VALUES (?, ?, ?, NOW())
+				 ON DUPLICATE KEY UPDATE NAME = VALUES(NAME), EDITED_BY = VALUES(EDITED_BY), EDITED_DT = VALUES(EDITED_DT)`,
+				[agentId, name, req.session.user_id || null]
+			);
+		}
+		res.json({ name: name || null });
+	} catch (err) {
+		console.error('[game_information_report/name PUT]', err);
+		res.status(500).json({ error: 'Failed to save name' });
+	}
+});
+
+/** REPORT card settings: poster = JPEG/PNG data URL (scaled down in the browser), raffle / message = text */
+const REPORT_SETTING_KEYS = ['poster', 'raffle', 'message'];
+const REPORT_POSTER_MAX_CHARS = 8 * 1024 * 1024;
+
+router.get('/game_information_report/settings', checkSession, async (req, res) => {
+	try {
+		const [rows] = await pool.execute('SELECT SETTING_KEY, VALUE FROM gi_report_setting');
+		const settings = { poster: null, raffle: null, message: null };
+		for (const row of rows) {
+			if (REPORT_SETTING_KEYS.includes(row.SETTING_KEY)) settings[row.SETTING_KEY] = row.VALUE;
+		}
+		res.json(settings);
+	} catch (err) {
+		console.error('[game_information_report/settings]', err);
+		res.status(500).json({ error: 'Error fetching settings' });
+	}
+});
+
+/** Saves one setting; an empty value removes it (card goes back to the default) */
+router.put('/game_information_report/settings/:key', checkSession, async (req, res) => {
+	try {
+		const p = req.session.permissions;
+		if (p === 2 || p === '2') return res.status(403).json({ error: 'Forbidden' });
+
+		const key = String(req.params.key || '');
+		if (!REPORT_SETTING_KEYS.includes(key)) return res.status(400).json({ error: 'Invalid setting' });
+
+		let value = String((req.body && req.body.value) || '').trim();
+		if (key === 'poster') {
+			if (value && !/^data:image\/(jpeg|png|webp);base64,/.test(value)) {
+				return res.status(400).json({ error: 'Invalid image' });
+			}
+			if (value.length > REPORT_POSTER_MAX_CHARS) return res.status(400).json({ error: 'Image is too large' });
+		} else {
+			value = value.replace(/\s+/g, ' ').slice(0, 500);
+		}
+
+		if (!value) {
+			await pool.execute('DELETE FROM gi_report_setting WHERE SETTING_KEY = ?', [key]);
+		} else {
+			await pool.execute(
+				`INSERT INTO gi_report_setting (SETTING_KEY, VALUE, EDITED_BY, EDITED_DT) VALUES (?, ?, ?, NOW())
+				 ON DUPLICATE KEY UPDATE VALUE = VALUES(VALUE), EDITED_BY = VALUES(EDITED_BY), EDITED_DT = VALUES(EDITED_DT)`,
+				[key, value, req.session.user_id || null]
+			);
+		}
+		res.json({ value: value || null });
+	} catch (err) {
+		console.error('[game_information_report/settings PUT]', err);
+		res.status(500).json({ error: 'Failed to save setting' });
+	}
+});
+
+/** Program-date range key for rolling corrections: both '' for All */
+function reportRangeKey(source) {
+	const from = String((source && source.programFrom) || '').slice(0, 10);
+	const to = String((source && source.programTo) || '').slice(0, 10);
+	if (!from && !to) return { from: '', to: '' };
+	if (!isValidYmd(from) || !isValidYmd(to)) return null;
+	return { from, to };
+}
+
+/** Rolling corrections for one range: { agentId: rolling } */
+router.get('/game_information_report/rolling', checkSession, async (req, res) => {
+	try {
+		const range = reportRangeKey(req.query);
+		if (!range) return res.status(400).json({ error: 'Invalid program date range' });
+		const [rows] = await pool.execute(
+			'SELECT AGENT_ID, ROLLING FROM gi_report_rolling WHERE DATE_FROM = ? AND DATE_TO = ?',
+			[range.from, range.to]
+		);
+		const rolling = {};
+		for (const row of rows) rolling[row.AGENT_ID] = Number(row.ROLLING);
+		res.json(rolling);
+	} catch (err) {
+		console.error('[game_information_report/rolling]', err);
+		res.status(500).json({ error: 'Error fetching rolling' });
+	}
+});
+
+/** Saves a corrected rolling for the range; rolling null/'' removes the correction */
+router.put('/game_information_report/rolling/:agentId', checkSession, async (req, res) => {
+	try {
+		const p = req.session.permissions;
+		if (p === 2 || p === '2') return res.status(403).json({ error: 'Forbidden' });
+
+		const agentId = parseInt(req.params.agentId, 10);
+		if (!agentId) return res.status(400).json({ error: 'Invalid account' });
+		const range = reportRangeKey(req.body);
+		if (!range) return res.status(400).json({ error: 'Invalid program date range' });
+
+		const raw = req.body ? req.body.rolling : null;
+		if (raw === null || raw === undefined || String(raw).trim() === '') {
+			await pool.execute(
+				'DELETE FROM gi_report_rolling WHERE AGENT_ID = ? AND DATE_FROM = ? AND DATE_TO = ?',
+				[agentId, range.from, range.to]
+			);
+			return res.json({ rolling: null });
+		}
+
+		const rolling = parseAmount(raw);
+		if (rolling === null) return res.status(400).json({ error: 'Invalid rolling amount' });
+		await pool.execute(
+			`INSERT INTO gi_report_rolling (AGENT_ID, DATE_FROM, DATE_TO, ROLLING, EDITED_BY, EDITED_DT) VALUES (?, ?, ?, ?, ?, NOW())
+			 ON DUPLICATE KEY UPDATE ROLLING = VALUES(ROLLING), EDITED_BY = VALUES(EDITED_BY), EDITED_DT = VALUES(EDITED_DT)`,
+			[agentId, range.from, range.to, rolling, req.session.user_id || null]
+		);
+		res.json({ rolling });
+	} catch (err) {
+		console.error('[game_information_report/rolling PUT]', err);
+		res.status(500).json({ error: 'Failed to save rolling' });
+	}
+});
+
 // Categorize Group page retired — groups are now managed as a filter on Analytics.
 router.get('/categorize_group', checkSession, function (req, res) {
 	res.redirect(302, '/commission_analytics');
@@ -677,6 +836,24 @@ router.post('/categorize_group_summary/export_xlsx', checkSession, async (req, r
 	} catch (err) {
 		if (err.status === 400) return res.status(400).json({ error: err.message });
 		console.error('[categorize_group_summary/export_xlsx]', err);
+		return res.status(500).json({ error: 'Export failed' });
+	}
+});
+
+router.post('/game_information_report/export_xlsx', checkSession, async (req, res) => {
+	try {
+		const { headers, rows, filename } = req.body || {};
+		const result = await buildTableExportXlsx({
+			profileKey: 'gameInformationReport',
+			sheetName: 'Report',
+			headers,
+			rows,
+			filename: filename || 'Report-export.xlsx'
+		});
+		return sendTableExportResponse(res, result);
+	} catch (err) {
+		if (err.status === 400) return res.status(400).json({ error: err.message });
+		console.error('[game_information_report/export_xlsx]', err);
 		return res.status(500).json({ error: 'Export failed' });
 	}
 });

@@ -261,6 +261,15 @@ const PROFILES = {
 		centerAlignCols: [3, 4],
 		amountNumFmt: '#,##0;(#,##0)'
 	},
+	gameInformationReport: {
+		// Cols: 1 #, 2 ACC, 3 NAME, 4 BUY IN, 5 CASH OUT, 6 WIN/LOSS, 7 ROLLING, 8 EVENT (raffle tickets)
+		amountCols: [4, 5, 6, 7, 8],
+		signedCols: [6, 7],
+		labelCols: 3,
+		leftAlignCols: [2, 3],
+		centerAlignCols: [1],
+		amountNumFmt: ALIGNED_AMOUNT_FMT
+	},
 	categorizeGroupSummary: {
 		amountCols: [4, 5, 6, 7, 8, 9, 10],
 		outflowCols: [5, 8, 9, 10],

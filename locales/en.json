@@ -130,6 +130,9 @@
 	},
 	"game_information": {
 		"categorize_group": "Categorize Group",
+		"report": "Report",
+		"report_name": "Name",
+		"report_event": "Event",
 		"on_progress": "On Progress",
 		"empty_table": "No games found",
 		"add_game": "Add Game",

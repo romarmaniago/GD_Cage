@@ -237,7 +237,13 @@
 		showModal();
 	}
 
-	window.GameInfoReceipt = { open: open, row: row };
+	/** Shows a ready-made slip (same .game-start-receipt-slip markup) — Report page builds its own card */
+	function openHtml(html) {
+		$('#game-receipts-container .game-receipts-track').html(html);
+		showModal();
+	}
+
+	window.GameInfoReceipt = { open: open, openHtml: openHtml, row: row };
 
 	$(document).on('click', '#game_information-tbl .gi-receipt-btn', function (e) {
 		e.preventDefault();

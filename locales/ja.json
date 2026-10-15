@@ -130,6 +130,9 @@
 	},
 	"game_information": {
 		"categorize_group": "グループ分類",
+		"report": "レポート",
+		"report_name": "名前",
+		"report_event": "イベント",
 		"on_progress": "開発中",
 		"empty_table": "ゲームがありません",
 		"add_game": "ゲーム追加",

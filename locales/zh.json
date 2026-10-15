@@ -130,6 +130,9 @@
 	},
 	"game_information": {
 		"categorize_group": "分组归类",
+		"report": "报告",
+		"report_name": "名称",
+		"report_event": "活动",
 		"on_progress": "开发中",
 		"empty_table": "暂无游戏",
 		"add_game": "添加游戏",

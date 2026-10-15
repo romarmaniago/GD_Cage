@@ -1,0 +1,450 @@
+<%- include('../partials/header') %>
+<%- include('../partials/loader') %>
+<%- include('../partials/sidebar') %>
+<%- include('../partials/topbar') %>
+
+<div class="container-fluid content-inner py-0">
+  <div class="row">
+    <div class="col-sm-12">
+      <div class="card">
+        <div id="user-role" data-permissions="<%= permissions %>"></div>
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <h3 class="card-title mb-0">
+            <div class="breadcrumb1 flat">
+              <a href="/dashboard"><span class="fa fa-home"></span></a>
+              <a href="/game_information"><%= __('sidebar.game_information') %></a>
+              <a href="/commission_analytics">Analytics</a>
+              <a href="/game_information_report" class="active"><%= __('game_information.report') %></a>
+            </div>
+          </h3>
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <%- include('../partials/gi_print_export_toolbar', { printBtnId: 'btn-gir-print', exportBtnId: 'btn-gir-export' }) %>
+          </div>
+        </div>
+
+        <div class="card-body game-information-report-page">
+          <div id="gir-daterange-mount" class="gir-daterange-mount">
+            <div class="gi-daterange-wrap">
+              <input type="text" id="gir-program-date-range-picker" class="form-control form-control-sm text-center" placeholder="Program date range" autocomplete="off" />
+            </div>
+            <%- include('../partials/split_daterange', {
+              splitPrefix: 'gi-report',
+              splitLocaleNs: 'game_information',
+              splitWrapClass: 'gi-daterange-wrap gi-split-daterange junket-loss-split-daterange house-expense-split-daterange'
+            }) %>
+            <div id="gir-quick-filter-wrapper" class="gi-quick-filter-tabs" role="tablist">
+              <button type="button" class="gi-quick-filter-tab" data-range="all">All</button>
+              <button type="button" class="gi-quick-filter-tab active" data-range="month">Month</button>
+              <button type="button" class="gi-quick-filter-tab" data-range="today">Today</button>
+              <button type="button" class="gi-quick-filter-tab" data-range="yesterday">Yesterday</button>
+            </div>
+          </div>
+
+          <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+            <table id="gi-report-tbl" class="table marker-balance-tbl marker-total-table w-100 mb-0">
+              <thead>
+                <tr>
+                  <th class="text-center">#</th>
+                  <th class="text-start">Acc</th>
+                  <th class="text-start"><%= __('game_information.report_name') %></th>
+                  <th class="text-end"><%= __('gamelist.buyin') %></th>
+                  <th class="text-end"><%= __('gamelist.cash_out') %></th>
+                  <th class="text-end"><%= __('gamelist.win_loss') %></th>
+                  <th class="text-end"><%= __('gamelist.real_rolling') %></th>
+                  <th class="text-end"><%= __('game_information.report_event') %></th>
+                  <th class="text-center"><%= __('gamelist.action') %></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+              <tfoot>
+                <tr>
+                  <th colspan="3" class="fw-semibold text-end"><%= __('gamelist.grand_total') %></th>
+                  <th class="text-end fw-semibold" id="GIR_GRAND_BUYIN">0</th>
+                  <th class="text-end fw-semibold" id="GIR_GRAND_CASHOUT">0</th>
+                  <th class="text-end fw-semibold" id="GIR_GRAND_WINLOSS">0</th>
+                  <th class="text-end fw-semibold" id="GIR_GRAND_ROLLING">0</th>
+                  <th class="text-end fw-semibold" id="GIR_GRAND_EVENT">0</th>
+                  <th></th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../modals/game_book/game_start_receipt') %>
+<%- include('../partials/permission_view_only_script') %>
+<%- include('../partials/footer') %>
+
+<style>
+/* Cream/light-gray theme — same as Game Information */
+.card {
+	background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+	border: 1px solid rgba(200, 162, 76, 0.4) !important;
+}
+.card-header {
+	background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+	border-bottom: 1px solid rgba(200, 162, 76, 0.25) !important;
+}
+.marker-balance-card {
+	background: linear-gradient(180deg, #fafbfc 0%, #ffffff 48px) !important;
+	border: 1px solid rgba(15, 23, 42, 0.08) !important;
+	border-radius: 12px !important;
+	box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+	padding: 0 !important;
+}
+
+.gi-daterange-wrap {
+	display: inline-block;
+	flex: 0 0 auto;
+}
+.gi-daterange-wrap .flatpickr-wrapper {
+	display: inline-block;
+}
+.gi-daterange-wrap input.form-control,
+.gi-daterange-wrap .flatpickr-input.form-control,
+.gi-split-daterange input.split-date-input {
+	display: inline-block !important;
+	width: auto !important;
+	min-width: 7.5rem;
+	text-align: center;
+	background: #fff;
+	border: 1px solid #e0e0e0;
+	border-radius: 999px;
+	height: 34px;
+	padding-left: 0.9rem;
+	padding-right: 0.9rem;
+	font-size: 15px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.gi-daterange-wrap .flatpickr-input.form-control {
+	min-width: 10rem;
+	cursor: pointer;
+}
+.gi-split-daterange,
+.gi-split-daterange .house-expense-daterange-separator {
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: nowrap;
+	gap: 6px;
+}
+
+.gir-daterange-mount {
+	display: none;
+}
+#gi-report-tbl_wrapper .gir-controls .gir-daterange-mount.is-placed {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-left: 8px;
+}
+
+/* All / Month / Today / Yesterday */
+.gi-quick-filter-tabs {
+	display: inline-flex;
+	align-items: stretch;
+	height: 34px;
+	border: 1px solid #e0e0e0;
+	border-radius: 999px;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	overflow: hidden;
+}
+.gi-quick-filter-tab {
+	border: none;
+	background: transparent;
+	padding: 0 0.95rem;
+	font-size: 15px;
+	font-weight: 500;
+	color: #666;
+	cursor: pointer;
+	white-space: nowrap;
+}
+.gi-quick-filter-tab + .gi-quick-filter-tab {
+	border-left: 1px solid #e0e0e0;
+}
+.gi-quick-filter-tab:hover:not(.active) {
+	background: #f5f2ec;
+	color: #333;
+}
+.gi-quick-filter-tab.active {
+	background: #c8a24c;
+	color: #fff;
+	font-weight: 600;
+}
+.gi-quick-filter-tab:focus {
+	outline: none;
+}
+
+/* White Show / Search bar */
+#gi-report-tbl_wrapper .gir-controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 12px;
+	margin-bottom: -1px;
+	background: #fff;
+	border: 1px solid #e8ecf1;
+	border-bottom: 0;
+	border-radius: 10px 10px 0 0;
+}
+#gi-report-tbl_wrapper .gir-controls .dataTables_filter {
+	margin: 0 0 0 auto;
+}
+#gi-report-tbl_wrapper #gi-report-tbl {
+	margin-top: 0 !important;
+}
+
+.game-information-report-page table.dataTable {
+	border-collapse: collapse !important;
+	border-spacing: 0 !important;
+}
+.game-information-report-page .marker-balance-tbl {
+	width: 100%;
+	font-size: 15px;
+	border: 1px solid #e0e0e0 !important;
+}
+.game-information-report-page .marker-total-table thead th,
+.game-information-report-page .marker-total-table tfoot th {
+	background: #f5f5f5 !important;
+	color: #555 !important;
+	font-weight: 600;
+	border-left: 0 !important;
+	border-right: 0 !important;
+	border-bottom: 1px solid #e0e0e0 !important;
+	box-shadow: none !important;
+}
+.game-information-report-page .marker-total-table thead th {
+	padding: 12px 15px;
+	border-top: 0 !important;
+}
+.game-information-report-page .marker-total-table tfoot th {
+	border-top: 1px solid #e0e0e0 !important;
+	padding: 10px 15px;
+}
+.game-information-report-page .marker-total-table tbody td {
+	padding: 12px 15px;
+	color: #666;
+	white-space: nowrap;
+	vertical-align: middle;
+	font-size: 0.875rem;
+}
+.game-information-report-page .marker-total-table thead th {
+	white-space: nowrap;
+	font-size: 0.875rem;
+}
+.game-information-report-page .marker-total-table tbody tr:nth-child(even) td {
+	background-color: #f4f1ea !important;
+}
+.game-information-report-page .marker-total-table tbody tr:nth-child(odd) td {
+	background-color: #fff !important;
+}
+.game-information-report-page .marker-total-table tbody tr:hover td {
+	background-color: #f6f3ec !important;
+}
+.game-information-report-page .marker-balance-dt-wrap {
+	max-width: 100%;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+/* Name: owner's name, click to correct */
+.gir-name-edit {
+	cursor: text;
+	border-bottom: 1px dashed transparent;
+}
+.gir-name-edit:hover {
+	border-bottom-color: #c8a24c;
+}
+.gir-name-edited {
+	margin-left: 4px;
+	font-size: 0.7rem;
+	color: #c8a24c;
+}
+.gir-rolling-edit {
+	cursor: text;
+	border-bottom: 1px dashed transparent;
+}
+.gir-rolling-edit:hover {
+	border-bottom-color: #c8a24c;
+}
+.gir-rolling-input {
+	width: 140px;
+	margin-left: auto;
+	height: 28px;
+	padding: 2px 8px;
+	text-align: right;
+	font-size: 0.875rem;
+}
+.gir-name-input {
+	min-width: 180px;
+	height: 28px;
+	padding: 2px 8px;
+	font-size: 0.875rem;
+}
+/* Receipt / ticket icons: coloured glyph only, no button background */
+.gir-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+.gir-ticket-btn,
+.gir-ticket-btn:hover,
+.gir-ticket-btn:focus,
+.gir-ticket-btn:disabled,
+.gir-receipt-btn,
+.gir-receipt-btn:hover,
+.gir-receipt-btn:focus {
+	background: transparent !important;
+	border-color: transparent !important;
+	box-shadow: none !important;
+	padding: 0.15rem 0.1rem;
+	line-height: 1.2;
+}
+.gir-receipt-btn i.fa {
+	font-size: 1.2rem;
+	color: #212529;
+}
+.gir-ticket-btn i.fa {
+	font-size: 1.2rem;
+	color: #c8a24c;
+}
+.gir-ticket-btn:disabled i.fa {
+	color: #cbd5e1;
+}
+
+/* ===== REPORT card (opens in the Game Book receipt modal) ===== */
+#modal-game-start-receipt .gir-slip {
+	flex: 0 0 300px;
+	min-width: 300px;
+}
+#modal-game-start-receipt .gir-slip--event {
+	flex-basis: 600px;
+	min-width: 600px;
+}
+#modal-game-start-receipt .gsr-header.gir-header {
+	background: #ffd966;
+	color: #000;
+	font-size: 1.6rem;
+}
+#modal-game-start-receipt .gir-body {
+	display: flex;
+	align-items: stretch;
+}
+#modal-game-start-receipt .gir-main {
+	flex: 1 1 0;
+	min-width: 0;
+}
+#modal-game-start-receipt .gir-slip .gsr-account {
+	font-size: 1.35rem;
+	margin-bottom: 0.25rem;
+}
+#modal-game-start-receipt .gir-slip .gsr-table {
+	margin-top: 0.5rem;
+}
+/* Extra gap under the name: BUY IN ... ROLLING sit lower in the card */
+#modal-game-start-receipt .gir-slip .gsr-table.gsr-section-buyin {
+	margin-top: 1.75rem;
+}
+#modal-game-start-receipt .gir-message {
+	margin: 0.85rem 0.6rem 0;
+	font-size: 0.9rem;
+	font-weight: 600;
+	line-height: 1.45;
+	word-break: keep-all;
+}
+#modal-game-start-receipt .gir-side {
+	flex: 0 0 290px;
+	display: flex;
+	flex-direction: column;
+	border-left: 1px solid #c9ced6;
+}
+#modal-game-start-receipt .gir-poster {
+	position: relative;
+	flex: 1 1 auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 300px;
+	margin: 0;
+	background: #1a1a1a;
+	cursor: pointer;
+	overflow: hidden;
+}
+#modal-game-start-receipt .gir-poster--readonly {
+	cursor: default;
+}
+#modal-game-start-receipt .gir-poster img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+#modal-game-start-receipt .gir-poster-empty {
+	padding: 1rem;
+	color: #c8a24c;
+	font-size: 0.9rem;
+	font-weight: 600;
+	text-align: center;
+}
+#modal-game-start-receipt .gir-poster-empty i.fa {
+	display: block;
+	margin-bottom: 0.4rem;
+	font-size: 1.8rem;
+}
+#modal-game-start-receipt .gir-poster-change {
+	position: absolute;
+	right: 6px;
+	bottom: 6px;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: rgba(0, 0, 0, 0.6);
+	color: #fff;
+	font-size: 0.7rem;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+#modal-game-start-receipt .gir-poster:hover .gir-poster-change {
+	opacity: 1;
+}
+#modal-game-start-receipt .gir-poster input[type="file"] {
+	display: none;
+}
+#modal-game-start-receipt .gir-event-tbl {
+	width: 100%;
+	border-collapse: collapse;
+	font-weight: 700;
+	text-align: center;
+	-webkit-print-color-adjust: exact;
+	print-color-adjust: exact;
+}
+#modal-game-start-receipt .gir-event-tbl th {
+	background: #fce4d6;
+	padding: 0.4rem;
+	font-size: 0.9rem;
+}
+#modal-game-start-receipt .gir-event-tbl td {
+	background: #fce4d6;
+	padding: 0.55rem 0.4rem 0.7rem;
+	font-size: 1.05rem;
+}
+#modal-game-start-receipt .gir-editable[data-field] {
+	cursor: text;
+	outline: none;
+}
+#modal-game-start-receipt .gir-editable[data-field]:hover {
+	box-shadow: inset 0 -2px 0 rgba(200, 162, 76, 0.7);
+}
+#modal-game-start-receipt .gir-editable[data-field]:focus {
+	background: #fff;
+	box-shadow: inset 0 0 0 2px #c8a24c;
+}
+</style>
+
+<script src="/assets/js/functions/game_information_receipt.js?v=3"></script>
+<script src="/assets/js/functions/game_information_report.js?v=9"></script>

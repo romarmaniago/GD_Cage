@@ -131,6 +131,9 @@
 	},
 	"game_information": {
 		"categorize_group": "그룹 분류",
+		"report": "리포트",
+		"report_name": "이름",
+		"report_event": "이벤트",
 		"on_progress": "진행 중",
 		"empty_table": "게임이 없습니다",
 		"add_game": "게임 추가",

@@ -141,6 +141,7 @@ async function fetchGamebookGameInformationRows(pool, query) {
 			NULLIF(TRIM(CONCAT_WS(' - ', NULLIF(TRIM(ag.AGENT_CODE), ''), NULLIF(TRIM(ag.NAME), ''))), '') AS ACCOUNT_TEXT,
 			ag.IDNo AS AGENT_ID,
 			COALESCE(NULLIF(TRIM(ag.AGENT_CODE), ''), '') AS AGENT_CODE,
+			COALESCE(NULLIF(TRIM(ag.NAME), ''), '') AS AGENT_NAME,
 			COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS GUEST_NAME,
 			g.MEMBERSHIP_NO AS membership_no,
 			COALESCE((
@@ -200,6 +201,7 @@ async function fetchGamebookGameInformationRows(pool, query) {
 			ACCOUNT_TEXT: game.ACCOUNT_TEXT,
 			AGENT_ID: game.AGENT_ID,
 			AGENT_CODE: game.AGENT_CODE,
+			AGENT_NAME: game.AGENT_NAME,
 			GUEST_NAME: game.GUEST_NAME,
 			membership_no: game.membership_no,
 			BUY_IN: totals.buyIn,
