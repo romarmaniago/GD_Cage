@@ -1469,6 +1469,7 @@
 		"expenses": "Expenses",
 		"loss_amount": "Loss Amount",
 		"add_charge": "Add Charge",
+		"additional_settlement": "Additional Settlement",
 		"signed_amount_placeholder": "+ / - Amount",
 		"amount_placeholder": "Amount",
 		"remarks_placeholder": "Remarks",

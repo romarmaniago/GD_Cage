@@ -228,7 +228,8 @@ async function insertAddChargeWithLedger({ accountId, agentId, txtTrans, amount,
 /**
  * Agent Portal Loss Amount: the account's "Withdraw / Deposit - Loss Amount" ledger row plus a Loss Amount
  * record (junket_loss) linked by junket_loss.ACCOUNT_LEDGER_ID, in one DB transaction.
- * Withdraw X = Loss X, deposit X = Recovery -X. NON_CASH = 1: the ledger row already carries the cash.
+ * Deposit X = Loss X, withdraw X = Recovery -X (opposite of Expenses / Add Charge).
+ * NON_CASH = 1: the ledger row already carries the cash.
  */
 async function insertLossWithLedger({ accountId, txtTrans, amount, paymentType, userRemarks, autoRemarks, inCharge, userId, now }) {
 	const connection = await pool.getConnection();
@@ -239,7 +240,7 @@ async function insertLossWithLedger({ accountId, txtTrans, amount, paymentType, 
 			 VALUES (?, ?, 2, 'ACCOUNT DETAILS', ?, ?, ?, ?, ?)`,
 			[accountId, txtTrans, amount, userRemarks, autoRemarks, userId, now]
 		);
-		const isLoss = txtTrans === '2';
+		const isLoss = txtTrans === '1';
 		await connection.execute(
 			`INSERT INTO junket_loss (DESCRIPTION, AMOUNT, IN_CHARGE, PROGRAM_DATE, ACCOUNT_ID, GUEST_ID, PAYMENT_TYPE, NON_CASH, TRANSACTION, ACCOUNT_LEDGER_ID, ENCODED_BY, ENCODED_DT)
 			 VALUES (?, ?, ?, ?, ?, NULL, ?, 1, ?, ?, ?, ?)`,
@@ -269,7 +270,7 @@ async function insertLossWithLedger({ accountId, txtTrans, amount, paymentType, 
 /**
  * Agent Portal Expenses: the account's "Withdraw / Deposit - Expenses" ledger row plus an expense
  * (junket_house_expense, main category Others) linked by ACCOUNT_LEDGER_ID, in one DB transaction.
- * Withdraw X = expense X, deposit X = -X. The ledger row carries the cage cash (the linked expense is
+ * Deposit X = expense X, withdraw X = -X (same as Loss Amount / Additional Settlement). The ledger row carries the cage cash (the linked expense is
  * left out of cash totals — SQL_HOUSE_EXPENSE_CASH_ONLY). Shown in the list as Description (RECEIPT_NO)
  * "Account - Remarks" and In-Charge (DESCRIPTION) the encoder.
  */
@@ -292,7 +293,7 @@ async function insertExpenseWithLedger({ accountId, txtTrans, amount, categoryId
 				receiptText,
 				dateTime,
 				inCharge || 'Agent Portal',
-				txtTrans === '2' ? amount : -amount,
+				txtTrans === '1' ? amount : -amount,
 				userId,
 				now,
 				localYmd(now),
@@ -360,9 +361,13 @@ async function fetchLinkedPortalRecord(connection, ledger) {
 	return null;
 }
 
-/** Keep the linked list record in step with an edited portal ledger row (withdraw = +X, deposit = -X). */
+/**
+ * Keep the linked list record in step with an edited portal ledger row
+ * (withdraw = +X, deposit = -X; reversed for junket_loss / junket_house_expense: deposit = +X, withdraw = -X).
+ */
 async function updateLinkedPortalRecord(connection, linked, ledger, amount, remarks, userId, now) {
-	const signed = parseInt(ledger.TRANSACTION_ID, 10) === 2 ? amount : -amount;
+	const positiveTxn = linked.table === 'game_services' ? 2 : 1;
+	const signed = parseInt(ledger.TRANSACTION_ID, 10) === positiveTxn ? amount : -amount;
 	if (linked.table === 'game_services') {
 		await connection.execute(
 			`UPDATE game_services SET AMOUNT = ?, REMARKS = ?, UPDATED_BY = ?, UPDATED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
@@ -482,7 +487,7 @@ const guestPortalReceiptTitle = (transaction, transactionDesc, transferLabel, se
 	}
 
 	// DEPOSIT - ADDITIONAL COMMISSION → * Additional Settlement *
-	if (trans === 'DEPOSIT' && desc === 'ADDITIONAL COMMISSION' && !transferLabel) {
+	if ((trans === 'DEPOSIT' || trans === 'WITHDRAW') && desc === 'ADDITIONAL COMMISSION' && !transferLabel) {
 		return 'Additional Settlement';
 	}
 
@@ -3498,10 +3503,12 @@ router.post('/add_account_details/transfer', async (req, res) => {
 		txtAccount,
 		txtAmount,
 		txtTransferToBalance,
-		txtTransferFromBalance
+		txtTransferFromBalance,
+		txtRemarks
 	} = req.body;
 
 	const date_now = new Date();
+	const userRemarks = String(txtRemarks || '').trim() || null;
 
 	// Normalize numeric inputs and default to 0 to avoid NaN in Telegram messages
 	const normalizeNumber = (val) => {
@@ -3528,7 +3535,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 		});
 	}
 
-	const query = `INSERT INTO account_ledger(ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, AUTO_REMARKS, TRANSFER, TRANSFER_AGENT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+	const query = `INSERT INTO account_ledger(ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, AUTO_REMARKS, TRANSFER, TRANSFER_AGENT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
 	let connection;
 
@@ -3568,8 +3575,8 @@ router.post('/add_account_details/transfer', async (req, res) => {
 		const remarksIn = `Transfer - from ${agentCodeFrom}`;
 
 		// Insert transaction details for both accounts within the transaction
-		const [withdrawResult] = await connection.execute(query, [txtAccountId, 2, 2, totalAmount, remarksOut, 1, txtAccount, req.session.user_id, date_now]);
-		const [depositResult] = await connection.execute(query, [txtAccount, 1, 2, totalAmount, remarksIn, 1, txtAccountId, req.session.user_id, date_now]);
+		const [withdrawResult] = await connection.execute(query, [txtAccountId, 2, 2, totalAmount, userRemarks, remarksOut, 1, txtAccount, req.session.user_id, date_now]);
+		const [depositResult] = await connection.execute(query, [txtAccount, 1, 2, totalAmount, userRemarks, remarksIn, 1, txtAccountId, req.session.user_id, date_now]);
 
 		const transactionNameWithdraw = await getTransactionName(2);
 		const transactionNameDeposit = await getTransactionName(1);

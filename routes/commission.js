@@ -55,12 +55,27 @@ async function getCurrentBalance(connection, accountId) {
     return depositAmount + markerRedeemAmount - withdrawAmount - markerReturnDeposit;
 }
 
+// A negative amount (Agent Portal "-" Additional Settlement) withdraws from the account instead.
 async function insertDepositLedger(connection, { accountId, amount, remarks, encodedBy, encodedDate }) {
+    const isWithdraw = amount < 0;
+    const ledgerAmount = Math.abs(amount);
+    const transactionId = isWithdraw ? 2 : 1;
+    const transactionName = isWithdraw ? 'WITHDRAW' : 'DEPOSIT';
+
+    if (isWithdraw) {
+        const available = await getCurrentBalance(connection, accountId);
+        if (ledgerAmount > available + 0.009) {
+            const error = new Error(`Insufficient balance. Available: ${available.toLocaleString('en-US')}.`);
+            error.statusCode = 400;
+            throw error;
+        }
+    }
+
     const [ledgerResult] = await connection.execute(
         `INSERT INTO account_ledger
-            (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
-         VALUES (?, 1, 2, 'ADDITIONAL COMMISSION', ?, ?, ?, ?)`,
-        [accountId, amount, remarks || null, encodedBy, encodedDate]
+            (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, AUTO_REMARKS, ENCODED_BY, ENCODED_DT)
+         VALUES (?, ?, 2, 'ADDITIONAL COMMISSION', ?, ?, 'Additional - Cash', ?, ?)`,
+        [accountId, transactionId, ledgerAmount, remarks || null, encodedBy, encodedDate]
     );
 
     const balanceAfter = await getCurrentBalance(connection, accountId);
@@ -70,14 +85,17 @@ async function insertDepositLedger(connection, { accountId, amount, remarks, enc
         await connection.execute(
             `INSERT INTO account_transaction_history
                 (ledger_id, account_id, transaction_id, transaction_name, amount, balance_before, balance_after, remarks, transfer_account_id, direction, encoded_by, encoded_dt)
-             VALUES (?, ?, 1, 'DEPOSIT', ?, ?, ?, ?, NULL, 'DEPOSIT', ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)`,
             [
                 ledgerResult.insertId,
                 accountId,
-                amount,
+                transactionId,
+                transactionName,
+                ledgerAmount,
                 balanceBefore,
                 balanceAfter,
                 remarks || null,
+                transactionName,
                 encodedBy,
                 encodedDate
             ]
@@ -142,11 +160,12 @@ function parsePayload(body) {
     };
 }
 
+// Transfer (deposit) rows may be negative: the Agent Portal "-" Additional Settlement (account withdraw).
 function isValidPayload({ parsedAgentId, parsedType, parsedAmount, parsedProgramDate }) {
     return Boolean(
         parsedAgentId
         && (parsedType === TYPE_DEPOSIT || parsedType === TYPE_CASHOUT)
-        && parsedAmount > 0
+        && (parsedType === TYPE_DEPOSIT ? parsedAmount !== 0 : parsedAmount > 0)
         && parsedProgramDate
     );
 }
@@ -164,6 +183,20 @@ async function saveAdditionalCommission(connection, {
     const now = new Date();
     let ledgerId = null;
 
+    // Void the old ledger first so a withdraw's balance check doesn't count the row being replaced.
+    let existing = null;
+    if (recordId) {
+        existing = await getActiveRecord(connection, recordId);
+        if (!existing) {
+            const error = new Error('Record not found');
+            error.statusCode = 404;
+            throw error;
+        }
+        if (Number(existing.TYPE) === TYPE_DEPOSIT) {
+            await softDeleteLedger(connection, existing.ACCOUNT_LEDGER_ID, userId, now);
+        }
+    }
+
     if (parsedType === TYPE_DEPOSIT) {
         const accountId = await getAccountIdByAgentId(connection, parsedAgentId);
         if (!accountId) {
@@ -180,18 +213,7 @@ async function saveAdditionalCommission(connection, {
         });
     }
 
-    if (recordId) {
-        const existing = await getActiveRecord(connection, recordId);
-        if (!existing) {
-            const error = new Error('Record not found');
-            error.statusCode = 404;
-            throw error;
-        }
-
-        if (Number(existing.TYPE) === TYPE_DEPOSIT) {
-            await softDeleteLedger(connection, existing.ACCOUNT_LEDGER_ID, userId, now);
-        }
-
+    if (existing) {
         await connection.execute(
             `UPDATE additional_commission
              SET AGENT_ID = ?, AGENT_NAME = ?, TYPE = ?, AMOUNT = ?, ACCOUNT_LEDGER_ID = ?, REMARKS = ?, PROGRAM_DATE = ?, EDITED_BY = ?, EDITED_DT = ?
@@ -393,15 +415,16 @@ router.post('/additional_commission/settle', checkSession, async (req, res) => {
         const settlementId = settleResult.insertId;
 
         let capitalId = null;
-        if (amount > 0) {
+        if (amount !== 0) {
             const [userRows] = await connection.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [userId]);
             const fullname = userRows.length ? userRows[0].FIRSTNAME || null : null;
             const remarks = `Additional settlement ${formatSettlementYmd(fromDate)} - ${formatSettlementYmd(toDate)}`;
+            // Net positive = paid out of capital (withdraw); net negative (portal "-" rows) = back into capital.
             const [capitalResult] = await connection.execute(
                 `INSERT INTO junket_capital
                     (TRANSACTION_ID, FULLNAME, DESCRIPTION, AMOUNT, REMARKS, ACTIVE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
-                 VALUES (2, ?, 'Additional', ?, ?, 1, ?, ?, ?)`,
-                [fullname, amount, remarks, userId, dateNow, todayLocalYmd()]
+                 VALUES (?, ?, 'Additional', ?, ?, 1, ?, ?, ?)`,
+                [amount > 0 ? 2 : 1, fullname, Math.abs(amount), remarks, userId, dateNow, todayLocalYmd()]
             );
             capitalId = capitalResult.insertId;
             await connection.execute(
@@ -570,6 +593,12 @@ router.put('/additional_commission/:id', checkSession, async (req, res) => {
         }
 
         payload.savedAgentName = payload.savedAgentName || String(agentRows[0].NAME || '').trim();
+
+        // The edit form only takes positive amounts: a negative (portal withdraw) row keeps its sign.
+        const current = await getActiveRecord(connection, recordId);
+        if (current && Number(current.AMOUNT) < 0 && payload.parsedType === TYPE_DEPOSIT) {
+            payload.parsedAmount = -Math.abs(payload.parsedAmount);
+        }
 
         await connection.beginTransaction();
         await saveAdditionalCommission(connection, {

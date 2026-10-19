@@ -1513,6 +1513,7 @@
 		"expenses": "费用",
 		"loss_amount": "亏损金额",
 		"add_charge": "附加费用",
+		"additional_settlement": "额外结算",
 		"signed_amount_placeholder": "+ / - 金额",
 		"amount_placeholder": "金额",
 		"remarks_placeholder": "备注",

@@ -1513,6 +1513,7 @@
 		"expenses": "経費",
 		"loss_amount": "損失額",
 		"add_charge": "追加料金",
+		"additional_settlement": "追加精算",
 		"signed_amount_placeholder": "+ / - 金額",
 		"amount_placeholder": "金額",
 		"remarks_placeholder": "備考",

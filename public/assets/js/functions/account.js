@@ -2976,7 +2976,8 @@ $(PORTAL_TXN_FORM).on('submit', function (event) {
 		return confirmSave('Transfer', extra, () => post('/add_account_details/transfer', {
 			txtAccountId: isIn ? otherId : accountId,
 			txtAccount: isIn ? accountId : otherId,
-			txtAmount: String(amount)
+			txtAmount: String(amount),
+			txtRemarks: remarks
 		}, 'transfer'));
 	}
 
@@ -3008,6 +3009,23 @@ $(PORTAL_TXN_FORM).on('submit', function (event) {
 			.fail(function () {
 				showError('Error', 'Unable to verify the company balance. Please try again.');
 			});
+	}
+
+	// Additional Settlement = Additional Commission Transfer row: + deposits to the account,
+	// - withdraws from it (saved negative, so it reads as + on the Additional Commission page).
+	if (txn === 'additional') {
+		if (!isIn && amount > availableBalance) {
+			return showError('Insufficient Balance', 'The amount exceeds the available total balance of ' + fmtAmount(availableBalance));
+		}
+		const agentId = $.trim($('#account_agent_id').val() || '');
+		if (!agentId) return showError('Error', 'Missing agent for this account.');
+		return confirmSave('Additional Settlement', '', () => post('/add_additional_commission', {
+			agentId,
+			type: '1',
+			amount: String(isIn ? amount : -amount),
+			remarks,
+			programDate: todayPortalYmd()
+		}, 'additional'));
 	}
 
 	if (txn === 'credit') {

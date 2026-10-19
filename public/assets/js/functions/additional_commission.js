@@ -128,7 +128,8 @@
         minimumFractionDigits: 0,
         maximumFractionDigits: 2
       });
-      return `(${formatted})`;
+      // Stored negative = portal "-" Additional Settlement (account withdraw): shown as a plain positive.
+      return amount < 0 ? formatted : `(${formatted})`;
     }
 
     function sanitizeAmountInput(value) {
@@ -153,6 +154,7 @@
     function formatDashboardNegHtml(value) {
       const amount = Math.round(Number(value) || 0);
       if (!amount) return '0';
+      if (amount < 0) return Math.abs(amount).toLocaleString('en-US');
       return `<span class="text-dash-neg">(${Math.abs(amount).toLocaleString('en-US')})</span>`;
     }
 
@@ -303,7 +305,7 @@
         totalEl.textContent = '0';
         return;
       }
-      totalEl.innerHTML = '<span class="text-danger fw-bold">' + formatAmount(total) + '</span>';
+      totalEl.innerHTML = '<span class="' + (total > 0 ? 'text-danger ' : '') + 'fw-bold">' + formatAmount(total) + '</span>';
     }
 
     function formatAccountName(row) {
@@ -599,7 +601,7 @@
               className: 'text-end',
               render: (data, type, row) => {
                 const amount = Number(row.AMOUNT) || 0;
-                const amountClass = amount ? 'text-danger' : '';
+                const amountClass = amount > 0 ? 'text-danger' : '';
                 const display = `<span class="${amountClass}">${formatRowAmount(row)}</span>`;
                 if (type === 'filter' || type === 'sort') return String(amount);
                 return display;
@@ -672,7 +674,7 @@
           const type = getRowType(row);
           const typeLabel = getTypeLabel(type);
           const amount = Number(row.AMOUNT) || 0;
-          const amountClass = amount ? 'text-danger' : '';
+          const amountClass = amount > 0 ? 'text-danger' : '';
 
           return `
           <tr${isSettled(row) ? ' class="is-settled"' : ''}>
@@ -896,9 +898,10 @@
     }
 
     function receiptAmountRow(label, value) {
-      const num = Math.abs(Number(value) || 0);
+      const raw = Number(value) || 0;
+      const num = Math.abs(raw);
       const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-      const display = num ? `(${formatted})` : '0';
+      const display = !num ? '0' : (raw < 0 ? formatted : `(${formatted})`);
       return `<tr class="acr-total-row"><td class="acr-label acr-total-label">${escapeHtml(label)}</td><td class="acr-value acr-amount-value">${display}</td></tr>`;
     }
 

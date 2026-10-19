@@ -410,10 +410,11 @@ function buildHouseExpenseSlipReceiptBtn(expenseId) {
 
 /** Expense amounts shown as red (n) on slip — matches receipt layout. */
 function formatHouseExpenseReceiptAmountParen(value) {
-    var n = Math.abs(Number(value) || 0);
+    var raw = Number(value) || 0;
+    var n = Math.abs(raw);
     var formatted = n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     if (!n) return '0';
-    return '(' + formatted + ')';
+    return raw < 0 ? formatted : '(' + formatted + ')';
 }
 
 function formatHouseExpenseReceiptDateTime(encodedDt) {
@@ -1268,8 +1269,9 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                     maximumFractionDigits: 0
                 });
                 var isReturnMoneyRow = row.record_type === 'return_money';
-                var amountDisplay = isReturnMoneyRow
-                    ? formattedAmount
+                // Negative expense (Agent Portal "+" Expenses) lowers the total: plain, like Return Money.
+                var amountDisplay = isReturnMoneyRow || amount < 0
+                    ? Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                     : (window.fmtOut
                         ? window.fmtOut(amount)
                         : '<span class="text-dash-neg">(' + formattedAmount + ')</span>');
@@ -1960,6 +1962,7 @@ window.showHouseExpenseEditHistory = function (expenseId) {
 /** Updates expense footer amount. */
 function setHouseExpenseFooterTotals(totalExpense) {
     var te = Number(totalExpense) || 0;
+    if (te < 0) return $('#TOTAL_EXPENSE_AMOUNT').text(formatHouseExpenseNumber(Math.abs(te)));
     $('#TOTAL_EXPENSE_AMOUNT').html(window.fmtOut ? window.fmtOut(te) : '(' + formatHouseExpenseNumber(te) + ')');
     updateDashboardExpensesTotal(te);
 }
@@ -2502,8 +2505,8 @@ function renderExpenseBreakdownModalRows() {
                 '<td>' + houseExpenseHtmlEscape(descriptionText) + '</td>' +
                 vehicleCells +
                 '<td>' + houseExpenseHtmlEscape(inChargeText) + '</td>' +
-                '<td class="fw-semibold text-end">' + (row.record_type === 'return_money'
-                    ? formatHouseExpenseNumber(amount)
+                '<td class="fw-semibold text-end">' + (row.record_type === 'return_money' || amount < 0
+                    ? formatHouseExpenseNumber(Math.abs(amount))
                     : (window.fmtOut ? window.fmtOut(amount) : formatHouseExpenseNumber(amount))) + '</td>' +
                 '<td>' + houseExpenseHtmlEscape(row.FIRSTNAME || '-') + '</td>' +
                 '<td>' + houseExpenseHtmlEscape(displayDate) + '</td>' +
@@ -2788,7 +2791,7 @@ $(document).ready(function () {
                 maximumFractionDigits: 0
             });
             // Same as the table: an expense is money out "(x)", a return-money row is plain, zero is "0"
-            var amountText = row.record_type === 'return_money' || formattedAmount === '0'
+            var amountText = row.record_type === 'return_money' || amount < 0 || formattedAmount === '0'
                 ? formattedAmount
                 : '(' + formattedAmount + ')';
             var programDate = formatHouseExpenseProgramDateCell(row);
@@ -2971,7 +2974,7 @@ $(document).ready(function () {
                 enc,
                 houseExpenseGetExpenseNameLabel(row),
                 // Same sign as on screen: an expense is money out "(x)"; a return-money row is plain
-                row.record_type === 'return_money' ? Math.abs(amount) : -Math.abs(amount),
+                row.record_type === 'return_money' || amount < 0 ? Math.abs(amount) : -Math.abs(amount),
                 row.DESCRIPTION || row.OIC || '-',
                 row.RECEIVER || '-',
                 houseExpenseItemDescriptionColumnText(row)

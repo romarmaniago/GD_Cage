@@ -1375,12 +1375,12 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 		if (approvalStatus !== 0 && approvalStatus !== 1) {
 			return res.status(400).send('Only pending or approved expenses can be edited');
 		}
-		// Agent Portal expense: its account ledger row moves with the amount (+ = withdraw, - = deposit),
-		// so a bigger charge must fit the account (its balance already reflects the old amount).
+		// Agent Portal expense: its account ledger row moves with the amount (+ = deposit, - = withdraw),
+		// so a withdraw must fit the account (its balance already reflects the old amount).
 		const portalLedger = await fetchPortalExpenseLedger(old.ACCOUNT_LEDGER_ID);
-		if (portalLedger) {
-			const available = (await getAccountCashBalance(pool, portalLedger.ACCOUNT_ID)) + (Number(old.AMOUNT) || 0);
-			if (editXAmount > available + 0.009) {
+		if (portalLedger && editXAmount < 0) {
+			const available = (await getAccountCashBalance(pool, portalLedger.ACCOUNT_ID)) - (Number(old.AMOUNT) || 0);
+			if (-editXAmount > available + 0.009) {
 				return res.status(400).send(`Amount exceeds the account balance (${available.toLocaleString('en-US')}).`);
 			}
 		}
@@ -1510,9 +1510,9 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 				`UPDATE account_ledger SET TRANSACTION_ID = ?, AMOUNT = ?, AUTO_REMARKS = ?, EDITED_BY = ?, EDITED_DT = ?
 				 WHERE IDNo = ? AND ACTIVE = 1`,
 				[
-					editXAmount >= 0 ? 2 : 1,
+					editXAmount >= 0 ? 1 : 2,
 					Math.abs(editXAmount),
-					editXAmount >= 0 ? 'Withdraw - Expenses' : 'Deposit - Expenses',
+					editXAmount >= 0 ? 'Deposit - Expenses' : 'Withdraw - Expenses',
 					req.session.user_id,
 					date_now,
 					portalLedger.IDNo

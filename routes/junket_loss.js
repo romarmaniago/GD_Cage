@@ -251,7 +251,7 @@ router.put('/loss_amount/:id', checkSession, async (req, res) => {
 		const transaction = parseInt(existingRows[0].TRANSACTION, 10) || JUNKET_LOSS_TRANS_LOSS;
 
 		// Agent Portal Loss Amount: move its "Withdraw / Deposit - Loss Amount" ledger row with it,
-		// on the same account (a Loss takes from the balance, so the new amount must fit).
+		// on the same account (a withdraw takes from the balance, so the new amount must fit).
 		const portalLedger = await fetchPortalLossLedger(existingRows[0].ACCOUNT_LEDGER_ID);
 		if (portalLedger) {
 			const newAbs = Math.abs(Number(cleanAmount) || 0);

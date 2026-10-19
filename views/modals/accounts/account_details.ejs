@@ -113,6 +113,10 @@
                                         </div>
                                         <!-- Add Charge category (F & B, Hotel, ...) — shown while the Add Charge row has an amount -->
                                         <div class="portal-txn-options d-none" data-for="ADD CHARGE" id="portal_charge_types" role="radiogroup" aria-label="<%= __('modal_account_details.add_charge') %>"></div>
+                                        <div class="portal-txn-row">
+                                            <div class="portal-txn-label"><%= __('modal_account_details.additional_settlement') %></div>
+                                            <input type="text" class="form-control portal-txn-amount" data-txn="additional" inputmode="decimal" autocomplete="off" placeholder="<%= __('modal_account_details.signed_amount_placeholder') %>">
+                                        </div>
                                     </div>
                                     <div class="form-group">
                                         <input type="text" name="txtRemarks" class="form-control remarks remarks_alt" placeholder="<%= __('modal_account_details.remarks_placeholder') %>">
