@@ -15,7 +15,7 @@
 								<th class="text-center"><%= __('modal_show_rolling.date') %></th>
 								<th class="text-center"><%= __('modal_show_rolling.buyin') %></th>
 								<th class="text-center"><%= __('modal_show_rolling.cash_out') %></th>
-								<th class="text-center"><%= __('modal_show_rolling.total_rolling') %></th>
+								<th class="text-center"><%= __('modal_show_rolling.real_rolling') %></th>
 								<th class="text-center"><%= __('modal_show_rolling.nn') %></th>
 								<th class="text-center"><%= __('modal_show_rolling.cc') %></th>
 								<th class="text-center">R/C</th>
@@ -131,6 +131,37 @@
 	#modal-show-history #history-services-list-tbl .services-total-row td {
 		border-top: 2px solid #dee2e6;
 		font-weight: 700;
+	}
+	#modal-edit-game-record .edit-record-section + .edit-record-section {
+		margin-top: 12px;
+	}
+	#modal-edit-game-record .edit-record-section-label {
+		display: none;
+		font-size: 12px;
+		font-weight: 600;
+		color: #6c757d;
+		margin-bottom: 4px;
+	}
+	#modal-edit-game-record.edit-record-multi .edit-record-section-label {
+		display: block;
+	}
+	#modal-edit-game-record .edit-record-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 8px;
+	}
+	#modal-edit-game-record .edit-record-col-labels {
+		margin-bottom: 4px;
+		text-align: center;
+		font-size: 13px;
+		font-weight: 700;
+	}
+	#modal-edit-game-record .edit-record-grid .form-control {
+		text-align: center;
+		font-weight: 600;
+	}
+	#modal-edit-game-record .edit-record-grid .form-control.edit-record-negative {
+		color: #dc3545 !important;
 	}
 	body.game-record-edit-child-open #modal-show-history.show {
 		z-index: 1055 !important;
@@ -462,40 +493,40 @@
 			</div>
 			<div class="modal-body">
 				<input type="hidden" id="edit-record-id" />
-				<div id="edit-form-buyin" style="display:none;">
-					<div class="mb-3">
-						<label class="form-label">NN Chips</label>
-						<input type="text" class="form-control" id="edit-buyin-nn" data-type="number" inputmode="numeric" />
-					</div>
-					<div class="mb-3">
-						<label class="form-label">CC Chips</label>
-						<input type="text" class="form-control" id="edit-buyin-cc" data-type="number" inputmode="numeric" />
+				<div class="fw-semibold mb-3" id="edit-record-date"></div>
+				<div class="edit-record-grid edit-record-col-labels">
+					<div>NN</div>
+					<div>CC</div>
+				</div>
+				<!-- Values shown signed like the history table (buy-in = negative, roller return = negative); saved as absolute values -->
+				<div id="edit-form-buyin" class="edit-record-section" style="display:none;">
+					<div class="edit-record-section-label">Buy-in</div>
+					<div class="edit-record-grid">
+						<input type="text" class="form-control" id="edit-buyin-nn" data-type="signed-chips" placeholder="+ / - NN" autocomplete="off" />
+						<input type="text" class="form-control" id="edit-buyin-cc" data-type="signed-chips" placeholder="+ / - CC" autocomplete="off" />
 					</div>
 				</div>
-				<div id="edit-form-cashout" style="display:none;">
-					<div class="mb-3">
-						<label class="form-label">NN Chips</label>
-						<input type="text" class="form-control" id="edit-cashout-nn" data-type="number" inputmode="numeric" />
-					</div>
-					<div class="mb-3">
-						<label class="form-label">CC Chips</label>
-						<input type="text" class="form-control" id="edit-cashout-cc" data-type="number" inputmode="numeric" />
+				<div id="edit-form-cashout" class="edit-record-section" style="display:none;">
+					<div class="edit-record-section-label">Cash Out</div>
+					<div class="edit-record-grid">
+						<input type="text" class="form-control" id="edit-cashout-nn" data-type="signed-chips" placeholder="+ / - NN" autocomplete="off" />
+						<input type="text" class="form-control" id="edit-cashout-cc" data-type="signed-chips" placeholder="+ / - CC" autocomplete="off" />
 					</div>
 				</div>
-				<div id="edit-form-rolling" style="display:none;">
-					<div class="mb-3">
-						<label class="form-label">CC Chips</label>
-						<input type="text" class="form-control" id="edit-rolling-cc" data-type="number" inputmode="numeric" />
+				<div id="edit-form-rolling" class="edit-record-section" style="display:none;">
+					<div class="edit-record-section-label">Rolling</div>
+					<div class="edit-record-grid">
+						<!-- Rolling is CC only (same as Add Rolling) -->
+						<input type="text" class="form-control" id="edit-rolling-nn" value="0" disabled />
+
+						<input type="text" class="form-control" id="edit-rolling-cc" data-type="signed-chips" placeholder="+ / - CC" autocomplete="off" />
 					</div>
 				</div>
-				<div id="edit-form-roller" style="display:none;">
-					<div class="mb-3">
-						<label class="form-label">Roller NN Chips</label>
-						<input type="text" class="form-control" id="edit-roller-nn" data-type="number" inputmode="numeric" />
-					</div>
-					<div class="mb-3">
-						<label class="form-label">Roller CC Chips</label>
-						<input type="text" class="form-control" id="edit-roller-cc" data-type="number" inputmode="numeric" />
+				<div id="edit-form-roller" class="edit-record-section" style="display:none;">
+					<div class="edit-record-section-label">Roller Chips</div>
+					<div class="edit-record-grid">
+						<input type="text" class="form-control" id="edit-roller-nn" data-type="signed-chips" placeholder="+ / - NN" autocomplete="off" />
+						<input type="text" class="form-control" id="edit-roller-cc" data-type="signed-chips" placeholder="+ / - CC" autocomplete="off" />
 					</div>
 				</div>
 			</div>

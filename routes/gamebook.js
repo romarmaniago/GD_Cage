@@ -7798,7 +7798,7 @@ router.get('/game_record/single/:id', checkSession, async (req, res) => {
 	}
 	try {
 		const [rows] = await pool.execute(
-			`SELECT IDNo, GAME_ID, CAGE_TYPE, NN_CHIPS, CC_CHIPS, AMOUNT, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, TRANSACTION FROM game_record WHERE IDNo = ? AND ACTIVE = 1`,
+			`SELECT IDNo, GAME_ID, CAGE_TYPE, NN_CHIPS, CC_CHIPS, AMOUNT, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, TRANSACTION FROM game_record WHERE IDNo = ? AND ACTIVE = 1`,
 			[id]
 		);
 		if (rows.length === 0) return res.status(404).json({ error: 'Record not found' });
