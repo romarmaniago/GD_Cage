@@ -17,6 +17,7 @@
  * @property {string} [amountNumFmt]
  * @property {number[]} [dateCols]
  * @property {number[]} [plainNumberCols]
+ * @property {string} [boldRowLabel] data rows whose first cell equals this (e.g. "TOTAL") are bolded
  * @property {(headerCount: number, headers: string[]) => ExportProfile} [resolve]
  */
 
@@ -209,7 +210,10 @@ const PROFILES = {
 		labelCols: 1,
 		centerAlignCols: [1],
 		skipGrandTotal: true,
-		amountNumFmt: '#,##0;#,##0'
+		centerHeaders: true,
+		boldRowLabel: 'TOTAL',
+		// Negatives (buy-in NN, cash-out rolling, roller return) as red (x,xxx) like the history table
+		amountNumFmt: '#,##0;[Red](#,##0)'
 	},
 	guestPortal: {
 		amountCols: [2, 3],
@@ -321,7 +325,8 @@ function resolveExportProfile(profileKey, headerCount, headers) {
 		dateCols: (resolved.dateCols || base.dateCols || []).filter((c) => c <= headerCount),
 		// numbers shown as-is (no thousands separator), e.g. Game #
 		plainNumberCols: (resolved.plainNumberCols || base.plainNumberCols || []).filter((c) => c <= headerCount),
-		amountIndent: resolved.amountIndent != null ? resolved.amountIndent : base.amountIndent
+		amountIndent: resolved.amountIndent != null ? resolved.amountIndent : base.amountIndent,
+		boldRowLabel: base.boldRowLabel || null
 	};
 }
 

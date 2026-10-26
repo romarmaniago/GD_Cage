@@ -418,10 +418,13 @@ async function buildTableExportXlsx(opts) {
 			return coerceExportCell(v, i, profile, outflowSet, signedSet, percentSet);
 		});
 		const dataRow = ws.addRow(padded);
+		const isBoldRow = !!profile.boldRowLabel
+			&& String(arr[0] == null ? '' : arr[0]).trim().toUpperCase() === String(profile.boldRowLabel).toUpperCase();
 		for (let colNumber = 1; colNumber <= ncol; colNumber++) {
 			const cell = dataRow.getCell(colNumber);
 			const colIdx = colNumber - 1;
 			cell.border = THIN_BORDER;
+			if (isBoldRow) cell.font = { bold: true };
 			cell.alignment = bodyAlignment(colNumber - 1, profile, amountSet, leftSet, centerSet);
 			if (profile.highlightTotalCol && colIdx === totalColIndex) {
 				cell.fill = FILL_TOTAL_BAND;

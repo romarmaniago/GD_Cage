@@ -9403,6 +9403,8 @@ function showHistory(record_id) {
 	$('#modal-show-history').modal('show');
 
 	if ($.fn.DataTable.isDataTable('#game_record-tbl')) {
+		// Park Print / Export back in the modal so destroy() does not remove them with the filter bar
+		$('#game-history-actions').appendTo('#game-history-actions-home');
 		$('#game_record-tbl').DataTable().destroy();
 	}
 
@@ -9434,6 +9436,8 @@ function showHistory(record_id) {
 			}
 		]
 	});
+	// Print / Export before the Search box
+	$('#game_record-tbl_filter').prepend($('#game-history-actions'));
 
 // 	function reloadDataRecord() {
 // 		$.ajax({

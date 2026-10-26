@@ -70,13 +70,18 @@
 					<span>Loss</span>
 				</span>
 			</div>
-			<div class="d-flex align-items-center gap-2">				
-				<button type="button" class="btn btn-sm btn-alt-success" id="btn-print-game-history">
-					<i class="fa fa-print me-1"></i> Print
-				</button>
-				<button type="button" class="btn btn-sm btn-primary-subtle" id="btn-export-game-history">
-					<i class="fa fa-file-excel me-1"></i> Export
-				</button>
+			<div class="d-flex align-items-center gap-2">
+				<!-- Print / Export are moved beside the table Search on DataTable init (and back here before destroy) -->
+				<span id="game-history-actions-home" class="d-none">
+					<span id="game-history-actions" class="d-inline-flex align-items-center gap-2 me-2">
+						<button type="button" class="btn btn-sm btn-alt-success" id="btn-print-game-history">
+							<i class="fa fa-print me-1"></i> Print
+						</button>
+						<button type="button" class="btn btn-sm btn-primary-subtle" id="btn-export-game-history">
+							<i class="fa fa-file-excel me-1"></i> Export
+						</button>
+					</span>
+				</span>
 				<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
 					<%= __('modal_show_rolling.close') %>
 				</button>
@@ -103,6 +108,19 @@
 	#modal-show-history #game_record-tbl .rolling-cell-loss {
 		color: #6f42c1;
 		font-weight: 500;
+	}
+	/* Print / Export sit before the Search box */
+	#modal-show-history #game_record-tbl_filter {
+		display: flex;
+		justify-content: flex-end;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 4px;
+	}
+	#modal-show-history #game-history-actions .btn {
+		padding: 2px 8px;
+		font-size: 11px;
+		line-height: 1.4;
 	}
 	/* Legend in footer */
 	.rolling-legend-swatch {
@@ -281,9 +299,12 @@
 				if (index === 7) return null;
 				return $(this).text().trim();
 			}).get().filter(Boolean);
-			const rows = table.rows({ search: 'applied' }).data().toArray().map(function (row) {
+			const allRows = table.rows({ search: 'applied' }).data().toArray().map(function (row) {
 				return row.slice(0, 7).map(stripGameHistoryExportCell);
 			});
+			// TOTAL row goes last in the sheet (like the Excel layout)
+			const isTotalRow = function (row) { return String(row[0] || '').toUpperCase() === 'TOTAL'; };
+			const rows = allRows.filter(function (row) { return !isTotalRow(row); }).concat(allRows.filter(isTotalRow));
 			return { headers: headers, rows: rows };
 		}
 
