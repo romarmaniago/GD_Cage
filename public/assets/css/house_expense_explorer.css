@@ -74,17 +74,18 @@
 #modal-dash-house-expense .expense-item-tbl-layout {
   table-layout: fixed;
   width: 100%;
-  min-width: 68rem;
+  min-width: 70rem;
 }
 
 #modal-dash-house-expense .expense-item-tbl-layout col.expense-col-program-date { width: 7rem; min-width: 7rem; }
 #modal-dash-house-expense .expense-item-tbl-layout col.expense-col-date-time { width: 8.5rem; min-width: 8.5rem; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-name { width: 15rem; min-width: 15rem; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-name { width: 10rem; min-width: 10rem; }
 #modal-dash-house-expense .expense-item-tbl-layout col.expense-col-in-charge { width: 6.75rem; min-width: 6.75rem; }
 #modal-dash-house-expense .expense-item-tbl-layout col.expense-col-receiver { width: 8rem; min-width: 8rem; }
 #modal-dash-house-expense .expense-item-tbl-layout col.expense-col-description { width: auto; min-width: 12rem; }
 #modal-dash-house-expense .expense-item-tbl-layout col.expense-col-amount { width: 6.75rem; min-width: 6.75rem; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-action { width: 10.25rem; min-width: 10.25rem; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-total { width: 7.5rem; min-width: 7.5rem; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-action { width: 11.75rem; min-width: 11.75rem; }
 
 #modal-dash-house-expense .expense-item-tbl-layout thead th:nth-child(1),
 #modal-dash-house-expense .expense-item-tbl-layout thead th:nth-child(2),
@@ -95,13 +96,13 @@
   white-space: nowrap;
 }
 
-#modal-dash-house-expense .expense-item-tbl-layout thead th:nth-child(5),
-#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(5) {
+#modal-dash-house-expense .expense-item-tbl-layout thead th:nth-child(7),
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(7) {
   padding-right: 0.5rem;
 }
 
-#modal-dash-house-expense .expense-item-tbl-layout thead th:nth-child(6),
-#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(6) {
+#modal-dash-house-expense .expense-item-tbl-layout thead th:nth-child(8),
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(8) {
   padding-left: 0.5rem;
 }
 
@@ -126,16 +127,17 @@
 
 #modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(1),
 #modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(2),
-#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(4) {
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(5),
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(6) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 #modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(3),
-#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(5),
-#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(6),
-#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(7) {
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(4),
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(7),
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(8) {
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
@@ -169,9 +171,9 @@
 }
 
 #modal-dash-house-expense .expense-item-tbl-layout tbody td.expense-item-action-cell {
-  width: 10.25rem;
-  max-width: 10.25rem;
-  min-width: 10.25rem;
+  width: 11.75rem;
+  max-width: 11.75rem;
+  min-width: 11.75rem;
   padding-left: 0.25rem;
   padding-right: 0.25rem;
   overflow: hidden;
@@ -180,9 +182,9 @@
 }
 
 #modal-dash-house-expense .expense-item-tbl-layout thead th:last-child {
-  width: 11rem;
-  max-width: 11rem;
-  min-width: 10rem;
+  width: 11.75rem;
+  max-width: 11.75rem;
+  min-width: 11.75rem;
   text-align: center !important;
   padding-left: 0.25rem;
   padding-right: 0.25rem;
@@ -838,9 +840,9 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 }
 #expense-item-cat-tbl th:last-child,
 #expense-item-cat-tbl td:last-child {
-    width: 11rem;
-    max-width: 11rem;
-    min-width: 10rem;
+    width: 11.75rem;
+    max-width: 11.75rem;
+    min-width: 11.75rem;
     white-space: nowrap;
     text-align: left !important;
     padding-left: 0.35rem;
@@ -1338,12 +1340,12 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 .expense-item-tbl thead th {
     text-align: center !important;
 }
-.expense-item-tbl thead th:nth-child(5),
-.expense-item-tbl tbody td:nth-child(5) {
+.expense-item-tbl thead th:nth-child(7),
+.expense-item-tbl tbody td:nth-child(7) {
     padding-right: 0.65rem;
 }
-.expense-item-tbl thead th:nth-child(6),
-.expense-item-tbl tbody td:nth-child(6) {
+.expense-item-tbl thead th:nth-child(8),
+.expense-item-tbl tbody td:nth-child(8) {
     padding-left: 0.65rem;
 }
 .expense-item-tbl tbody td,
@@ -1358,15 +1360,16 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 }
 /* AMOUNT: right-aligned so the digits line up; the ")" of a negative hangs right (num_paren_align.js) */
 .expense-item-tbl thead th[data-sort-key="amount"],
+.expense-item-tbl thead th.expense-total-th,
 .expense-item-tbl tbody td.text-end {
     text-align: right !important;
     padding-right: 1.25rem;
 }
 .expense-item-tbl tbody td.expense-item-action-cell,
 .expense-item-tbl thead th:last-child {
-    width: 10.25rem;
-    max-width: 10.25rem;
-    min-width: 10.25rem;
+    width: 11.75rem;
+    max-width: 11.75rem;
+    min-width: 11.75rem;
     text-align: left !important;
     padding-left: 0.35rem;
     padding-right: 0.35rem;
@@ -1390,9 +1393,9 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     text-align: center;
 }
 .expense-item-tbl tbody td:nth-child(3),
-.expense-item-tbl tbody td:nth-child(5),
-.expense-item-tbl tbody td:nth-child(6),
-.expense-item-tbl tbody td:nth-child(7) {
+.expense-item-tbl tbody td:nth-child(4),
+.expense-item-tbl tbody td:nth-child(7),
+.expense-item-tbl tbody td:nth-child(8) {
     white-space: normal;
     overflow: visible;
     text-overflow: clip;
@@ -1573,4 +1576,57 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 }
 .house-expense-status-pill.house-expense-status-pill--settled i {
   font-size: 0.68rem;
+}
+
+/* Yesterday / Today quick tabs (same look as the Game List day tabs) */
+.house-expense-day-filter {
+    display: inline-flex;
+    align-items: stretch;
+    height: 31px;
+    border: 1px solid #e0e0e0;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.house-expense-day-filter .house-expense-day-tab {
+    border: none;
+    background: transparent;
+    padding: 0 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #666;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.house-expense-day-filter .house-expense-day-tab + .house-expense-day-tab {
+    border-left: 1px solid #e0e0e0;
+}
+.house-expense-day-filter .house-expense-day-tab:hover:not(.active) {
+    background: #f5f2ec;
+    color: #333;
+}
+.house-expense-day-filter .house-expense-day-tab.active {
+    background: #c8a24c;
+    color: #fff;
+    font-weight: 600;
+}
+.house-expense-day-filter .house-expense-day-tab:focus {
+    outline: none;
+}
+
+/* Category and Description: left-aligned */
+#expense-item-cat-tbl.expense-item-tbl thead th:nth-child(3),
+#expense-item-cat-tbl.expense-item-tbl thead th:nth-child(4),
+#expense-item-cat-tbl.expense-item-tbl tbody td:nth-child(3),
+#expense-item-cat-tbl.expense-item-tbl tbody td:nth-child(4) {
+    text-align: left !important;
+}
+#expense-item-cat-tbl.expense-item-tbl tbody td:nth-child(3) .d-inline-flex {
+    justify-content: flex-start;
+}
+#expense-item-cat-tbl.expense-item-tbl tbody td:nth-child(3) .d-inline-flex > span:last-child {
+    text-align: left;
 }

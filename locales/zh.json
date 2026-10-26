@@ -455,6 +455,7 @@
 		"total_expenses": "费用总计",
 		"total_return_money": "退款总计",
 		"total_net_expenses": "净费用总计",
+		"total": "合计",
 		"select_date_range": "选择日期范围",
 		"no_data_found": "未找到数据",
 		"invalid_date": "无效日期",

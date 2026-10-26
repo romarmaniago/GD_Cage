@@ -2,6 +2,8 @@
  * Per-module Excel export column profiles (1-based column indices; i18n-safe).
  * @typedef {object} ExportProfile
  * @property {number[]} [amountCols]
+ * @property {number[]} [noSumCols] amount columns left blank in the grand total row (e.g. a running total)
+ * @property {boolean} [noWrap] one line per row: no wrapped cells, columns sized to their longest value
  * @property {number[]} [outflowCols]
  * @property {number[]} [signedCols]
  * @property {number[]} [percentCols]
@@ -150,19 +152,21 @@ const PROFILES = {
 		skipGrandTotal: true
 	},
 	houseExpense: {
-		// Program Date | Date & Time | Name | Amount | In-Charge | Receiver | Description
-		amountCols: [4],
-		labelCols: 3,
-		leftAlignCols: [3, 5, 6, 7],
-		centerAlignCols: [1, 2],
+		// Program Date | Date & Time | Category | Description | Amount | Total | Approved By | Received By
+		amountCols: [5, 6],
+		// Total is a running total — not added up in the grand total row
+		noSumCols: [6],
+		labelCols: 4,
+		leftAlignCols: [3, 4],
+		centerAlignCols: [1, 2, 7, 8],
 		dateCols: [1, 2],
 		amountNumFmt: ALIGNED_AMOUNT_FMT,
 		// matches the Print's total row
 		grandTotalLabel: 'TOTAL EXPENSES',
 		grandTotalAlign: 'center',
 		centerHeaders: true,
-		// Balanced like the Print (sized for wide caps such as "MINA/VINCE/YANG/JEROME") — long text wraps inside its column
-		columnWidths: [16, 17, 34, 15, 14, 29, 40]
+		// one line per row, like the Excel sheet: columns widen to the longest value
+		noWrap: true
 	},
 	markerHistory: {
 		// Date & Time | Account | Name | Credit | Credit Total | Guarantor | Balance
@@ -296,6 +300,7 @@ function resolveExportProfile(profileKey, headerCount, headers) {
 	const amountCols = (resolved.amountCols || base.amountCols || []).filter((c) => c <= headerCount);
 	return {
 		amountCols,
+		noSumCols: (resolved.noSumCols || base.noSumCols || []).filter((c) => c <= headerCount),
 		outflowCols: (resolved.outflowCols || base.outflowCols || []).filter((c) => c <= headerCount),
 		signedCols: (resolved.signedCols || base.signedCols || []).filter((c) => c <= headerCount),
 		percentCols: (resolved.percentCols || base.percentCols || []).filter((c) => c <= headerCount),
@@ -308,6 +313,7 @@ function resolveExportProfile(profileKey, headerCount, headers) {
 		grandTotalLabel: base.grandTotalLabel || 'GRAND TOTAL',
 		grandTotalAlign: base.grandTotalAlign || 'left',
 		centerHeaders: !!base.centerHeaders,
+		noWrap: !!base.noWrap,
 		columnWidths: Array.isArray(base.columnWidths) ? base.columnWidths : null,
 		headerHeight: base.headerHeight || null,
 		amountNumFmt: resolved.amountNumFmt || base.amountNumFmt || null,

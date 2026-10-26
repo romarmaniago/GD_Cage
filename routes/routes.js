@@ -3110,9 +3110,11 @@ pageRouter.get('/junket_house_expense_data', (req, res) => {
 /** Client sends rows without ACTION (last column). */
 pageRouter.post('/house_expense/export_xlsx', checkSession, async function (req, res) {
 	try {
-		const { headers, rows, filename } = req.body || {};
+		const { headers, rows, filename, totals } = req.body || {};
 		const result = await buildTableExportXlsx({
 			profileKey: 'houseExpense',
+			// the page total skips rejected / settled rows, so the client sends it instead of a SUM formula
+			totals: totals && typeof totals === 'object' ? totals : undefined,
 			sheetName: 'Junket Expenses',
 			headers,
 			rows,

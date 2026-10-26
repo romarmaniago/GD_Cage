@@ -1,5 +1,5 @@
 <%- include('../partials/header') %>
-<link rel="stylesheet" href="/assets/css/house_expense_explorer.css?v=23">
+<link rel="stylesheet" href="/assets/css/house_expense_explorer.css?v=29">
 <%- include('../partials/loader') %>
 
 
@@ -109,10 +109,10 @@
                                                     <label for="expense-item-page-size" class="expense-item-page-length-label visually-hidden">Rows per page</label>
                                                     <select id="expense-item-page-size" class="form-select form-select-sm expense-item-page-size-select" aria-label="Rows per page">
                                                         <option value="10">10</option>
-                                                        <option value="25" selected>25</option>
+                                                        <option value="25">25</option>
                                                         <option value="50">50</option>
                                                         <option value="100">100</option>
-                                                        <option value="-1">All</option>
+                                                        <option value="-1" selected>All</option>
                                                     </select>
                                                 </div>
                                                 <div class="house-expense-daterange-group expense-item-head-daterange d-flex flex-wrap align-items-center gap-2">
@@ -120,6 +120,10 @@
                                                         <input type="text" id="daterange-picker" class="form-control form-control-sm text-center" placeholder="<%= __('house_expense.select_date_range') %>" autocomplete="off" />
                                                     </div>
                                                     <%- include('../partials/house_expense_daterange_split') %>
+                                                </div>
+                                                <div id="house-expense-day-filter" class="house-expense-day-filter" role="group" aria-label="Program date">
+                                                    <button type="button" class="house-expense-day-tab" data-day="yesterday" aria-pressed="false">Yesterday</button>
+                                                    <button type="button" class="house-expense-day-tab active" data-day="today" aria-pressed="true">Today</button>
                                                 </div>
                                             </div>
                                             <div class="d-flex align-items-center gap-2 flex-shrink-0">
@@ -152,10 +156,11 @@
                                                     <col class="expense-col-program-date">
                                                     <col class="expense-col-date-time">
                                                     <col class="expense-col-name">
+                                                    <col class="expense-col-description">
                                                     <col class="expense-col-amount">
+                                                    <col class="expense-col-total">
                                                     <col class="expense-col-in-charge">
                                                     <col class="expense-col-receiver">
-                                                    <col class="expense-col-description">
                                                     <col class="expense-col-action">
                                                 </colgroup>
                                                 <thead>
@@ -168,19 +173,20 @@
                                                             </span>
                                                             <span class="expense-name-th-label"><%= __('house_expense.name') %></span>
                                                         </th>
+                                                        <th class="sortable-col" data-sort-key="description"><%= __('house_expense.receipt_no') %></th>
                                                         <th class="sortable-col text-end" data-sort-key="amount"><%= __('house_expense.amount') %></th>
+                                                        <th class="text-end expense-total-th"><%= __('house_expense.total') %></th>
                                                         <th class="sortable-col" data-sort-key="in_charge"><%= __('house_expense.description') %></th>
                                                         <th class="sortable-col" data-sort-key="receiver"><%= __('house_expense.receiver') || 'RECEIVED BY' %></th>
-                                                        <th class="sortable-col" data-sort-key="description"><%= __('house_expense.receipt_no') %></th>
                                                         <th class="text-start"><%= __('house_expense.action') %></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="expense-item-cat-tbody">
-                                                    <tr><td colspan="8" class="text-muted small text-center py-3">Loading...</td></tr>
+                                                    <tr><td colspan="9" class="text-muted small text-center py-3">Loading...</td></tr>
                                                 </tbody>
                                                 <tfoot>
                                                     <tr>
-                                                        <th colspan="3"><%= __('house_expense.total_expenses') || 'TOTAL EXPENSES' %></th>
+                                                        <th colspan="4"><%= __('house_expense.total_expenses') || 'TOTAL EXPENSES' %></th>
                                                         <th id="TOTAL_EXPENSE_AMOUNT">0</th>
                                                         <th colspan="4"></th>
                                                     </tr>
@@ -396,7 +402,7 @@
         </script>
         
         <script src="/assets/js/functions/num_paren_align.js"></script>
-        <script src="/assets/js/functions/house_expense.js?v=17"></script>
+        <script src="/assets/js/functions/house_expense.js?v=23"></script>
         <script>
             /* Category modals — wired like #modal-new-house-expense (see $(document).ready in house_expense.js) */
             $(function () {
@@ -1145,9 +1151,9 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             /* Keep action column in single line (no two-line wrap) */
             #expense-item-cat-tbl th:last-child,
             #expense-item-cat-tbl td:last-child {
-                width: 10.25rem;
-                max-width: 10.25rem;
-                min-width: 10.25rem;
+                width: 11.75rem;
+                max-width: 11.75rem;
+                min-width: 11.75rem;
                 white-space: nowrap;
                 text-align: left !important;
                 padding-left: 0.35rem;
@@ -2031,16 +2037,17 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             .expense-item-tbl-layout {
                 table-layout: fixed;
                 width: 100%;
-                min-width: 68rem;
+                min-width: 66rem;
             }
             .expense-item-tbl-layout col.expense-col-program-date { width: 8rem; min-width: 8rem; }
             .expense-item-tbl-layout col.expense-col-date-time { width: 9.25rem; min-width: 9.25rem; }
-            .expense-item-tbl-layout col.expense-col-name { width: 21rem; min-width: 21rem; }
+            .expense-item-tbl-layout col.expense-col-name { width: 11rem; min-width: 11rem; }
             .expense-item-tbl-layout col.expense-col-in-charge { width: 7.5rem; min-width: 7.5rem; }
             .expense-item-tbl-layout col.expense-col-receiver { width: 9.5rem; min-width: 9.5rem; }
             .expense-item-tbl-layout col.expense-col-description { width: auto; min-width: 12rem; }
             .expense-item-tbl-layout col.expense-col-amount { width: 7.25rem; min-width: 7.25rem; }
-            .expense-item-tbl-layout col.expense-col-action { width: 10.25rem; min-width: 10.25rem; }
+            .expense-item-tbl-layout col.expense-col-total { width: 8rem; min-width: 8rem; }
+            .expense-item-tbl-layout col.expense-col-action { width: 11.75rem; min-width: 11.75rem; }
             .expense-item-tbl-layout thead th:nth-child(1),
             .expense-item-tbl-layout thead th:nth-child(2),
             .expense-item-tbl-layout tbody td:nth-child(1),
@@ -2058,9 +2065,9 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 text-overflow: clip;
             }
             .expense-item-tbl-layout tbody td:nth-child(3),
-            .expense-item-tbl-layout tbody td:nth-child(5),
-            .expense-item-tbl-layout tbody td:nth-child(6),
-            .expense-item-tbl-layout tbody td:nth-child(7) {
+            .expense-item-tbl-layout tbody td:nth-child(4),
+            .expense-item-tbl-layout tbody td:nth-child(7),
+            .expense-item-tbl-layout tbody td:nth-child(8) {
                 white-space: normal;
                 overflow: visible;
                 text-overflow: clip;
@@ -2147,12 +2154,12 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 text-overflow: clip !important;
                 white-space: nowrap;
             }
-            .expense-item-tbl thead th:nth-child(5),
-            .expense-item-tbl tbody td:nth-child(5) {
+            .expense-item-tbl thead th:nth-child(7),
+            .expense-item-tbl tbody td:nth-child(7) {
                 padding-right: 0.65rem;
             }
-            .expense-item-tbl thead th:nth-child(6),
-            .expense-item-tbl tbody td:nth-child(6) {
+            .expense-item-tbl thead th:nth-child(8),
+            .expense-item-tbl tbody td:nth-child(8) {
                 padding-left: 0.65rem;
             }
             .expense-item-tbl tbody td,
@@ -2161,23 +2168,26 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 vertical-align: middle;
             }
             /* AMOUNT: right-aligned so the digits line up; the ")" of a negative hangs right (num_paren_align.js) */
-            .expense-item-tbl thead th:nth-child(4),
-            .expense-item-tbl tbody td:nth-child(4),
+            .expense-item-tbl thead th:nth-child(5),
+            .expense-item-tbl thead th:nth-child(6),
+            .expense-item-tbl tbody td:nth-child(5),
+            .expense-item-tbl tbody td:nth-child(6),
             .expense-item-tbl tfoot th#TOTAL_EXPENSE_AMOUNT {
                 text-align: right !important;
                 padding-right: 1.25rem;
             }
             .expense-item-tbl tbody td:nth-child(1),
             .expense-item-tbl tbody td:nth-child(2),
-            .expense-item-tbl tbody td:nth-child(4) {
+            .expense-item-tbl tbody td:nth-child(5),
+            .expense-item-tbl tbody td:nth-child(6) {
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
             .expense-item-tbl tbody td:nth-child(3),
-            .expense-item-tbl tbody td:nth-child(5),
-            .expense-item-tbl tbody td:nth-child(6),
-            .expense-item-tbl tbody td:nth-child(7) {
+            .expense-item-tbl tbody td:nth-child(4),
+            .expense-item-tbl tbody td:nth-child(7),
+            .expense-item-tbl tbody td:nth-child(8) {
                 white-space: normal !important;
                 overflow: visible !important;
                 text-overflow: clip !important;
@@ -2187,9 +2197,9 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             }
             .expense-item-tbl tbody td.expense-item-action-cell,
             .expense-item-tbl thead th:last-child {
-                width: 10.25rem;
-                max-width: 10.25rem;
-                min-width: 10.25rem;
+                width: 11.75rem;
+                max-width: 11.75rem;
+                min-width: 11.75rem;
                 text-align: left !important;
                 padding-left: 0.35rem;
                 padding-right: 0.35rem;

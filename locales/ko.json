@@ -455,6 +455,7 @@
 		"total_expenses": "경비 합계",
 		"total_return_money": "환불 합계",
 		"total_net_expenses": "순 경비 합계",
+		"total": "합계",
 		"select_date_range": "날짜 범위 선택",
 		"no_data_found": "데이터 없음",
 		"invalid_date": "유효하지 않은 날짜",

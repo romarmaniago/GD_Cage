@@ -395,6 +395,7 @@
 		"total_expenses": "TOTAL EXPENSES",
 		"total_return_money": "TOTAL RETURN MONEY",
 		"total_net_expenses": "TOTAL NET EXPENSES",
+		"total": "TOTAL",
 		"select_date_range": "Select Date Range",
 		"start_date": "Start",
 		"end_date": "End",

@@ -65,6 +65,28 @@ function displayWidth(value) {
 	}, 0);
 }
 
+/** Approximate Calibri 11 glyph widths in px (Excel's width unit is the "0" digit, 7px). */
+const CALIBRI_PX = {
+	A: 8, B: 8, C: 7.5, D: 9, E: 7, F: 6.5, G: 9, H: 9, I: 3.5, J: 4.5, K: 7.5, L: 6, M: 12,
+	N: 9, O: 9.5, P: 7.5, Q: 9.5, R: 8, S: 6.5, T: 7, U: 9, V: 8, W: 12.5, X: 7.5, Y: 7, Z: 6.5,
+	i: 3, j: 3, l: 3, f: 4, t: 4.5, r: 4.5, m: 11, w: 10,
+	' ': 3, '.': 3.5, ',': 3.5, ':': 3.5, ';': 3.5, "'": 3, '!': 3.5, '|': 3.5,
+	'/': 5, '-': 4.3, '(': 4, ')': 4, '[': 4, ']': 4, '·': 3.5, '&': 9.5, '%': 10, '@': 13
+};
+
+/** Text width in Excel column units, measured per glyph (CJK / Hangul ≈ 2.1 units). */
+function measuredTextWidth(value) {
+	let px = 0;
+	Array.from(String(value == null ? '' : value).replace(/\r?\n/g, ' ')).forEach((ch) => {
+		if (CALIBRI_PX[ch] != null) px += CALIBRI_PX[ch];
+		else if (/[0-9]/.test(ch)) px += 7;
+		else if (/[a-z]/.test(ch)) px += 6.5;
+		else if (ch.charCodeAt(0) > 0x2e7f) px += 14.7;
+		else px += 7;
+	});
+	return px / 7;
+}
+
 function stripCurrencyPrefix(s) {
 	return s.replace(/^\u20B1\s*/, '').replace(/^PHP\s*/i, '').trim();
 }
@@ -124,6 +146,11 @@ function coerceExportCell(raw, colIndex0, profile, outflowSet, signedSet, percen
 }
 
 function bodyAlignment(colIndex0, profile, amountSet, leftSet, centerSet) {
+	const align = bodyAlignmentBase(colIndex0, profile, amountSet, leftSet, centerSet);
+	return profile.noWrap ? Object.assign(align, { wrapText: false }) : align;
+}
+
+function bodyAlignmentBase(colIndex0, profile, amountSet, leftSet, centerSet) {
 	const col1 = colIndex0 + 1;
 	if (leftSet.has(col1)) {
 		return { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
@@ -182,8 +209,9 @@ function addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet
 
 	const totalRow = ws.addRow(Array.from({ length: ncol }, () => null));
 
+	const noSumSet = new Set(profile.noSumCols || []);
 	profile.amountCols.forEach((col1) => {
-		if (!amountSet.has(col1)) return;
+		if (!amountSet.has(col1) || noSumSet.has(col1)) return;
 		const letter = ws.getColumn(col1).letter;
 		const range = letter + dataStartRow + ':' + letter + dataEndRow;
 		const sumExpr = isOutflowCol(col1, outflowSet) ? 'ABS(SUM(' + range + '))' : 'SUM(' + range + ')';
@@ -205,8 +233,8 @@ function addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet
 	const labelCell = totalRow.getCell(1);
 	labelCell.value = grandTotalLabel;
 	labelCell.alignment = profile.grandTotalAlign === 'center'
-		? { vertical: 'middle', horizontal: 'center', wrapText: true }
-		: { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
+		? { vertical: 'middle', horizontal: 'center', wrapText: !profile.noWrap }
+		: { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: !profile.noWrap };
 
 	for (let col1 = 1; col1 <= ncol; col1++) {
 		const cell = totalRow.getCell(col1);
@@ -216,7 +244,7 @@ function addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet
 		if (!cell.alignment) {
 			cell.alignment = col1 <= labelCols
 				? labelCell.alignment
-				: { vertical: 'middle', horizontal: 'center', wrapText: true };
+				: { vertical: 'middle', horizontal: 'center', wrapText: !profile.noWrap };
 		}
 	}
 
@@ -272,21 +300,29 @@ function computeColumnWidths(headers, rows, dataRowCount, profile, grandTotalLab
 	return headers.map((h, c) => {
 		const headerText = String(h == null ? '' : h);
 		const upperHeader = headerText.toUpperCase();
-		let m = displayWidth(headerText);
+		// bold header: ~10% wider than body text
+		let m = profile.noWrap ? measuredTextWidth(headerText) * 1.1 : displayWidth(headerText);
 		for (let ri = 0; ri < rows.length; ri++) {
 			const row = rows[ri];
 			if (!Array.isArray(row) || row[c] == null) continue;
-			const L = displayWidth(row[c]);
+			// a number shows with separators and "( )": "(7,626,670)", not "-7626670"
+			const shown = typeof row[c] === 'number'
+				? '(' + Math.round(Math.abs(row[c])).toLocaleString('en-US') + ')'
+				: row[c];
+			const L = profile.noWrap ? measuredTextWidth(shown) : displayWidth(shown);
 			if (L > m) m = L;
 		}
 		if (dataRowCount > 0 && c === 0) {
-			m = Math.max(m, displayWidth(grandTotalLabel));
+			m = Math.max(m, profile.noWrap ? measuredTextWidth(grandTotalLabel) * 1.1 : displayWidth(grandTotalLabel));
 		}
+		// one line per row: exactly as wide as the longest value, plus room for the cell padding / indent
+		if (profile.noWrap) return Math.min(150, Math.ceil(m) + 3);
 		let minWidth = 11;
-		let maxWidth = profile.zebraRows ? 52 : 60;
+		// no wrapping: a capped column would cut the text off
+		let maxWidth = profile.noWrap ? 150 : (profile.zebraRows ? 52 : 60);
 		if (upperHeader.includes('DESCRIPTION')) {
 			minWidth = 24;
-			maxWidth = 100;
+			maxWidth = Math.max(maxWidth, 100);
 		} else if (upperHeader.includes('PROGRAM DATE') || upperHeader.includes('GAME START') || upperHeader.includes('GAME END')) {
 			minWidth = 14;
 		} else if (upperHeader.includes('ACCT')) {
@@ -368,7 +404,7 @@ async function buildTableExportXlsx(opts) {
 		cell.font = { bold: true };
 		cell.alignment = bodyAlignment(colNumber - 1, profile, amountSet, leftSet, centerSet);
 		if (profile.zebraRows || profile.highlightTotalCol || profile.centerHeaders) {
-			cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+			cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: !profile.noWrap };
 		}
 		cell.border = THIN_BORDER;
 		cell.fill = colIdx === totalColIndex ? FILL_HEADER_TOTAL_COL : FILL_HEADER;

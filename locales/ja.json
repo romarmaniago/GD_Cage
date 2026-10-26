@@ -453,6 +453,7 @@
 		"total_expenses": "経費合計",
 		"total_return_money": "返金合計",
 		"total_net_expenses": "純経費合計",
+		"total": "合計",
 		"select_date_range": "日付範囲を選択",
 		"no_data_found": "データが見つかりません",
 		"invalid_date": "無効な日付",
