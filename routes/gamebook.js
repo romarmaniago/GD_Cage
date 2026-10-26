@@ -5833,6 +5833,7 @@ router.post('/add_settlement', commissionLock(gameFromSettlementBody), async (re
 	// TRANSACTION DETAILS
 	let FNBDESC = 'COMMISSION';
 
+	let connection = null;
 	try {
 		let fakeSettleBefore = 0;
 		try {
@@ -5863,41 +5864,15 @@ router.post('/add_settlement', commissionLock(gameFromSettlementBody), async (re
 		if (isCommissionToLoss && await gameHasSettledJunketLoss(pool, [primaryGameId])) {
 			return res.status(409).json({ success: false, message: JUNKET_LOSS_SETTLED_GAME_MSG });
 		}
+		let pendingOrigin = null;
 		if (isCommissionToLoss) {
-			const pendingOrigin = await getPendingOriginForNewGame(pool, primaryGameId);
+			pendingOrigin = await getPendingOriginForNewGame(pool, primaryGameId);
 			if (!pendingOrigin || pendingOrigin.lossAmount <= 0) {
 				return res.status(400).json({ success: false, message: 'Loss Amount option is only for a new game created from a pending game with a loss.' });
 			}
 			if ((parseFloat(paymentValue) || 0) < 0) {
 				return res.status(400).json({ success: false, message: 'A negative payment cannot go to the Loss Amount. Please use Deposit or Choose Account.' });
 			}
-			if ((parseFloat(paymentValue) || 0) > 0) {
-				await upsertCommissionLossRecovery(pool, {
-					gameId: primaryGameId,
-					pendingGameId: pendingOrigin.pendingGameId,
-					amount: parseFloat(paymentValue),
-					encodedBy: req.session.user_id,
-					dateNow: date_now
-				});
-			}
-		} else {
-			// Insert settlement details into account_ledger (GAME_ID for direct link;
-			// LINKED_GAME_IDS records the full group when multiple games were settled together)
-			const settlementRemarks = `Settlement - #${game_id_settle}`;
-			const insertQuery = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, AUTO_REMARKS, ENCODED_BY, ENCODED_DT, LINKED_GAME_IDS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-			await pool.execute(insertQuery, [txtAccountIDSettle, game_id_settle, txtTransType, 5, FNBDESC, paymentValue, settlementRemarks, req.session.user_id, date_now, linkedGameIdsCsv]);
-		}
-
-		// Update the settled status, FNB, PAYMENT in game_list (clear fake-settle slip flag)
-		const updateQuery = `UPDATE game_list SET SETTLED = 1, FNB = ?, PAYMENT = ?, FAKE_SETTLE = 0 WHERE IDNo = ?`;
-		await pool.execute(updateQuery, [fnbValue, paymentValue, game_id_settle]);
-
-		// Cut-off pair: mark linked games settled (commission recorded on primary game only)
-		for (const linkedId of linkedIds) {
-			await pool.execute(
-				`UPDATE game_list SET SETTLED = 1, FNB = 0, PAYMENT = 0, FAKE_SETTLE = 0 WHERE IDNo = ? AND ACTIVE != 0`,
-				[linkedId]
-			);
 		}
 
 		// Fetch AGENT_CODE, NAME, and TELEGRAM_ID
@@ -5915,17 +5890,94 @@ router.post('/add_settlement', commissionLock(gameFromSettlementBody), async (re
 		let date_nowTG = new Date().toLocaleDateString();
 
 		const [agentResults] = await pool.query(agentQuery, [txtAccountIDSettle]);
+		const agentId = agentResults.length > 0 ? agentResults[0].agent_id : null;
+		const cutoffCtx = buildSettlementTelegramCutoffContext(game_id_settle, txtCutoffLinkedGameIds);
+		const gameRemark = cutoffCtx.isCutoff ? cutoffCtx.gameNumbersDisplay : String(game_id_settle);
+
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		// Claim the game first: only one request can flip SETTLED 0 → 1, so a retried or parallel
+		// submit (request timed out and Settle pressed again, second tab) cannot credit the commission twice.
+		const [claimResult] = await connection.execute(
+			`UPDATE game_list SET SETTLED = 1, FNB = ?, PAYMENT = ?, FAKE_SETTLE = 0 WHERE IDNo = ? AND COALESCE(SETTLED, 0) = 0`,
+			[fnbValue, paymentValue, game_id_settle]
+		);
+		if (claimResult.affectedRows === 0) {
+			await connection.rollback();
+			return res.status(409).json({ success: false, message: 'This game is already settled.' });
+		}
+
+		if (isCommissionToLoss) {
+			if ((parseFloat(paymentValue) || 0) > 0) {
+				await upsertCommissionLossRecovery(connection, {
+					gameId: primaryGameId,
+					pendingGameId: pendingOrigin.pendingGameId,
+					amount: parseFloat(paymentValue),
+					encodedBy: req.session.user_id,
+					dateNow: date_now
+				});
+			}
+		} else {
+			// Insert settlement details into account_ledger (GAME_ID for direct link;
+			// LINKED_GAME_IDS records the full group when multiple games were settled together)
+			const settlementRemarks = `Settlement - #${game_id_settle}`;
+			const insertQuery = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, AUTO_REMARKS, ENCODED_BY, ENCODED_DT, LINKED_GAME_IDS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+			await connection.execute(insertQuery, [txtAccountIDSettle, game_id_settle, txtTransType, 5, FNBDESC, paymentValue, settlementRemarks, req.session.user_id, date_now, linkedGameIdsCsv]);
+		}
+
+		// Cut-off pair: mark linked games settled (commission recorded on primary game only)
+		for (const linkedId of linkedIds) {
+			await connection.execute(
+				`UPDATE game_list SET SETTLED = 1, FNB = 0, PAYMENT = 0, FAKE_SETTLE = 0 WHERE IDNo = ? AND ACTIVE != 0`,
+				[linkedId]
+			);
+		}
+
+		const insertCashEntry = async (category, type, remark) => {
+			if (!agentId) return;
+			const cashTransactionQuery = `
+				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`;
+			await connection.execute(cashTransactionQuery, [
+				game_id_settle,
+				agentId,
+				paymentValue.toString(),
+				category,
+				type,
+				remark,
+				req.session.user_id,
+				date_now
+			]);
+		};
+
+		// Skip cash_transaction insert when payment amount is 0 or it went to the Loss Amount
+		if (parseFloat(paymentValue) !== 0 && !isCommissionToLoss) {
+			if (txtTransType == 5) {
+				await insertCashEntry('Commission Cash-out', 2, `Game - ${gameRemark}`);
+			} else if (txtTransType == 1) {
+				await insertCashEntry('Commission Deposit', 1, `Game - ${gameRemark}`);
+				await insertCashEntry('Commission', 2, `Game - ${gameRemark}`);
+			}
+		}
+
+		await connection.commit();
+		connection.release();
+		connection = null;
+
+		// Respond before Telegram: a slow Telegram call must not time out the request
+		// (the cage would see an error and press Settle again).
+		res.json({ success: true, message: 'Settlement saved and status updated' });
 
 		if (agentResults.length > 0) {
-			const { agent_id: agentId, AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
+			const { AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
 			const telegramId = getAgentTelegramChatId(agentResults[0]);
 
-			const cutoffCtx = buildSettlementTelegramCutoffContext(game_id_settle, txtCutoffLinkedGameIds);
 			const totals = cutoffCtx.isCutoff
 				? await fetchCombinedSettlementTotals(cutoffCtx.gameIds)
 				: await fetchSettlementTotalsForGameId(game_id_settle);
 			const { total_buy_in, total_cash_out, winloss, total_rolling } = totals;
-			const gameRemark = cutoffCtx.isCutoff ? cutoffCtx.gameNumbersDisplay : String(game_id_settle);
 
 			// Get commission type + GAME_TYPE (e.g. LIVE) from game_list for Telegram
 			let commissionTextLine = '';
@@ -6004,44 +6056,20 @@ router.post('/add_settlement', commissionLock(gameFromSettlementBody), async (re
 					console.error('Failed to send Telegram message to management:', telegramError.message);
 				}
 			}
-
-			const insertCashEntry = async (category, type, remark) => {
-				if (!agentId) return;
-				const cashTransactionQuery = `
-					INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-				`;
-				await pool.execute(cashTransactionQuery, [
-					game_id_settle,
-					agentId,
-					paymentValue.toString(),
-					category,
-					type,
-					remark,
-					req.session.user_id,
-					date_now
-				]);
-			};
-
-			// Skip cash_transaction insert when payment amount is 0 or it went to the Loss Amount
-			if (parseFloat(paymentValue) !== 0 && !isCommissionToLoss) {
-				if (txtTransType == 5) {
-					await insertCashEntry('Commission Cash-out', 2, `Game - ${gameRemark}`);
-				} else if (txtTransType == 1) {
-					await insertCashEntry('Commission Deposit', 1, `Game - ${gameRemark}`);
-					await insertCashEntry('Commission', 2, `Game - ${gameRemark}`);
-				}
-			}
 		} else {
 			console.error("No AGENT_CODE or NAME found for Account ID:", txtAccountIDSettle);
 		}
 
-		// Send JSON success response
-		res.json({ success: true, message: 'Settlement saved and status updated' });
-
 	} catch (err) {
 		console.error('Error processing settlement:', err);
-		res.status(500).json({ success: false, message: 'Error processing settlement' });
+		if (connection) {
+			try { await connection.rollback(); } catch (rollbackErr) { /* ignore */ }
+		}
+		if (!res.headersSent) {
+			res.status(500).json({ success: false, message: 'Error processing settlement' });
+		}
+	} finally {
+		if (connection) connection.release();
 	}
 });
 

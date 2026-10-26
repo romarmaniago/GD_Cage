@@ -12433,6 +12433,23 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
                         });
                     },
                     error: function (xhr, status, error) {
+                        // 409: the game was already settled (earlier submit went through) — keep Settle locked
+                        if (xhr.status === 409) {
+                            isSettled = true;
+                            $settlementModal.data('is-settled', 1);
+                            $btn.prop('disabled', true).text('Settled');
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Already Settled',
+                                text: (xhr.responseJSON && xhr.responseJSON.message) || 'This game is already settled.',
+                                confirmButtonText: 'OK',
+                                allowOutsideClick: false,
+                                allowEscapeKey: false
+                            }).then(function () {
+                                window.location.reload();
+                            });
+                            return;
+                        }
                         // Display SweetAlert error message
                         Swal.fire({
                             icon: 'error',
