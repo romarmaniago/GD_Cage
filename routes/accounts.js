@@ -55,7 +55,7 @@ const GUEST_PORTAL_MANUAL_LEDGER_SQL = `
 	AND (
 		(
 			COALESCE(TRANSFER, 0) = 0
-			AND UPPER(TRIM(COALESCE(TRANSACTION_DESC, ''))) = 'ACCOUNT DETAILS'
+			AND UPPER(TRIM(COALESCE(TRANSACTION_DESC, ''))) IN ('ACCOUNT DETAILS', 'ADDITIONAL COMMISSION')
 			AND TRANSACTION_TYPE = 2
 			AND TRANSACTION_ID IN (1, 2)
 		)
@@ -130,6 +130,25 @@ async function findTransferPairLedger(connection, ledger) {
 		[transferAgent, accountId, pairTransId, ledger.AMOUNT, ledger.ENCODED_DT]
 	);
 	return fallbackRows[0] || null;
+}
+
+const CREDIT_DEPOSIT_AUTO_REMARKS = 'Deposit - Credit';
+
+/**
+ * Agent Portal Credit "+" also deposits the amount into the account ("Deposit - Credit" row, same ENCODED_DT).
+ * Given that deposit row, returns its credit (TRANSACTION_ID 3) ledger row, if any.
+ */
+async function findCreditForDepositLedger(connection, ledger) {
+	if (!ledger || parseInt(ledger.TRANSACTION_ID, 10) !== 1 || ledger.AUTO_REMARKS !== CREDIT_DEPOSIT_AUTO_REMARKS) return null;
+	const [rows] = await connection.execute(
+		`SELECT * FROM account_ledger
+		 WHERE ACTIVE = 1 AND ACCOUNT_ID = ? AND GAME_ID IS NULL AND TRANSACTION_ID = 3
+		   AND UPPER(TRIM(COALESCE(TRANSACTION_DESC, ''))) = 'ACCOUNT DETAILS'
+		   AND AMOUNT = ? AND ENCODED_DT = ?
+		 ORDER BY IDNo DESC LIMIT 1`,
+		[ledger.ACCOUNT_ID, ledger.AMOUNT, ledger.ENCODED_DT]
+	);
+	return rows[0] || null;
 }
 
 async function updateGuestPortalLedgerRow(connection, ledgerId, amount, remarks, userId, editedDt) {
@@ -317,7 +336,22 @@ async function insertExpenseWithLedger({ accountId, txtTrans, amount, categoryId
  * All mirror the ledger: withdraw X = +X, deposit X = -X.
  */
 async function fetchLinkedPortalRecord(connection, ledger) {
-	if (!ledger || String(ledger.TRANSACTION_DESC || '').trim().toUpperCase() !== 'ACCOUNT DETAILS') return null;
+	const desc = String((ledger && ledger.TRANSACTION_DESC) || '').trim().toUpperCase();
+	// Portal Additional Settlement: additional_commission (Transfer type) linked by ACCOUNT_LEDGER_ID.
+	if (desc === 'ADDITIONAL COMMISSION') {
+		const [rows] = await connection.execute(
+			`SELECT IDNo, ADDITIONAL_SETTLEMENT_ID FROM additional_commission WHERE ACCOUNT_LEDGER_ID = ? AND ACTIVE = 1 LIMIT 1`,
+			[ledger.IDNo]
+		);
+		if (!rows[0]) return null;
+		return {
+			table: 'additional_commission',
+			id: rows[0].IDNo,
+			settled: rows[0].ADDITIONAL_SETTLEMENT_ID != null,
+			settledMessage: 'This additional commission is already settled and can no longer be changed.'
+		};
+	}
+	if (desc !== 'ACCOUNT DETAILS') return null;
 	if (ledger.SERVICE_ID) {
 		const [rows] = await connection.execute(
 			`SELECT IDNo, SERVICE_SETTLEMENT_ID, COMMISSION_SETTLEMENT_ID
@@ -373,6 +407,11 @@ async function updateLinkedPortalRecord(connection, linked, ledger, amount, rema
 			`UPDATE game_services SET AMOUNT = ?, REMARKS = ?, UPDATED_BY = ?, UPDATED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
 			[signed, remarks || '', userId, now, linked.id]
 		);
+	} else if (linked.table === 'additional_commission') {
+		await connection.execute(
+			`UPDATE additional_commission SET AMOUNT = ?, REMARKS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+			[signed, remarks || '', userId, now, linked.id]
+		);
 	} else {
 		// junket_loss / junket_house_expense share the column names
 		await connection.execute(
@@ -389,7 +428,7 @@ async function archiveLinkedPortalRecord(connection, linked, userId, now) {
 			[userId, now, linked.id]
 		);
 	} else {
-		// junket_loss / junket_house_expense share the column names
+		// junket_loss / junket_house_expense / additional_commission share the column names
 		await connection.execute(
 			`UPDATE ${linked.table} SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
 			[userId, now, linked.id]
@@ -3163,6 +3202,22 @@ router.post('/add_account_details', async (req, res) => {
 				encodedBy: req.session.user_id,
 				encodedDt: date_now
 			});
+
+			// The credit goes straight into the account balance (cage cash nets to zero: credit out, deposit in).
+			const [depositResult] = await pool.query(insertQuery, [txtAccountId, 1, 2, transacDesc, txtAmountNum, userRemarks, CREDIT_DEPOSIT_AUTO_REMARKS, req.session.user_id, date_now]);
+			await recordHistory({
+				ledgerId: depositResult.insertId,
+				accountId: parseInt(txtAccountId, 10),
+				transactionId: 1,
+				transactionName: 'DEPOSIT',
+				amount: amountNumber,
+				balanceBefore,
+				balanceAfter: balanceBefore + amountNumber,
+				remarks: remarksValue || null,
+				direction: mapDirection('1'),
+				encodedBy: req.session.user_id,
+				encodedDate: date_now
+			});
 		}
 
 		const transactionQuery = `
@@ -4495,6 +4550,13 @@ router.put('/account_details/remove/:id', checkSession, async (req, res) => {
 			pairAccountId = pair.ACCOUNT_ID;
 		}
 
+		// Portal Credit deposit: its credit row and credit record go with it.
+		const creditLedger = await findCreditForDepositLedger(connection, ledger);
+		if (creditLedger) {
+			ledgerIds.push(creditLedger.IDNo);
+			await softDeleteCreditByLedgerId(connection, creditLedger.IDNo, req.session.user_id, date_now);
+		}
+
 		// Portal Add Charge / Loss Amount: its list record goes with it (unless already settled).
 		const linkedRecord = await fetchLinkedPortalRecord(connection, ledger);
 		if (linkedRecord && linkedRecord.settled) {
@@ -4660,6 +4722,7 @@ router.put('/account_details/edit/:id', checkSession, async (req, res) => {
 
 		const isTransfer = parseInt(ledger.TRANSFER, 10) === 1;
 		const usesCreditSync = ledgerHasLinkedCreditTransaction(ledger);
+		let creditLedger = null;
 
 		if (usesCreditSync) {
 			const creditUpdated = await updateCreditFieldsByLedgerId(
@@ -4688,6 +4751,16 @@ router.put('/account_details/edit/:id', checkSession, async (req, res) => {
 			await updateGuestPortalLedgerRow(connection, pair.IDNo, parsedAmount, remarks, req.session.user_id, date_now);
 			await syncTransactionHistoryOnEdit(connection, id, parsedAmount, remarks);
 			await syncTransactionHistoryOnEdit(connection, pair.IDNo, parsedAmount, remarks);
+		} else if ((creditLedger = await findCreditForDepositLedger(connection, ledger))) {
+			// Portal Credit deposit: its credit row and credit record change with it.
+			await updateGuestPortalLedgerRow(connection, id, parsedAmount, remarks, req.session.user_id, date_now);
+			await updateGuestPortalLedgerRow(connection, creditLedger.IDNo, parsedAmount, remarks, req.session.user_id, date_now);
+			await connection.execute(
+				`UPDATE credit_transaction SET AMOUNT = ?, REMARKS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE LEDGER_ID = ? AND ACTIVE = 1`,
+				[parsedAmount, remarks || null, req.session.user_id, date_now, creditLedger.IDNo]
+			);
+			await syncTransactionHistoryOnEdit(connection, id, parsedAmount, remarks);
+			await syncTransactionHistoryOnEdit(connection, creditLedger.IDNo, parsedAmount, remarks);
 		} else {
 			// Portal Add Charge / Loss Amount: keep its list record in step.
 			const linkedRecord = await fetchLinkedPortalRecord(connection, ledger);

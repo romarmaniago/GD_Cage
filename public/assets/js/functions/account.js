@@ -1719,7 +1719,9 @@ function isGuestPortalLedgerEditable(row) {
 	var transId = parseInt(row.TRANSACTION_ID, 10);
 	var transType = parseInt(row.TRANSACTION_TYPE, 10);
 	var isManualTransfer = isTransfer && transType === 2 && (transId === 1 || transId === 2) && !desc;
-	var isManualDepositOrWithdraw = !isTransfer && transType === 2 && (transId === 1 || transId === 2) && desc === 'ACCOUNT DETAILS';
+	// ADDITIONAL COMMISSION = portal Additional Settlement (its additional_commission record is kept in step)
+	var isManualDepositOrWithdraw = !isTransfer && transType === 2 && (transId === 1 || transId === 2) &&
+		(desc === 'ACCOUNT DETAILS' || desc === 'ADDITIONAL COMMISSION');
 	// Transfer from / to Company (account side of a junket_capital transfer)
 	var isCompanyTransfer = transType === 2 && (transId === 1 || transId === 2) &&
 		(desc === 'COMPANY' || desc === 'TRANSFERRED FROM HOUSE BALANCE' || desc === 'TRANSFERRED TO HOUSE BALANCE');
