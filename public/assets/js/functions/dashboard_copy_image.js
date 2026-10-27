@@ -71,6 +71,16 @@
 		Array.prototype.forEach.call(bodies, function (b) { b.style.boxShadow = 'none'; });
 	}
 
+	// Canvas fillText ignores font-variant-numeric, so tabular-nums digits are
+	// drawn narrower than the DOM laid them out. html2canvas places the closing
+	// ")" of a negative amount at its DOM position, leaving a gap like
+	// "(7,626,670 )". Use proportional digits in the clone so both agree.
+	function dropTabularNums(doc) {
+		var style = doc.createElement('style');
+		style.textContent = '*, *::before, *::after { font-variant-numeric: normal !important; font-feature-settings: normal !important; }';
+		doc.head.appendChild(style);
+	}
+
 	// ---- Summary columns ----------------------------------------------------
 	function shotColumn(col) {
 		return html2canvas(col, {
@@ -78,6 +88,7 @@
 			onclone: function (doc) {
 				hideCopyButtons(doc);
 				dropInsetShadows(doc);
+				dropTabularNums(doc);
 			}
 		});
 	}
@@ -117,6 +128,7 @@
 					backgroundColor: '#F5E7BD', scale: SCALE, useCORS: true, logging: false,
 					onclone: function (doc) {
 						hideCopyButtons(doc);
+						dropTabularNums(doc);
 						var clonedCol = doc.querySelector(sel);
 						if (!clonedCol) return;
 						var clonedCard = clonedCol.querySelector('.card.dash-dual-matrix-panel');
@@ -151,6 +163,7 @@
 				return html2canvas(content, {
 					backgroundColor: bg, scale: SCALE, useCORS: true, logging: false,
 					onclone: function (doc) {
+						dropTabularNums(doc);
 						var c = doc.querySelector('#modal-on-game-details .modal-content');
 						if (!c) return;
 						var footer = c.querySelector('.modal-footer');
