@@ -105,14 +105,15 @@ async function computePeriodMetrics(dateFrom, dateTo) {
 
 /**
  * Daily Report side card payload for a single program date: "Today" (that date alone)
- * and "Total" (the month-end-cutoff period containing it — same range convention as
- * the dashboard's period filters).
+ * and "Total" (running total from the start of the month-end-cutoff period containing
+ * it — same range convention as the dashboard's period filters — up to that date).
  */
 async function computeDailyReportSideSummary(dateStr) {
 	const date = isValidYmd(dateStr) ? dateStr : serverTodayStr();
 	const cutoff = getMonthEndCutoffRange(new Date(`${date}T00:00:00`));
 	const monthFrom = cutoff.startDate;
-	const monthTo = cutoff.endDate;
+	// Running total: settlement month start up to the selected date (not the whole month).
+	const monthTo = date < cutoff.endDate ? date : cutoff.endDate;
 
 	const [today, total] = await Promise.all([
 		computePeriodMetrics(date, date),
