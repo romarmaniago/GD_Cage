@@ -14,21 +14,23 @@
 							<div class="card" style="background: linear-gradient(180deg, #faf8f4 0%, #f5f2ec 100%); border: 1px solid #e0dcd4;">
 								<div id="user-role" data-permissions="<%= permissions %>"></div>
 								<div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%); border-bottom: 1px solid rgba(200, 162, 76, 0.25);">
-									<h3 class="card-title"><div class="breadcrumb1 flat">
-										<a href="/dashboard" ><span class="fa fa-home"></span></a>
-										
-										<a href="/agency"class="active">Line</a>
-									</div></h3>
+									<div class="d-flex align-items-center flex-wrap gap-3">
+										<h3 class="card-title mb-0"><div class="breadcrumb1 flat">
+											<a href="/dashboard" ><span class="fa fa-home"></span></a>
+
+											<a href="/agency"class="active">Line</a>
+										</div></h3>
+										<div class="d-none" id="selection-summary-row">
+											<span class="selection-summary-chip me-2" id="selected-line-chip">
+												<strong>LINE:</strong> <span id="selected-line-name">-</span>
+											</span>
+											<span class="selection-summary-chip" id="selected-agent-chip">
+												<strong>AGENT:</strong> <span id="selected-agent-name">-</span>
+											</span>
+										</div>
+									</div>
 								</div>
 								<div class="card-body agency-page">
-									<div class="d-none mb-3" id="selection-summary-row">
-										<span class="selection-summary-chip me-2" id="selected-line-chip">
-											<strong>LINE:</strong> <span id="selected-line-name">-</span>
-										</span>
-										<span class="selection-summary-chip" id="selected-agent-chip">
-											<strong>AGENT:</strong> <span id="selected-agent-name">-</span>
-										</span>
-									</div>
 									<div class="row g-3 mb-4 agency-line-stats" id="line-stat-row">
 										<div class="col-6 col-lg" id="line-stat-card-scope">
 											<div class="agency-stat-card h-100">
@@ -198,7 +200,10 @@
 																data-lpignore="true"
 																data-1p-ignore="true">
 														</div>
-														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-primary bg-gradient-primary" id="btn-guest-panel-add">
+														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-muted" id="btn-guest-panel-export" title="Download Excel" aria-label="Download Excel">
+														<i class="fa fa-download" aria-hidden="true"></i>
+													</button>
+													<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-primary bg-gradient-primary" id="btn-guest-panel-add">
 															<i class="fa fa-plus"></i>
 														</button>
 													</div>
@@ -351,7 +356,8 @@
 				<%- include ('../partials/permission_view_only_script') %>
 					<%- include ('../partials/footer'); -%>
 						<!-- <script src="assets/js/datatables/agency_tables_datatables.min.js"></script> -->
-						<script src="/assets/js/functions/agency.js?v=3"></script>
+						<script src="/assets/vendor/sortable/Sortable.min.js"></script>
+						<script src="/assets/js/functions/agency.js?v=11"></script>
 						<script src="/assets/js/functions/account.js?v=6"></script>
 						<script src="/assets/js/functions/agent_portal_panels.js?v=13"></script>
 						<script src="/assets/js/functions/agent.js"></script>
@@ -753,6 +759,7 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 #btn-agent-panel-export,
 #btn-agent-panel-add-guest,
 #btn-guest-panel-add,
+#btn-guest-panel-export,
 #btn-line-panel-export,
 #btn-line-panel-add {
   width: 26px;
@@ -911,6 +918,30 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
   background: #faf9f6;
 }
 
+/* LINE / AGENT drag & drop reorder */
+#agency-grid.is-sortable .agency-card,
+#agent-list.is-sortable .panel-list-item {
+  cursor: grab;
+}
+
+#agency-grid.is-sortable .agency-card .agency-row-actions,
+#agent-list.is-sortable .panel-list-item .panel-row-actions {
+  cursor: default;
+}
+
+.agency-page .agency-card.agency-card-drag-chosen,
+.agency-page .panel-list-item.agency-card-drag-chosen {
+  cursor: grabbing;
+  background: #fffaf0 !important;
+  box-shadow: 0 4px 12px rgba(58, 46, 18, 0.18);
+}
+
+.agency-page .agency-card.agency-card-drag-ghost,
+.agency-page .panel-list-item.agency-card-drag-ghost {
+  opacity: 0.4;
+  background: #f6e8c4 !important;
+}
+
 .agency-page .agency-panels .panel-box {
   border-color: var(--agency-border);
   box-shadow: 0 1px 2px rgba(58, 46, 18, 0.06);
@@ -1007,9 +1038,9 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
   box-shadow: 0 0 0 0.15rem rgba(0, 0, 0, 0.08);
 }
 
-.agency-page .selection-summary-chip {
+#selection-summary-row .selection-summary-chip {
   background: #faf3dc;
-  border-color: var(--agency-border);
+  border-color: #e0dcd4;
 }
 
 .agency-page .agency-line-stats .agency-stat-card {

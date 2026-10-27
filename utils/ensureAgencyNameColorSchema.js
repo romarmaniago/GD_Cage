@@ -40,9 +40,23 @@ async function ensureNameColorColumn(pool, tableName) {
 	}
 }
 
+// agency.SORT_ORDER / agent.SORT_ORDER : custom LINE / AGENT list order (drag & drop). NULL = after ordered rows, by name.
+async function ensureSortOrderColumn(pool, tableName) {
+	if (!(await tableExists(pool, tableName))) return;
+	if (!(await columnExists(pool, tableName, 'SORT_ORDER'))) {
+		await pool.execute(
+			`ALTER TABLE \`${tableName}\`
+			 ADD COLUMN SORT_ORDER INT NULL DEFAULT NULL`
+		);
+		console.log(`[${tableName}] Added column SORT_ORDER`);
+	}
+}
+
 async function ensureAgencyNameColorSchema(pool) {
 	await ensureNameColorColumn(pool, 'agency');
 	await ensureNameColorColumn(pool, 'agent');
+	await ensureSortOrderColumn(pool, 'agency');
+	await ensureSortOrderColumn(pool, 'agent');
 	return false;
 }
 

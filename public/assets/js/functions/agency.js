@@ -4,6 +4,8 @@ let selectedAgencyId = null;
 let currentAgencyAccounts = [];
 let selectedAgentId = null;
 let currentGuestRows = [];
+let currentAgentPanelRows = [];
+let currentGuestPanelRows = [];
 let currentAgencyGuestRows = [];
 let currentAllGuestRows = [];
 let currentAllAgentAccountRows = [];
@@ -12,9 +14,12 @@ let lineSearchQuery = '';
 let agentSearchQuery = '';
 let transferGuestCurrentAgentId = null;
 let transferAgentGuestsSourceId = null;
-let agencyLineSortDir = 'asc';
+// 'custom' = saved drag & drop order (SORT_ORDER); 'asc' / 'desc' = by name
+let agencyLineSortDir = 'custom';
+let agencyLineSortable = null;
 let agencyLineCurrentPage = 1;
-let agencyAgentSortDir = 'asc';
+let agencyAgentSortDir = 'custom';
+let agencyAgentSortable = null;
 let agencyGuestSortState = { sortKey: 'guest_name', sortDir: 'asc' };
 
 const agencyGuestNumericSortKeys = {
@@ -29,10 +34,25 @@ function getAgencyLineSortValue(row) {
   return String((row && row.AGENCY) || '').trim().toLowerCase();
 }
 
+function getAgencyListSortOrder(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : Infinity;
+}
+
+function getAgencyLineSortOrder(row) {
+  return getAgencyListSortOrder(row && row.SORT_ORDER);
+}
+
 function sortAgencyLineRows(rows) {
   const list = (rows || []).slice();
-  const dir = agencyLineSortDir === 'asc' ? 'asc' : 'desc';
+  const custom = agencyLineSortDir === 'custom';
+  const dir = agencyLineSortDir === 'desc' ? 'desc' : 'asc';
   list.sort(function (a, b) {
+    if (custom) {
+      const ao = getAgencyLineSortOrder(a);
+      const bo = getAgencyLineSortOrder(b);
+      if (ao !== bo) return ao < bo ? -1 : 1;
+    }
     const av = getAgencyLineSortValue(a);
     const bv = getAgencyLineSortValue(b);
     if (av < bv) return dir === 'asc' ? -1 : 1;
@@ -50,8 +70,14 @@ function getAgencyAgentSortValue(agent) {
 
 function sortAgencyAgentRows(agents) {
   const list = (agents || []).slice();
-  const dir = agencyAgentSortDir === 'asc' ? 'asc' : 'desc';
+  const custom = agencyAgentSortDir === 'custom';
+  const dir = agencyAgentSortDir === 'desc' ? 'desc' : 'asc';
   list.sort(function (a, b) {
+    if (custom) {
+      const ao = getAgencyListSortOrder(a && a.agent_sort_order);
+      const bo = getAgencyListSortOrder(b && b.agent_sort_order);
+      if (ao !== bo) return ao < bo ? -1 : 1;
+    }
     const av = getAgencyAgentSortValue(a);
     const bv = getAgencyAgentSortValue(b);
     if (av < bv) return dir === 'asc' ? -1 : 1;
@@ -112,8 +138,14 @@ function syncAgencyPanelTitleSortIndicator(buttonId, sortDir) {
   const $btn = $(buttonId);
   if (!$btn.length) return;
   const asc = sortDir === 'asc';
-  const indicator = asc ? '▲' : '▼';
-  const label = asc ? 'Sorted A–Z (click to reverse)' : 'Sorted Z–A (click to reverse)';
+  let indicator = asc ? '▲' : '▼';
+  let label = asc ? 'Sorted A–Z (click to reverse)' : 'Sorted Z–A (click to reverse)';
+  if (sortDir === 'custom') {
+    indicator = '⇅';
+    label = 'Custom order — drag to arrange (click to sort A–Z)';
+  } else if (buttonId === '#btn-sort-line-panel' || buttonId === '#btn-sort-agent-panel') {
+    label = asc ? 'Sorted A–Z (click for Z–A)' : 'Sorted Z–A (click for custom order)';
+  }
   $btn.attr('title', label).attr('aria-label', label);
   $btn.find('.panel-title-sort-indicator').text(indicator);
 }
@@ -306,64 +338,6 @@ function downloadAgencyExportBlob(blob, filename) {
   URL.revokeObjectURL(link.href);
 }
 
-function exportLineStatsReport(agencyId, lineName) {
-  var numericAgencyId = parseInt(agencyId, 10);
-  if (!numericAgencyId) return;
-
-  var $btn = $('.btn-export-line-stats[data-agency-id="' + numericAgencyId + '"]');
-  $btn.prop('disabled', true);
-
-  fetch('/agency/export_line_stats_xlsx', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: {
-      Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ agencyId: numericAgencyId })
-  })
-    .then(function (res) {
-      var contentType = (res.headers.get('Content-Type') || '').toLowerCase();
-      if (!contentType.includes('spreadsheetml') && !contentType.includes('octet-stream')) {
-        return res.text().then(function (body) {
-          if (body && body.indexOf('<html') !== -1) {
-            throw new Error('Session expired. Please refresh the page and log in again.');
-          }
-          throw new Error('Export failed');
-        });
-      }
-      if (!res.ok) {
-        return res.json().catch(function () { return {}; }).then(function (j) {
-          throw new Error((j && j.error) ? j.error : 'Export failed');
-        });
-      }
-      var cd = res.headers.get('Content-Disposition');
-      var d = new Date();
-      var pad = function (n) { return String(n).padStart(2, '0'); };
-      var safeName = String(lineName || 'LINE').replace(/[<>:"/\\|?*]+/g, '').trim() || 'LINE';
-      var filename = safeName + '-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.xlsx';
-      if (cd) {
-        var m = /filename="([^"]+)"/i.exec(cd) || /filename=([^;]+)/i.exec(cd);
-        if (m) filename = m[1].trim().replace(/^["']|["']$/g, '');
-        var mStar = /filename\*=UTF-8''([^;]+)/i.exec(cd);
-        if (mStar) { try { filename = decodeURIComponent(mStar[1].trim()); } catch (e) {} }
-      }
-      return res.blob().then(function (blob) {
-        return { blob: blob, filename: filename };
-      });
-    })
-    .then(function (o) {
-      downloadAgencyExportBlob(o.blob, o.filename);
-    })
-    .catch(function (err) {
-      console.error('LINE stats export:', err);
-      Swal.fire({ icon: 'error', title: 'Export', text: err.message || 'Export failed.' });
-    })
-    .finally(function () {
-      $btn.prop('disabled', false);
-    });
-}
-
 function syncAgentPanelTransferButton() {
   var per = parseInt($('#user-role').data('permissions'), 10);
   var $btnTransfer = $('#btn-agent-panel-transfer');
@@ -432,13 +406,15 @@ $(document).ready(function() {
   syncAgencyPanelTitleSortIndicator('#btn-sort-agent-panel', agencyAgentSortDir);
 
   $('#btn-sort-line-panel').on('click', function () {
-    agencyLineSortDir = agencyLineSortDir === 'asc' ? 'desc' : 'asc';
+    // custom → A–Z → Z–A → custom
+    agencyLineSortDir = agencyLineSortDir === 'custom' ? 'asc' : (agencyLineSortDir === 'asc' ? 'desc' : 'custom');
     syncAgencyPanelTitleSortIndicator('#btn-sort-line-panel', agencyLineSortDir);
     applyLinePanelView(agencyLineCurrentPage);
   });
 
   $('#btn-sort-agent-panel').on('click', function () {
-    agencyAgentSortDir = agencyAgentSortDir === 'asc' ? 'desc' : 'asc';
+    // custom → A–Z → Z–A → custom
+    agencyAgentSortDir = agencyAgentSortDir === 'custom' ? 'asc' : (agencyAgentSortDir === 'asc' ? 'desc' : 'custom');
     syncAgencyPanelTitleSortIndicator('#btn-sort-agent-panel', agencyAgentSortDir);
     applyAgentPanelView();
   });
@@ -473,21 +449,20 @@ $(document).ready(function() {
     openTransferForSelectedAgency();
   });
 
-  $('#agency-grid').on('click', '.btn-export-line-stats', function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    var agencyId = $(this).data('agency-id');
-    var lineName = $(this).attr('data-line-name') || '';
-    exportLineStatsReport(agencyId, lineName);
-  });
-
   $('#btn-line-panel-export').on('click', function () {
     var $btn = $('#btn-line-panel-export');
     $btn.prop('disabled', true);
-    fetch('/agency/export_line_agent_matrix_xlsx', {
+    var exportRows = sortAgencyLineRows(allAgents || []).map(function (row) {
+      return { name: row.AGENCY || '', balance: Number(row.total_balance) || 0 };
+    });
+    fetch('/agency/export_line_balance_xlsx', {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json'
+      },
+      body: JSON.stringify({ rows: exportRows })
     })
       .then(function (res) {
         if (!res.ok) {
@@ -533,21 +508,30 @@ $(document).ready(function() {
       Swal.fire({
         icon: 'warning',
         title: 'No LINE selected',
-        text: 'Select a LINE first to export LINE and guests.',
+        text: 'Select a LINE first to export its agents.',
         confirmButtonText: 'OK'
       });
       return;
     }
+    var selectedLineName = $('#selected-line-name').text().trim();
+    var exportRows = (currentAgentPanelRows || []).map(function (agent) {
+      return {
+        line: agent.agency_name || selectedLineName,
+        code: (agent.agent_code || '').toUpperCase(),
+        name: (agent.agent_name || '').toUpperCase(),
+        balance: Number(agent.total_balance) || 0
+      };
+    });
     var $btn = $('#btn-agent-panel-export');
     $btn.prop('disabled', true);
-    fetch('/agency/export_agent_guest_matrix_xlsx', {
+    fetch('/agency/export_agent_balance_xlsx', {
       method: 'POST',
       credentials: 'same-origin',
       headers: {
         Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json',
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ agencyId: selectedAgencyId })
+      body: JSON.stringify({ lineName: selectedLineName, rows: exportRows })
     })
       .then(function (res) {
         if (!res.ok) {
@@ -558,7 +542,7 @@ $(document).ready(function() {
         var cd = res.headers.get('Content-Disposition');
         var d = new Date();
         var pad = function (n) { return String(n).padStart(2, '0'); };
-        var filename = 'Line-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.xlsx';
+        var filename = 'Agent-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.xlsx';
         if (cd) {
           var m = /filename="([^"]+)"/i.exec(cd) || /filename=([^;]+)/i.exec(cd);
           if (m) filename = m[1].trim().replace(/^["']|["']$/g, '');
@@ -584,6 +568,71 @@ $(document).ready(function() {
       })
       .finally(function () {
         syncAgentPanelTransferButton();
+      });
+  });
+
+  $('#btn-guest-panel-export').on('click', function () {
+    if (!currentGuestPanelRows.length) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'No guests',
+        text: 'Select an agent (or search) to list guests first.',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+    var selectedLineName = $('#selected-line-name').text().trim();
+    var selectedAgentLabel = $('#selected-agent-name').text().trim();
+    var exportRows = currentGuestPanelRows.map(function (row) {
+      var agentCode = String(row.agent_code || '').trim().toUpperCase();
+      return {
+        line: String(row.agency_name || '').trim() || selectedLineName,
+        account: agentCode || selectedAgentLabel.split(' · ')[0],
+        guest: String(row.guest_name || row.NAME || '').toUpperCase(),
+        membershipNo: String(row.membership_no || row.MEMBERSHIP_NO || '').trim(),
+        remarks: String(row.guest_remarks || row.REMARKS || '').trim()
+      };
+    });
+    var fileLabel = exportRows.every(function (r) { return r.account === exportRows[0].account; })
+      ? exportRows[0].account
+      : '';
+    var $btn = $('#btn-guest-panel-export');
+    $btn.prop('disabled', true);
+    fetch('/agency/export_guest_list_xlsx', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ fileLabel: fileLabel, rows: exportRows })
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.json().catch(function () { return {}; }).then(function (j) {
+            throw new Error((j && j.error) ? j.error : 'Export failed');
+          });
+        }
+        var cd = res.headers.get('Content-Disposition');
+        var d = new Date();
+        var pad = function (n) { return String(n).padStart(2, '0'); };
+        var filename = 'Guest-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.xlsx';
+        if (cd) {
+          var m = /filename="([^"]+)"/i.exec(cd) || /filename=([^;]+)/i.exec(cd);
+          if (m) filename = m[1].trim().replace(/^["']|["']$/g, '');
+          var mStar = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+          if (mStar) { try { filename = decodeURIComponent(mStar[1].trim()); } catch (e) {} }
+        }
+        return res.blob().then(function (blob) {
+          downloadAgencyExportBlob(blob, filename);
+        });
+      })
+      .catch(function (err) {
+        console.error('GUEST export:', err);
+        Swal.fire({ icon: 'error', title: 'Export', text: err.message || 'Export failed.' });
+      })
+      .finally(function () {
+        $btn.prop('disabled', false);
       });
   });
 
@@ -1144,14 +1193,6 @@ function renderPage(data, page = 1, perPage = Math.max((data || []).length, 1)) 
     const nameStyle = nameColor ? ` style="color:${nameColor} !important"` : '';
     const actionsHtml = canEdit ? `
       <button type="button"
-        class="btn btn-sm agency-icon-btn btn-export-line-stats"
-        data-agency-id="${row.IDNo}"
-        data-line-name="${escapeHtmlAttr(row.AGENCY || '')}"
-        data-bs-toggle="tooltip"
-        title="Export LINE Stats">
-        <i class="fa fa-download"></i>
-      </button>
-      <button type="button"
         class="btn btn-sm agency-icon-btn btn-text-color"
         data-color-kind="line"
         data-color-id="${row.IDNo}"
@@ -1168,9 +1209,6 @@ function renderPage(data, page = 1, perPage = Math.max((data || []).length, 1)) 
       </button>
       ${deleteBtnHtml}
     ` : `
-      <button type="button" class="btn btn-sm agency-icon-btn" disabled title="Export">
-        <i class="fa fa-download"></i>
-      </button>
       <button type="button" class="btn btn-sm agency-icon-btn" disabled title="Edit">
         <i class="fa fa-pen"></i>
       </button>
@@ -1187,7 +1225,7 @@ function renderPage(data, page = 1, perPage = Math.max((data || []).length, 1)) 
       <div class="agency-card-body">
         <a
           href="#"
-          onclick="selectAgencyLine(${row.IDNo}, this); return false;"
+          onclick="toggleAgencyLine(${row.IDNo}, this); return false;"
           class="agency-name text-uppercase"${nameStyle}
         >
           ${row.AGENCY}
@@ -1213,6 +1251,7 @@ function renderPage(data, page = 1, perPage = Math.max((data || []).length, 1)) 
   // Tooltip reset
   $('[data-bs-toggle="tooltip"]').tooltip();
 
+  syncAgencyLineSortable();
   syncAgentPanelTransferButton();
 
   applyAgencySearchHighlights(getGuestSearchMatchSets().matchedAgencyIds);
@@ -1236,6 +1275,94 @@ function renderPage(data, page = 1, perPage = Math.max((data || []).length, 1)) 
       </li>
     `);
   }
+}
+
+// Hold & drag LINE rows to reorder. Off for view-only users and while the LINE search filters the list.
+function syncAgencyLineSortable() {
+  const grid = document.getElementById('agency-grid');
+  if (!grid || typeof Sortable === 'undefined') return;
+  const canEdit = parseInt($('#user-role').data('permissions'), 10) !== 2;
+  const enabled = canEdit && !isLineSearchActive();
+
+  if (!agencyLineSortable) {
+    agencyLineSortable = Sortable.create(grid, {
+      draggable: '.agency-card',
+      filter: '.agency-row-actions',
+      preventOnFilter: false,
+      animation: 150,
+      delay: 200,
+      delayOnTouchOnly: true,
+      ghostClass: 'agency-card-drag-ghost',
+      chosenClass: 'agency-card-drag-chosen',
+      onStart: function () {
+        $('[data-bs-toggle="tooltip"]').tooltip('hide');
+      },
+      onEnd: function (evt) {
+        if (evt.oldIndex === evt.newIndex) return;
+        saveAgencyLineOrderFromDom();
+      }
+    });
+  }
+  agencyLineSortable.option('disabled', !enabled);
+  grid.classList.toggle('is-sortable', enabled);
+}
+
+function saveAgencyLineOrderFromDom() {
+  const ids = $('#agency-grid .agency-card').map(function () {
+    return parseInt($(this).attr('data-id'), 10);
+  }).get().filter(function (id) { return id > 0; });
+  if (!ids.length) return;
+
+  // Apply locally right away so the list keeps the dropped order
+  const orderById = {};
+  ids.forEach(function (id, i) { orderById[id] = i + 1; });
+  allAgents.forEach(function (row) {
+    if (orderById[row.IDNo]) row.SORT_ORDER = orderById[row.IDNo];
+  });
+  if (agencyLineSortDir !== 'custom') {
+    agencyLineSortDir = 'custom';
+    syncAgencyPanelTitleSortIndicator('#btn-sort-line-panel', agencyLineSortDir);
+  }
+
+  $.ajax({
+    url: '/agency_line_order',
+    method: 'PUT',
+    contentType: 'application/json',
+    data: JSON.stringify({ ids: ids }),
+    error: function (xhr) {
+      const msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to save LINE order.';
+      Swal.fire({ icon: 'error', title: 'LINE order', text: msg });
+      reloadData(selectedAgencyId || undefined);
+    }
+  });
+}
+
+// Row click: clicking the already-selected LINE deselects it (programmatic re-selects use selectAgencyLine directly)
+function toggleAgencyLine(agencyId, anchorEl) {
+  if (selectedAgencyId && String(selectedAgencyId) === String(agencyId)) {
+    deselectAgencyLine();
+    return;
+  }
+  selectAgencyLine(agencyId, anchorEl);
+}
+
+function deselectAgencyLine() {
+  selectedAgencyId = null;
+  selectedAgentId = null;
+  currentAgencyAccounts = [];
+  currentGuestRows = [];
+  currentAgencyGuestRows = [];
+
+  $('.agency-card').removeClass('is-selected');
+  $('#txtAgencyLine').val('');
+  setSelectedLineLabel('');
+  setSelectedAgentLabel('', '');
+
+  applyAgentPanelView();
+  applyGuestPanelView();
+  syncAgentPanelTransferButton();
+  loadLineStats();
+  loadAgentStats(null);
 }
 
 function selectAgencyLine(agencyId, anchorEl) {
@@ -1281,6 +1408,7 @@ function renderAgentPanel(accounts, options) {
         agency_id: row.agency_id || null,
         agency_name: row.agency_name || '',
         agent_name_color: row.agent_name_color || null,
+        agent_sort_order: row.agent_sort_order,
         total_balance: Number(row.total_balance || row.total_ledger_amount) || 0
       };
     }
@@ -1295,6 +1423,7 @@ function renderAgentPanel(accounts, options) {
   if (isAgentSearchActive()) {
     agents = filterAgentRows(agents, agentSearchQuery);
   }
+  currentAgentPanelRows = agents;
 
   if (!selectedAgencyId && !searching && !isAgentSearchActive()) {
     $list.addClass('d-none').empty();
@@ -1397,7 +1526,7 @@ function renderAgentPanel(accounts, options) {
     `;
     return `
       <div class="${itemClasses}" data-agent-id="${agent.agent_id}">
-        <a href="#" class="panel-list-agent-link" onclick="selectAgentInPanel(${agent.agent_id}, this); return false;"${agentNameStyle}>${line}${agencyHint}</a>
+        <a href="#" class="panel-list-agent-link" onclick="toggleAgentInPanel(${agent.agent_id}, this); return false;"${agentNameStyle}>${line}${agencyHint}</a>
         <span class="panel-list-agent-balance">${balance}</span>
         <div class="panel-row-actions">
           ${actionsHtml}
@@ -1408,10 +1537,90 @@ function renderAgentPanel(accounts, options) {
 
   $list.html(html).removeClass('d-none');
   $empty.addClass('d-none');
+  syncAgencyAgentSortable(searching || !!showAgencyHint);
 
   if (selectedAgencyId && !searching) {
     updateScopeStatCard(true, 0, agents.length);
   }
+}
+
+// Hold & drag AGENT rows to reorder within the selected LINE. Off for view-only users and while any search filters the list.
+function syncAgencyAgentSortable(filtered) {
+  const list = document.getElementById('agent-list');
+  if (!list || typeof Sortable === 'undefined') return;
+  const canEdit = parseInt($('#user-role').data('permissions'), 10) !== 2;
+  const enabled = canEdit && !!selectedAgencyId && !filtered
+    && !isAgentSearchActive() && !isGuestSearchActive();
+
+  if (!agencyAgentSortable) {
+    agencyAgentSortable = Sortable.create(list, {
+      draggable: '.panel-list-item',
+      filter: '.panel-row-actions',
+      preventOnFilter: false,
+      animation: 150,
+      delay: 200,
+      delayOnTouchOnly: true,
+      ghostClass: 'agency-card-drag-ghost',
+      chosenClass: 'agency-card-drag-chosen',
+      onEnd: function (evt) {
+        if (evt.oldIndex === evt.newIndex) return;
+        saveAgencyAgentOrderFromDom();
+      }
+    });
+  }
+  agencyAgentSortable.option('disabled', !enabled);
+  list.classList.toggle('is-sortable', enabled);
+}
+
+function saveAgencyAgentOrderFromDom() {
+  const ids = $('#agent-list .panel-list-item').map(function () {
+    return parseInt($(this).attr('data-agent-id'), 10);
+  }).get().filter(function (id) { return id > 0; });
+  if (!ids.length) return;
+
+  // Apply locally right away so the list keeps the dropped order
+  const orderById = {};
+  ids.forEach(function (id, i) { orderById[id] = i + 1; });
+  [currentAgencyAccounts, currentAllAgentAccountRows].forEach(function (rows) {
+    (rows || []).forEach(function (row) {
+      if (orderById[row.agent_id]) row.agent_sort_order = orderById[row.agent_id];
+    });
+  });
+  if (agencyAgentSortDir !== 'custom') {
+    agencyAgentSortDir = 'custom';
+    syncAgencyPanelTitleSortIndicator('#btn-sort-agent-panel', agencyAgentSortDir);
+  }
+
+  $.ajax({
+    url: '/agency_agent_order',
+    method: 'PUT',
+    contentType: 'application/json',
+    data: JSON.stringify({ ids: ids }),
+    error: function (xhr) {
+      const msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to save agent order.';
+      Swal.fire({ icon: 'error', title: 'Agent order', text: msg });
+      refreshSelectedAgencyPanels(selectedAgentId || undefined);
+    }
+  });
+}
+
+// Row click: clicking the already-selected AGENT deselects it (LINE stays selected)
+function toggleAgentInPanel(agentId, anchorEl) {
+  if (selectedAgentId && String(selectedAgentId) === String(agentId)) {
+    deselectAgentInPanel();
+    return;
+  }
+  selectAgentInPanel(agentId, anchorEl);
+}
+
+function deselectAgentInPanel() {
+  selectedAgentId = null;
+  currentGuestRows = [];
+  $('#agent-list .panel-list-item').removeClass('is-active');
+  setSelectedAgentLabel('', '');
+  applyGuestPanelView();
+  loadAgentStats(null);
+  syncAgentPanelTransferButton();
 }
 
 function selectAgentInPanel(agentId, anchorEl) {
@@ -1965,6 +2174,7 @@ function renderGuestPanel(guests, options) {
   const $empty = $('#guest-panel-empty');
   const $list = $('#guest-list');
   const rows = Array.isArray(guests) ? guests : [];
+  currentGuestPanelRows = [];
 
   if (!selectedAgencyId && !searching) {
     $list.addClass('d-none').empty();
@@ -1987,6 +2197,7 @@ function renderGuestPanel(guests, options) {
   }
 
   const sortedRows = sortAgencyGuestRows(rows);
+  currentGuestPanelRows = sortedRows;
 
   const htmlRows = sortedRows.map(function (row) {
     const permissions = parseInt($('#user-role').data('permissions'), 10);
