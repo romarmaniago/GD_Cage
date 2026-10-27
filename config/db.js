@@ -46,6 +46,7 @@ const { ensureAccountLedgerAutoRemarksSchema } = require('../utils/ensureAccount
 const { dropGameListMultiSettledSchema } = require('../utils/dropGameListMultiSettledSchema');
 const { ensureGameGroupSchema } = require('../utils/ensureGameGroupSchema');
 const { ensureGameAccountHistorySchema } = require('../utils/ensureGameAccountHistorySchema');
+const { ensureGameRowNoteSchema } = require('../utils/ensureGameRowNoteSchema');
 const { ensureSettlementVoidSchema } = require('../utils/ensureSettlementVoidSchema');
 
 const pool = mysql.createPool({
@@ -109,6 +110,7 @@ const pool = mysql.createPool({
 		await ensureAccountLedgerAutoRemarksSchema(pool);
 		await ensureGameGroupSchema(pool);
 		await ensureGameAccountHistorySchema(pool);
+		await ensureGameRowNoteSchema(pool);
 		// After every settlement batch table exists.
 		await ensureSettlementVoidSchema(pool);
 		await backfillCreditFromLedger(pool);

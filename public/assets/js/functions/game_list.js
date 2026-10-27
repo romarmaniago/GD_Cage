@@ -4035,6 +4035,42 @@ function buildGameGroupBadge(row) {
 	);
 }
 
+/** Note icon after the group badge; replaced by the note text when one is set. Carries the row colors for applyGameRowNoteColors. */
+function buildGameRowNoteButton(row) {
+	if (!row.game_list_id) return '';
+	var note = row.ROW_NOTE ? String(row.ROW_NOTE).trim() : '';
+	var bg = row.ROW_BG_COLOR || '';
+	var fg = row.ROW_TEXT_COLOR || '';
+	var canEdit = canAssignGameGuest();
+	if (!canEdit && !note) {
+		return '<span class="js-game-row-note d-none" data-bg="' + escapeHtmlText(bg) + '" data-fg="' + escapeHtmlText(fg) + '"></span>';
+	}
+	return (
+		' <button type="button" class="js-game-row-note game-list-row-note-btn' + (note ? ' has-note' : '') + '"' +
+		' data-game-id="' + row.game_list_id + '"' +
+		' data-note="' + escapeHtmlText(note) + '"' +
+		' data-bg="' + escapeHtmlText(bg) + '"' +
+		' data-fg="' + escapeHtmlText(fg) + '"' +
+		(canEdit ? '' : ' disabled') +
+		' data-bs-toggle="tooltip" title="' + escapeHtmlText(note || 'Add note / row color') + '" aria-label="Note">' +
+		(note
+			? '<span class="game-list-row-note-text">' + escapeHtmlText(note) + '</span>'
+			: '<i class="fa fa-pen-square" aria-hidden="true"></i>') +
+		'</button>'
+	);
+}
+
+/** Paint the row with the custom background / text color stored on its note icon. */
+function applyGameRowNoteColors(rowNode) {
+	if (!rowNode) return;
+	var $note = $(rowNode).find('.js-game-row-note').first();
+	var bg = $note.attr('data-bg') || '';
+	var fg = $note.attr('data-fg') || '';
+	$(rowNode).toggleClass('game-row-custom-bg', !!bg).toggleClass('game-row-custom-fg', !!fg);
+	rowNode.style.setProperty('--game-row-bg', bg || 'initial');
+	rowNode.style.setProperty('--game-row-fg', fg || 'initial');
+}
+
 /** Change account: Super Admin (0) and Manager (11) only — the server enforces the same rule. */
 function canChangeGameAccount() {
 	var userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
@@ -5480,6 +5516,142 @@ $(document).ready(function () {
 		}
 	});
 
+	// ── Excel-style account filter (Acc & Group header) ──
+	// window.gameListAcctFilter: null = all accounts, otherwise the set of account codes to show.
+	var ACCT_COL = 2;
+	if (typeof window.gameListAcctFilter === 'undefined') window.gameListAcctFilter = null;
+
+	function acctCodeFromCell(cell) {
+		var $link = $('<div>').html(String(cell || '')).find('.game-list-acct-link').first();
+		return $link.length ? String($link.text() || '').trim() : '';
+	}
+
+	if (!window._gameListAcctFilterRegistered) {
+		window._gameListAcctFilterRegistered = true;
+		$.fn.dataTable.ext.search.push(function (settings, searchData, index) {
+			if (settings.nTable.id !== 'game_list-tbl' || !window.gameListAcctFilter) return true;
+			var row = settings.aoData[index];
+			var code = acctCodeFromCell(row && row._aData ? row._aData[ACCT_COL] : '');
+			if (!code) return true; // rows without an account link (e.g. summaries) always show
+			return window.gameListAcctFilter.has(code);
+		});
+	}
+
+	function getGameListAcctCodes() {
+		if (!$.fn.DataTable.isDataTable('#game_list-tbl')) return [];
+		var seen = {};
+		$('#game_list-tbl').DataTable().column(ACCT_COL).data().each(function (cell) {
+			var code = acctCodeFromCell(cell);
+			if (code) seen[code] = true;
+		});
+		return Object.keys(seen).sort(function (a, b) { return a.localeCompare(b, undefined, { numeric: true }); });
+	}
+
+	function renderAcctFilterList() {
+		var $dd = $('#game-acct-filter-dd');
+		var term = String($dd.find('.acct-filter-search').val() || '').trim().toLowerCase();
+		var codes = ($dd.data('codes') || []).filter(function (c) { return !term || c.toLowerCase().indexOf(term) !== -1; });
+		var checked = $dd.data('checked');
+		var html = '';
+		if (codes.length) {
+			html += '<label class="acct-filter-all"><input type="checkbox" class="js-acct-filter-all"> (Select All)</label>';
+			codes.forEach(function (c) {
+				html += '<label><input type="checkbox" class="js-acct-filter-item" value="' + escapeHtmlText(c) + '"' + (checked[c] ? ' checked' : '') + '> ' + escapeHtmlText(c) + '</label>';
+			});
+		} else {
+			html = '<div class="acct-filter-empty">No matches</div>';
+		}
+		$dd.find('.acct-filter-list').html(html);
+		syncAcctFilterSelectAll();
+	}
+
+	function syncAcctFilterSelectAll() {
+		var $dd = $('#game-acct-filter-dd');
+		var $items = $dd.find('.js-acct-filter-item');
+		var n = $items.filter(':checked').length;
+		$dd.find('.js-acct-filter-all')
+			.prop('checked', $items.length > 0 && n === $items.length)
+			.prop('indeterminate', n > 0 && n < $items.length);
+		$dd.find('.js-acct-filter-ok').prop('disabled', !Object.keys($dd.data('checked')).some(function (k) { return $dd.data('checked')[k]; }));
+	}
+
+	function openAcctFilter(btn) {
+		var $dd = $('#game-acct-filter-dd');
+		if (!$dd.length) {
+			$dd = $(
+				'<div id="game-acct-filter-dd" role="dialog" aria-label="Filter accounts">' +
+				'<input type="text" class="acct-filter-search" placeholder="Search" autocomplete="off">' +
+				'<div class="acct-filter-list"></div>' +
+				'<div class="acct-filter-actions">' +
+				'<button type="button" class="btn btn-sm btn-primary js-acct-filter-ok">OK</button>' +
+				'<button type="button" class="btn btn-sm btn-alt-secondary js-acct-filter-cancel">Cancel</button>' +
+				'</div></div>'
+			).appendTo('body');
+		}
+		var codes = getGameListAcctCodes();
+		var current = window.gameListAcctFilter;
+		var checked = {};
+		codes.forEach(function (c) { checked[c] = !current || current.has(c); });
+		$dd.data({ codes: codes, checked: checked });
+		$dd.find('.acct-filter-search').val('');
+		renderAcctFilterList();
+		var rect = btn.getBoundingClientRect();
+		var left = Math.max(8, Math.min(rect.left + window.scrollX, window.scrollX + document.documentElement.clientWidth - 198));
+		$dd.css({ top: rect.bottom + window.scrollY + 4, left: left }).addClass('open');
+		$dd.find('.acct-filter-search').trigger('focus');
+	}
+
+	function closeAcctFilter() {
+		$('#game-acct-filter-dd').removeClass('open');
+	}
+
+	// Bound on the button itself so the header's sort click never sees it.
+	$('#game-acct-filter-btn').off('.gameAcctFilter')
+		.on('mousedown.gameAcctFilter pointerdown.gameAcctFilter keydown.gameAcctFilter', function (e) {
+			e.stopPropagation();
+		})
+		.on('click.gameAcctFilter', function (e) {
+			e.preventDefault();
+			e.stopPropagation();
+			if ($('#game-acct-filter-dd').hasClass('open')) closeAcctFilter();
+			else openAcctFilter(this);
+		});
+
+	$(document).off('.gameAcctFilter')
+		.on('input.gameAcctFilter', '#game-acct-filter-dd .acct-filter-search', renderAcctFilterList)
+		.on('change.gameAcctFilter', '#game-acct-filter-dd .js-acct-filter-item', function () {
+			$('#game-acct-filter-dd').data('checked')[this.value] = this.checked;
+			syncAcctFilterSelectAll();
+		})
+		.on('change.gameAcctFilter', '#game-acct-filter-dd .js-acct-filter-all', function () {
+			var on = this.checked;
+			var checked = $('#game-acct-filter-dd').data('checked');
+			$('#game-acct-filter-dd .js-acct-filter-item').each(function () {
+				this.checked = on;
+				checked[this.value] = on;
+			});
+			syncAcctFilterSelectAll();
+		})
+		.on('keydown.gameAcctFilter', '#game-acct-filter-dd', function (e) {
+			if (e.key === 'Enter') $('#game-acct-filter-dd .js-acct-filter-ok').trigger('click');
+			if (e.key === 'Escape') closeAcctFilter();
+		})
+		.on('click.gameAcctFilter', '#game-acct-filter-dd .js-acct-filter-ok', function () {
+			var $dd = $('#game-acct-filter-dd');
+			var checked = $dd.data('checked');
+			var codes = $dd.data('codes') || [];
+			var selected = codes.filter(function (c) { return checked[c]; });
+			if (!selected.length) return;
+			window.gameListAcctFilter = selected.length === codes.length ? null : new Set(selected);
+			$('#game-acct-filter-btn').toggleClass('active', !!window.gameListAcctFilter);
+			closeAcctFilter();
+			if ($.fn.DataTable.isDataTable('#game_list-tbl')) $('#game_list-tbl').DataTable().draw();
+		})
+		.on('click.gameAcctFilter', '#game-acct-filter-dd .js-acct-filter-cancel', closeAcctFilter)
+		.on('mousedown.gameAcctFilter', function (e) {
+			if (!$(e.target).closest('#game-acct-filter-dd, #game-acct-filter-btn').length) closeAcctFilter();
+		});
+
 	// ── Frequent Recently ──
 	// Finished games only, most recently finished first, with cut-off pairs kept together
 	// (original game, then its continuation — e.g. 100015 (100016) right above 100016 (100015)).
@@ -6555,7 +6727,7 @@ $(document).ready(function () {
                                 }
                                 actionButtons = '<div class="game-list-action-btns">' + actionButtons + '</div>';
 
-                                var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name) + buildGameGroupBadge(row) + buildGameAccountChangeButton(row);
+                                var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name) + buildGameGroupBadge(row) + buildGameRowNoteButton(row) + buildGameAccountChangeButton(row);
                                 var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
                                 (window._gameListStatusMap || (window._gameListStatusMap = {}))[row.game_list_id] = 'ongame';
                                 (window._gameListSettledMap || (window._gameListSettledMap = {}))[row.game_list_id] = isSettled;
@@ -6580,7 +6752,7 @@ $(document).ready(function () {
                                     roller_chips_td,
                                     actionButtons
                                 ]).node(); scheduleGameListDraw();
-                                if (rowNode) { rowNode.setAttribute('data-game-status', 'ongame'); rowNode.setAttribute('data-settled', isSettled ? '1' : '0'); }
+                                if (rowNode) { rowNode.setAttribute('data-game-status', 'ongame'); rowNode.setAttribute('data-settled', isSettled ? '1' : '0'); applyGameRowNoteColors(rowNode); }
 								
 								
 								
@@ -6677,7 +6849,7 @@ $(document).ready(function () {
 									actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 								}
 								actionButtons = '<div class="game-list-action-btns">' + actionButtons + '</div>';
-								var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name) + buildGameGroupBadge(row);
+								var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name) + buildGameGroupBadge(row) + buildGameRowNoteButton(row);
 								var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
 
 								(window._gameListStatusMap || (window._gameListStatusMap = {}))[row.game_list_id] = 'pending';
@@ -6703,7 +6875,7 @@ $(document).ready(function () {
 									roller_chips_td,
 									actionButtons
 								]).node(); scheduleGameListDraw();
-								if (rowNode) { rowNode.setAttribute('data-game-status', 'pending'); rowNode.setAttribute('data-settled', isSettled ? '1' : '0'); }
+								if (rowNode) { rowNode.setAttribute('data-game-status', 'pending'); rowNode.setAttribute('data-settled', isSettled ? '1' : '0'); applyGameRowNoteColors(rowNode); }
 
 
 
@@ -6795,7 +6967,7 @@ $(document).ready(function () {
 							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 						   }
 						   actionButtons = '<div class="game-list-action-btns">' + actionButtons + '</div>';
-						   var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name) + buildGameGroupBadge(row);
+						   var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name) + buildGameGroupBadge(row) + buildGameRowNoteButton(row);
 						   var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
 						   (window._gameListStatusMap || (window._gameListStatusMap = {}))[row.game_list_id] = isPendingRollerOrangeRow(row) ? 'pending' : 'finished';
 						   (window._gameListSettledMap || (window._gameListSettledMap = {}))[row.game_list_id] = isSettled;
@@ -6806,7 +6978,7 @@ $(document).ready(function () {
 						   };
 						   captureGameListExportRow(row, { buyin: total_amount, cashout: total_cash_out_chips, winloss: WinLoss, rolling: total_rolling_chips, settlement: net, totalSettle: totalSettleValue, rollerChips: total_roller_chips });
 						   let rowNode = dataTable.row.add([buildProgramDateCell(row, userPermissions, isSettled), gameStartCellEnd, acct_no_link, buildGameGuestCell(row), buildGameMembershipCell(row), buildGameTypeCell(row, userPermissions), buildGameRateCell(row, userPermissions, isSettled), buildCutoffGameIdCell(row), buyin_td, cashout_td, winloss, total_rolling_td, formattedNet, add_chg_td, formattedTotalSettle, status, roller_chips_td, actionButtons]).node(); scheduleGameListDraw();
-						   if (rowNode) { rowNode.setAttribute('data-game-status', isPendingRollerOrangeRow(row) ? 'pending' : 'finished'); rowNode.setAttribute('data-settled', isSettled ? '1' : '0'); }
+						   if (rowNode) { rowNode.setAttribute('data-game-status', isPendingRollerOrangeRow(row) ? 'pending' : 'finished'); rowNode.setAttribute('data-settled', isSettled ? '1' : '0'); applyGameRowNoteColors(rowNode); }
 
 							}
 	
@@ -8222,7 +8394,9 @@ $('#edit_status').submit(function (event) {
 			? computeInGameProjectedCommissionGross()
 			: (parseFloat(settlementValueRaw) || 0);
 
-		if (servicesValue > settlementValue) {
+		// No services = nothing to exceed. A negative-rolling game (late cash-out) has a negative
+		// commission, so without this guard 0 > -300 would warn on every such game.
+		if (servicesValue > 0 && servicesValue > settlementValue) {
 			if ($btn.data('skipServiceCheck')) {
 				$btn.removeData('skipServiceCheck');
 			} else {
@@ -10758,6 +10932,352 @@ $(document).ready(function () {
 			parseInt($btn.data('game-id'), 10),
 			parseInt($btn.data('group-id'), 10) || null
 		);
+	});
+
+	// Excel-style Fill Color palette (Theme Colors + Standard Colors + More Colors...)
+	var ROW_NOTE_THEME_BASE = ['#FFFFFF', '#000000', '#E7E6E6', '#44546A', '#4472C4', '#ED7D31', '#A5A5A5', '#FFC000', '#5B9BD5', '#70AD47'];
+	var ROW_NOTE_STANDARD = ['#C00000', '#FF0000', '#FFC000', '#FFFF00', '#92D050', '#00B050', '#00B0F0', '#0070C0', '#002060', '#7030A0'];
+
+	function rowNoteMixHex(hex, factor) {
+		// factor > 0 lightens toward white, < 0 darkens toward black
+		var out = '#';
+		for (var i = 1; i < 7; i += 2) {
+			var c = parseInt(hex.substr(i, 2), 16);
+			c = factor >= 0 ? c + (255 - c) * factor : c * (1 + factor);
+			out += ('0' + Math.round(c).toString(16)).slice(-2);
+		}
+		return out.toUpperCase();
+	}
+
+	function rowNoteThemeVariants(base, idx) {
+		if (idx === 0) return [-0.05, -0.15, -0.25, -0.35, -0.5].map(function (f) { return rowNoteMixHex(base, f); });
+		if (idx === 1) return [0.5, 0.35, 0.25, 0.15, 0.05].map(function (f) { return rowNoteMixHex(base, f); });
+		if (idx === 2) return [-0.1, -0.25, -0.5, -0.75, -0.9].map(function (f) { return rowNoteMixHex(base, f); });
+		return [0.8, 0.6, 0.4, -0.25, -0.5].map(function (f) { return rowNoteMixHex(base, f); });
+	}
+
+	function rowNoteSwatch(hex) {
+		return '<button type="button" class="row-note-swatch js-row-note-swatch" data-color="' + hex + '" title="' + hex + '" style="background-color:' + hex + '"></button>';
+	}
+
+	var ROW_NOTE_RECENT_KEY = 'gd_row_note_recent_colors';
+
+	function getRowNoteRecentColors() {
+		try {
+			var list = JSON.parse(localStorage.getItem(ROW_NOTE_RECENT_KEY) || '[]');
+			return Array.isArray(list) ? list.filter(function (c) { return /^#[0-9A-F]{6}$/.test(c); }).slice(0, 10) : [];
+		} catch (err) {
+			return [];
+		}
+	}
+
+	function addRowNoteRecentColor(hex) {
+		var list = getRowNoteRecentColors().filter(function (c) { return c !== hex; });
+		list.unshift(hex);
+		try { localStorage.setItem(ROW_NOTE_RECENT_KEY, JSON.stringify(list.slice(0, 10))); } catch (err) { /* ignore */ }
+	}
+
+	function buildRowNotePalette(kind) {
+		var variants = ROW_NOTE_THEME_BASE.map(rowNoteThemeVariants);
+		var recent = getRowNoteRecentColors();
+		var html = '<div class="row-note-palette-section">';
+		html += '<div class="row-note-palette-title">Theme Colors</div>';
+		html += '<div class="row-note-palette-grid base-row">' + ROW_NOTE_THEME_BASE.map(rowNoteSwatch).join('') + '</div>';
+		html += '<div class="row-note-palette-grid shade-rows">';
+		for (var r = 0; r < 5; r++) {
+			for (var c = 0; c < variants.length; c++) html += rowNoteSwatch(variants[c][r]);
+		}
+		html += '</div></div>';
+		html += '<div class="row-note-palette-section">';
+		html += '<div class="row-note-palette-title">Standard Colors</div>';
+		html += '<div class="row-note-palette-grid">' + ROW_NOTE_STANDARD.map(rowNoteSwatch).join('') + '</div>';
+		html += '</div>';
+		if (recent.length) {
+			html += '<div class="row-note-palette-section">';
+			html += '<div class="row-note-palette-title">Recent Colors</div>';
+			html += '<div class="row-note-palette-grid">' + recent.map(rowNoteSwatch).join('') + '</div>';
+			html += '</div>';
+		}
+		html += '<button type="button" class="row-note-palette-item js-row-note-default"><span class="row-note-swatch"></span>' + (kind === 'bg' ? 'No Fill' : 'Automatic') + '</button>';
+		html += '<button type="button" class="row-note-palette-item js-row-note-more"><i class="fa fa-palette" aria-hidden="true"></i>More Colors...</button>';
+		return html;
+	}
+
+	/** Store the picked color ('' = default) and refresh the button's color bar + selected swatch. */
+	function setRowNotePickerColor($picker, hex) {
+		hex = hex ? String(hex).toUpperCase() : '';
+		var isBg = $picker.data('kind') === 'bg';
+		$picker.find('input[type="hidden"]').val(hex);
+		$picker.find('.row-note-picker-bar').css('background-color', hex || (isBg ? 'transparent' : '#000000'));
+		$picker.find('.js-row-note-swatch').removeClass('selected');
+		if (hex) $picker.find('.js-row-note-swatch[data-color="' + hex + '"]').first().addClass('selected');
+	}
+
+	/** Pick a color from the palette or the Colors dialog (also remembered under Recent Colors). */
+	function pickRowNoteColor($picker, hex) {
+		hex = String(hex).toUpperCase();
+		addRowNoteRecentColor(hex);
+		$picker.find('.row-note-palette').html(buildRowNotePalette($picker.data('kind')));
+		setRowNotePickerColor($picker, hex);
+		$picker.removeClass('open');
+	}
+
+	$(document).on('click', '#modal-game-row-note .js-row-note-picker-toggle', function (e) {
+		e.stopPropagation();
+		var $picker = $(this).closest('.row-note-picker');
+		var wasOpen = $picker.hasClass('open');
+		$('#modal-game-row-note .row-note-picker').removeClass('open');
+		if (!wasOpen) {
+			$picker.find('.row-note-palette').html(buildRowNotePalette($picker.data('kind')));
+			setRowNotePickerColor($picker, $picker.find('input[type="hidden"]').val());
+		}
+		$picker.toggleClass('open', !wasOpen);
+	});
+	$(document).on('click', '#modal-game-row-note .js-row-note-swatch', function (e) {
+		e.stopPropagation();
+		pickRowNoteColor($(this).closest('.row-note-picker'), $(this).data('color'));
+	});
+	$(document).on('click', '#modal-game-row-note .js-row-note-default', function (e) {
+		e.stopPropagation();
+		var $picker = $(this).closest('.row-note-picker');
+		setRowNotePickerColor($picker, '');
+		$picker.removeClass('open');
+	});
+	$(document).on('click', '#modal-game-row-note', function (e) {
+		if (!$(e.target).closest('.row-note-picker').length) {
+			$('#modal-game-row-note .row-note-picker').removeClass('open');
+		}
+	});
+
+	// ---- "Colors" dialog (More Colors...): Standard honeycomb + Custom spectrum, like Excel ----
+	var rowNoteColorsState = { $picker: null, current: '', hex: '#FFFFFF', h: 0, s: 0, l: 1 };
+
+	function rowNoteHslToHex(h, s, l) {
+		var a = s * Math.min(l, 1 - l);
+		function f(n) {
+			var k = (n + h / 30) % 12;
+			var c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+			return ('0' + Math.round(c * 255).toString(16)).slice(-2);
+		}
+		return ('#' + f(0) + f(8) + f(4)).toUpperCase();
+	}
+
+	function rowNoteHexToHsl(hex) {
+		var r = parseInt(hex.substr(1, 2), 16) / 255;
+		var g = parseInt(hex.substr(3, 2), 16) / 255;
+		var b = parseInt(hex.substr(5, 2), 16) / 255;
+		var max = Math.max(r, g, b), min = Math.min(r, g, b);
+		var l = (max + min) / 2, h = 0, s = 0, d = max - min;
+		if (d) {
+			s = d / (1 - Math.abs(2 * l - 1));
+			if (max === r) h = 60 * (((g - b) / d) % 6);
+			else if (max === g) h = 60 * ((b - r) / d + 2);
+			else h = 60 * ((r - g) / d + 4);
+			if (h < 0) h += 360;
+		}
+		return { h: h, s: s, l: l };
+	}
+
+	function rowNoteHexPoints(cx, cy, size) {
+		var pts = [];
+		for (var i = 0; i < 6; i++) {
+			var ang = Math.PI / 180 * (60 * i - 30);
+			pts.push((cx + size * Math.cos(ang)).toFixed(2) + ',' + (cy + size * Math.sin(ang)).toFixed(2));
+		}
+		return pts.join(' ');
+	}
+
+	function buildRowNoteHoneycomb() {
+		var size = 10, w = Math.sqrt(3) * size, rowH = 1.5 * size, R = 6;
+		var cx = w * R + w / 2 + 2, cy = size + 2 + rowH * R;
+		var polys = [];
+		function cell(x, y, hex, s) {
+			polys.push('<polygon class="js-row-note-hex" data-color="' + hex + '" points="' + rowNoteHexPoints(x, y, s || size) + '" fill="' + hex + '" stroke="#fff" stroke-width="1"></polygon>');
+		}
+		for (var r = -R; r <= R; r++) {
+			for (var q = Math.max(-R, -R - r); q <= Math.min(R, R - r); q++) {
+				var dist = Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r));
+				var x = cx + w * (q + r / 2), y = cy + rowH * r;
+				var hex = '#FFFFFF';
+				if (dist) {
+					var theta = Math.atan2(x - cx, -(y - cy)) * 180 / Math.PI;
+					var hue = (225 + theta + 360) % 360;
+					hex = rowNoteHslToHex(hue, 1, 1 - 0.75 * dist / R);
+				}
+				cell(x, y, hex);
+			}
+		}
+		// grayscale strip: big white, two staggered rows of grays, big black
+		var gy = cy + rowH * R + size * 3.2;
+		var grays = ['#F8F8F8', '#DDDDDD', '#B2B2B2', '#808080', '#5F5F5F', '#333333', '#1C1C1C',
+			'#EAEAEA', '#C0C0C0', '#969696', '#777777', '#4D4D4D', '#292929', '#111111'];
+		cell(cx - w * 5.2, gy + rowH / 2, '#FFFFFF', size * 1.6);
+		for (var i = 0; i < 14; i++) {
+			var row = i < 7 ? 0 : 1, col = i % 7;
+			cell(cx - w * 3 + w * col + (row ? w / 2 : 0), gy + row * rowH, grays[i]);
+		}
+		cell(cx + w * 5.2, gy + rowH / 2, '#000000', size * 1.6);
+		var height = gy + rowH + size * 2 + 2;
+		$('#row-note-honeycomb')
+			.attr({ width: Math.ceil(cx * 2), height: Math.ceil(height), viewBox: '0 0 ' + Math.ceil(cx * 2) + ' ' + Math.ceil(height) })
+			.html(polys.join(''));
+	}
+	buildRowNoteHoneycomb();
+
+	/** Update the dialog from a hex color; `from` skips redrawing the control the user is dragging. */
+	function setRowNoteDialogColor(hex, from) {
+		rowNoteColorsState.hex = hex.toUpperCase();
+		if (from !== 'hsl') {
+			var hsl = rowNoteHexToHsl(hex);
+			rowNoteColorsState.h = hsl.h;
+			rowNoteColorsState.s = hsl.s;
+			rowNoteColorsState.l = hsl.l;
+		}
+		var st = rowNoteColorsState;
+		$('#row-note-colors-new').css('background-color', st.hex);
+		$('#row-note-honeycomb .js-row-note-hex').attr({ stroke: '#fff', 'stroke-width': 1 });
+		$('#row-note-honeycomb .js-row-note-hex[data-color="' + st.hex + '"]').first()
+			.attr({ stroke: '#000', 'stroke-width': 2.5 }).appendTo('#row-note-honeycomb');
+		$('#row-note-spectrum .row-note-spectrum-mark').css({ left: (st.h / 360 * 100) + '%', top: ((1 - st.s) * 100) + '%' });
+		$('#row-note-lum').css('background', 'linear-gradient(to bottom, #fff, ' + rowNoteHslToHex(st.h, st.s, 0.5) + ', #000)');
+		$('#row-note-lum .row-note-lum-mark').css('top', ((1 - st.l) * 100) + '%');
+		if (from !== 'rgb') {
+			$('#row-note-rgb-r').val(parseInt(st.hex.substr(1, 2), 16));
+			$('#row-note-rgb-g').val(parseInt(st.hex.substr(3, 2), 16));
+			$('#row-note-rgb-b').val(parseInt(st.hex.substr(5, 2), 16));
+		}
+		if (from !== 'hex') $('#row-note-rgb-hex').val(st.hex);
+	}
+
+	function openRowNoteColorsDialog($picker) {
+		var current = $picker.find('input[type="hidden"]').val() || '#FFFFFF';
+		rowNoteColorsState.$picker = $picker;
+		$('#row-note-colors-current').css('background-color', current);
+		setRowNoteDialogColor(current);
+		$('#row-note-colors-dlg').addClass('open');
+	}
+
+	$(document).on('click', '#modal-game-row-note .js-row-note-more', function (e) {
+		e.stopPropagation();
+		var $picker = $(this).closest('.row-note-picker');
+		$picker.removeClass('open');
+		openRowNoteColorsDialog($picker);
+	});
+	$(document).on('click', '#row-note-colors-dlg .row-note-colors-tabs button', function () {
+		var pane = $(this).data('pane');
+		$('#row-note-colors-dlg .row-note-colors-tabs button').removeClass('active');
+		$(this).addClass('active');
+		$('#row-note-colors-dlg .row-note-colors-pane').removeClass('active').filter('[data-pane="' + pane + '"]').addClass('active');
+	});
+	$(document).on('click', '#row-note-honeycomb .js-row-note-hex', function () {
+		setRowNoteDialogColor($(this).attr('data-color'));
+	});
+	$(document).on('dblclick', '#row-note-honeycomb .js-row-note-hex', function () {
+		$('#row-note-colors-dlg .js-row-note-colors-ok').trigger('click');
+	});
+
+	function bindRowNoteDrag(selector, onMove) {
+		$(document).on('pointerdown', selector, function (e) {
+			var el = this;
+			function move(ev) {
+				var rect = el.getBoundingClientRect();
+				var x = Math.min(1, Math.max(0, (ev.clientX - rect.left) / rect.width));
+				var y = Math.min(1, Math.max(0, (ev.clientY - rect.top) / rect.height));
+				onMove(x, y);
+			}
+			move(e);
+			$(document).on('pointermove.rowNoteDrag', move).one('pointerup', function () {
+				$(document).off('pointermove.rowNoteDrag');
+			});
+			e.preventDefault();
+		});
+	}
+	bindRowNoteDrag('#row-note-spectrum', function (x, y) {
+		var st = rowNoteColorsState;
+		st.h = x * 360;
+		st.s = 1 - y;
+		if (st.l === 0 || st.l === 1) st.l = 0.5;
+		setRowNoteDialogColor(rowNoteHslToHex(st.h, st.s, st.l), 'hsl');
+	});
+	bindRowNoteDrag('#row-note-lum', function (x, y) {
+		var st = rowNoteColorsState;
+		st.l = 1 - y;
+		setRowNoteDialogColor(rowNoteHslToHex(st.h, st.s, st.l), 'hsl');
+	});
+	$(document).on('input', '#row-note-rgb-r, #row-note-rgb-g, #row-note-rgb-b', function () {
+		var hex = '#' + ['#row-note-rgb-r', '#row-note-rgb-g', '#row-note-rgb-b'].map(function (id) {
+			var v = Math.min(255, Math.max(0, parseInt($(id).val(), 10) || 0));
+			return ('0' + v.toString(16)).slice(-2);
+		}).join('');
+		setRowNoteDialogColor(hex, 'rgb');
+	});
+	$(document).on('input', '#row-note-rgb-hex', function () {
+		var v = String($(this).val() || '').trim();
+		if (v.charAt(0) !== '#') v = '#' + v;
+		if (/^#[0-9a-fA-F]{6}$/.test(v)) setRowNoteDialogColor(v, 'hex');
+	});
+	$(document).on('keydown', '#row-note-colors-dlg input', function (e) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			$('#row-note-colors-dlg .js-row-note-colors-ok').trigger('click');
+		}
+	});
+	$(document).on('click', '#row-note-colors-dlg .js-row-note-colors-ok', function () {
+		if (rowNoteColorsState.$picker) pickRowNoteColor(rowNoteColorsState.$picker, rowNoteColorsState.hex);
+		$('#row-note-colors-dlg').removeClass('open');
+	});
+	$(document).on('click', '#row-note-colors-dlg .js-row-note-colors-cancel', function () {
+		$('#row-note-colors-dlg').removeClass('open');
+	});
+	$('#modal-game-row-note').on('hidden.bs.modal', function () {
+		$('#row-note-colors-dlg').removeClass('open');
+	});
+
+	$(document).on('click', '.js-game-row-note', function (e) {
+		e.preventDefault();
+		e.stopPropagation();
+		var $btn = $(this);
+		$btn.tooltip('hide');
+		$('#game-row-note-game-id-label').text($btn.data('game-id'));
+		$('#game_row_note_game_id').val($btn.data('game-id'));
+		$('#game_row_note_text').val($btn.attr('data-note') || '');
+		setRowNotePickerColor($('#modal-game-row-note .row-note-picker[data-kind="bg"]'), $btn.attr('data-bg') || '');
+		$('#modal-game-row-note .row-note-picker').removeClass('open');
+		$('#modal-game-row-note').modal('show');
+	});
+
+
+	$('#game_row_note_form').on('submit', function (event) {
+		event.preventDefault();
+		var gameId = parseInt($('#game_row_note_game_id').val(), 10);
+		var $submitBtn = $('#submit-game-row-note-btn');
+		$submitBtn.prop('disabled', true);
+		$.ajax({
+			url: '/game_list/' + gameId + '/row_note',
+			method: 'PUT',
+			contentType: 'application/json',
+			data: JSON.stringify({
+				note: String($('#game_row_note_text').val() || '').trim(),
+				bg_color: $('#game_row_note_bg').val(),
+				text_color: ''
+			}),
+			success: function () {
+				$('#modal-game-row-note').modal('hide');
+				if (typeof window.reloadData === 'function') {
+					window.reloadData();
+				}
+			},
+			error: function (xhr) {
+				Swal.fire({
+					icon: 'error',
+					title: 'Error',
+					text: xhr.responseJSON?.error || 'Failed to save note.'
+				});
+			},
+			complete: function () {
+				$submitBtn.prop('disabled', false);
+			}
+		});
 	});
 
 	$('#assign_game_group_form').on('submit', function (event) {

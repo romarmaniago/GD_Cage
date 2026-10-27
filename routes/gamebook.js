@@ -5344,6 +5344,32 @@ router.put('/game_list/:id/group', commissionLock(gameFromParamId), async (req, 
 	}
 });
 
+// Row note + row colors (cosmetic only — allowed on settled games too)
+router.put('/game_list/:id/row_note', async (req, res) => {
+	try {
+		if (!req.session.user_id) return res.status(401).json({ error: 'User session not found' });
+
+		const gameId = parseInt(req.params.id, 10);
+		if (!gameId) return res.status(400).json({ error: 'Invalid game ID.' });
+
+		const isHex = (v) => /^#[0-9a-fA-F]{6}$/.test(v);
+		const note = String(req.body.note || '').trim().slice(0, 255) || null;
+		const bgColor = isHex(String(req.body.bg_color || '')) ? req.body.bg_color : null;
+		const textColor = isHex(String(req.body.text_color || '')) ? req.body.text_color : null;
+
+		const [result] = await pool.execute(
+			`UPDATE game_list SET ROW_NOTE = ?, ROW_BG_COLOR = ?, ROW_TEXT_COLOR = ? WHERE IDNo = ? AND ACTIVE != 0`,
+			[note, bgColor, textColor, gameId]
+		);
+		if (!result.affectedRows) return res.status(404).json({ error: 'Game not found.' });
+
+		res.json({ success: true, game_id: gameId, note, bg_color: bgColor, text_color: textColor });
+	} catch (error) {
+		console.error('PUT /game_list/:id/row_note:', error);
+		res.status(500).json({ error: error.message || 'Error saving note.' });
+	}
+});
+
 router.get('/game_list/:id/guest_history', async (req, res) => {
 	try {
 		const gameId = parseInt(req.params.id, 10);

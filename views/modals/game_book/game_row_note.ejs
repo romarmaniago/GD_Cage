@@ -1,0 +1,399 @@
+<style>
+#game_list-tbl td.col-acct-no .game-list-row-note-btn {
+	border: 0;
+	background: transparent;
+	padding: 0 2px;
+	margin-left: 2px;
+	font-size: 0.78rem;
+	line-height: 1;
+	color: #b0a27a;
+	cursor: pointer;
+	vertical-align: middle;
+}
+#game_list-tbl td.col-acct-no .game-list-row-note-btn.has-note {
+	color: #d97706;
+}
+#game_list-tbl td.col-acct-no .game-list-row-note-btn .game-list-row-note-text {
+	font-size: 13px;
+	font-weight: 600;
+	color: #334155;
+	display: inline-block;
+	max-width: 140px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	line-height: 1;
+	vertical-align: middle;
+}
+#game_list-tbl td.col-acct-no .game-list-row-note-btn:hover,
+#game_list-tbl td.col-acct-no .game-list-row-note-btn:focus {
+	color: #3a2e12;
+}
+#modal-game-row-note .modal-dialog {
+	max-width: 360px;
+}
+#modal-game-row-note .row-note-pickers {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+#modal-game-row-note .row-note-picker {
+	position: relative;
+}
+#modal-game-row-note .row-note-picker-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	height: 30px;
+	padding: 0 6px;
+	border: 1px solid #d1d5db;
+	border-radius: 4px;
+	background: #fff;
+	color: #333;
+	cursor: pointer;
+}
+#modal-game-row-note .row-note-picker-btn:hover,
+#modal-game-row-note .row-note-picker-btn:focus-visible,
+#modal-game-row-note .row-note-picker.open .row-note-picker-btn {
+	background: #f3f4f6;
+}
+#modal-game-row-note .row-note-picker-icon {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+	width: 20px;
+	font-size: 0.85rem;
+	line-height: 1.1;
+}
+#modal-game-row-note .row-note-picker-bar {
+	display: block;
+	width: 18px;
+	height: 4px;
+	margin-top: 1px;
+	border: 1px solid #c7c7c7;
+}
+#modal-game-row-note .row-note-picker-caret {
+	font-size: 0.65rem;
+	color: #666;
+}
+#modal-game-row-note .row-note-palette {
+	display: none;
+	position: absolute;
+	top: calc(100% + 2px);
+	left: 0;
+	z-index: 1070;
+	width: 272px;
+	padding: 10px 12px 6px;
+	background: #fff;
+	border: 1px solid #c6c6c6;
+	border-radius: 6px;
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+	font-size: 0.8rem;
+	color: #242424;
+}
+#modal-game-row-note .row-note-picker.open .row-note-palette {
+	display: block;
+}
+#modal-game-row-note .row-note-palette-title {
+	font-weight: 600;
+	margin: 2px 0 8px;
+}
+#modal-game-row-note .row-note-palette-section {
+	padding-bottom: 10px;
+	margin-bottom: 4px;
+	border-bottom: 1px solid #e5e5e5;
+}
+#modal-game-row-note .row-note-palette-grid {
+	display: grid;
+	grid-template-columns: repeat(10, 20px);
+	column-gap: 5px;
+	row-gap: 0;
+}
+#modal-game-row-note .row-note-palette-grid.base-row {
+	margin-bottom: 8px;
+}
+#modal-game-row-note .row-note-swatch {
+	display: block;
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	border: 0;
+	box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+	cursor: pointer;
+}
+#modal-game-row-note .row-note-palette-grid.shade-rows .row-note-swatch {
+	height: 18px;
+}
+#modal-game-row-note .js-row-note-swatch:hover,
+#modal-game-row-note .js-row-note-swatch.selected {
+	outline: 1px solid #fff;
+	box-shadow: 0 0 0 2px #242424;
+	position: relative;
+	z-index: 1;
+}
+#modal-game-row-note .row-note-palette-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: calc(100% + 24px);
+	margin: 0 -12px;
+	padding: 6px 12px;
+	border: 0;
+	background: transparent;
+	text-align: left;
+	color: #242424;
+	cursor: pointer;
+}
+#modal-game-row-note .row-note-palette-item:hover {
+	background: #f0f0f0;
+}
+#modal-game-row-note .row-note-palette-item .row-note-swatch {
+	pointer-events: none;
+	background: #fff;
+	box-shadow: inset 0 0 0 1px #8a8a8a;
+	width: 16px;
+	height: 16px;
+}
+#modal-game-row-note .row-note-palette-item .fa-palette {
+	width: 16px;
+	text-align: center;
+	color: #555;
+}
+
+/* "Colors" dialog (More Colors...) — Standard honeycomb + Custom spectrum */
+#modal-game-row-note .row-note-colors-dlg {
+	display: none;
+	position: fixed;
+	inset: 0;
+	z-index: 1075;
+	background: rgba(0, 0, 0, 0.25);
+	align-items: center;
+	justify-content: center;
+}
+#modal-game-row-note .row-note-colors-dlg.open {
+	display: flex;
+}
+#modal-game-row-note .row-note-colors-box {
+	width: 400px;
+	max-width: calc(100vw - 32px);
+	background: #f3f3f3;
+	border: 1px solid #a0a0a0;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+	font-size: 0.8rem;
+	color: #1a1a1a;
+}
+#modal-game-row-note .row-note-colors-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 6px 10px;
+	background: #fff;
+}
+#modal-game-row-note .row-note-colors-head button {
+	border: 0;
+	background: transparent;
+	font-size: 1.1rem;
+	line-height: 1;
+	cursor: pointer;
+}
+#modal-game-row-note .row-note-colors-body {
+	display: flex;
+	gap: 12px;
+	padding: 10px;
+}
+#modal-game-row-note .row-note-colors-main {
+	flex: 1;
+	min-width: 0;
+}
+#modal-game-row-note .row-note-colors-tabs {
+	display: flex;
+	gap: 2px;
+	margin-bottom: -1px;
+}
+#modal-game-row-note .row-note-colors-tabs button {
+	border: 1px solid #c8c8c8;
+	border-bottom: 0;
+	background: #e9e9e9;
+	padding: 3px 10px;
+	cursor: pointer;
+}
+#modal-game-row-note .row-note-colors-tabs button.active {
+	background: #fff;
+	position: relative;
+	z-index: 1;
+}
+#modal-game-row-note .row-note-colors-pane {
+	display: none;
+	background: #fff;
+	border: 1px solid #c8c8c8;
+	padding: 8px;
+	min-height: 300px;
+}
+#modal-game-row-note .row-note-colors-pane.active {
+	display: block;
+}
+#modal-game-row-note .row-note-colors-pane svg {
+	display: block;
+	margin: 0 auto;
+}
+#modal-game-row-note .row-note-colors-pane polygon {
+	cursor: pointer;
+}
+#modal-game-row-note .row-note-colors-side {
+	width: 76px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+#modal-game-row-note .row-note-colors-side .btn {
+	width: 100%;
+}
+#modal-game-row-note .row-note-colors-preview {
+	margin-top: auto;
+	text-align: center;
+}
+#modal-game-row-note .row-note-colors-preview span {
+	display: block;
+	height: 34px;
+	border: 1px solid #8a8a8a;
+}
+#modal-game-row-note .row-note-colors-preview span + span {
+	border-top: 0;
+}
+#modal-game-row-note .row-note-spectrum-wrap {
+	display: flex;
+	gap: 12px;
+	justify-content: center;
+}
+#modal-game-row-note .row-note-spectrum {
+	position: relative;
+	width: 190px;
+	height: 160px;
+	border: 1px solid #8a8a8a;
+	background:
+		linear-gradient(to bottom, rgba(128, 128, 128, 0), #808080),
+		linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+	cursor: crosshair;
+	touch-action: none;
+}
+#modal-game-row-note .row-note-spectrum-mark {
+	position: absolute;
+	width: 15px;
+	height: 15px;
+	margin: -8px 0 0 -8px;
+	pointer-events: none;
+	background:
+		linear-gradient(#000, #000) center / 15px 2px no-repeat,
+		linear-gradient(#000, #000) center / 2px 15px no-repeat;
+}
+#modal-game-row-note .row-note-lum {
+	position: relative;
+	width: 14px;
+	height: 160px;
+	border: 1px solid #8a8a8a;
+	cursor: pointer;
+	touch-action: none;
+}
+#modal-game-row-note .row-note-lum-mark {
+	position: absolute;
+	right: -10px;
+	width: 0;
+	height: 0;
+	margin-top: -5px;
+	border-top: 5px solid transparent;
+	border-bottom: 5px solid transparent;
+	border-right: 7px solid #000;
+	pointer-events: none;
+}
+#modal-game-row-note .row-note-rgb {
+	display: grid;
+	grid-template-columns: auto 72px;
+	gap: 4px 8px;
+	align-items: center;
+	margin: 10px auto 0;
+	width: max-content;
+}
+#modal-game-row-note .row-note-rgb input {
+	height: 24px;
+	padding: 0 4px;
+	border: 1px solid #b5b5b5;
+	font-size: 0.8rem;
+}
+</style>
+<div class="modal fade" id="modal-game-row-note" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="gameRowNoteLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header bg-primary py-2">
+				<h6 class="modal-title text-white mb-0" id="gameRowNoteLabel">Note — Game #<span id="game-row-note-game-id-label"></span></h6>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<form id="game_row_note_form">
+				<div class="modal-body">
+					<input type="hidden" id="game_row_note_game_id">
+					<div class="mb-2">
+						<label class="form-label mb-1" for="game_row_note_text">Note</label>
+						<input type="text" class="form-control" id="game_row_note_text" maxlength="255" placeholder="Optional short note" autocomplete="off">
+					</div>
+					<label class="form-label mb-1">Background color</label>
+					<div class="row-note-pickers mb-2">
+						<div class="row-note-picker" data-kind="bg">
+							<button type="button" class="row-note-picker-btn js-row-note-picker-toggle" title="Fill Color" aria-label="Fill Color">
+								<span class="row-note-picker-icon"><i class="fa fa-fill-drip" aria-hidden="true"></i><span class="row-note-picker-bar"></span></span>
+								<i class="fa fa-caret-down row-note-picker-caret" aria-hidden="true"></i>
+							</button>
+							<div class="row-note-palette"></div>
+							<input type="hidden" id="game_row_note_bg">
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer py-2">
+					<button type="submit" id="submit-game-row-note-btn" class="btn btn-sm btn-primary">Save</button>
+					<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+				</div>
+			</form>
+		</div>
+	</div>
+			<div class="row-note-colors-dlg" id="row-note-colors-dlg" role="dialog" aria-label="Colors">
+				<div class="row-note-colors-box">
+					<div class="row-note-colors-head">
+						<span>Colors</span>
+						<button type="button" class="js-row-note-colors-cancel" aria-label="Close">&times;</button>
+					</div>
+					<div class="row-note-colors-body">
+						<div class="row-note-colors-main">
+							<div class="row-note-colors-tabs">
+								<button type="button" class="active" data-pane="standard">Standard</button>
+								<button type="button" data-pane="custom">Custom</button>
+							</div>
+							<div class="row-note-colors-pane active" data-pane="standard">
+								<div class="mb-1">Colors:</div>
+								<svg id="row-note-honeycomb" aria-label="Standard colors"></svg>
+							</div>
+							<div class="row-note-colors-pane" data-pane="custom">
+								<div class="mb-1">Colors:</div>
+								<div class="row-note-spectrum-wrap">
+									<div class="row-note-spectrum" id="row-note-spectrum"><span class="row-note-spectrum-mark"></span></div>
+									<div class="row-note-lum" id="row-note-lum"><span class="row-note-lum-mark"></span></div>
+								</div>
+								<div class="row-note-rgb">
+									<label for="row-note-rgb-r">Red:</label><input type="number" id="row-note-rgb-r" min="0" max="255">
+									<label for="row-note-rgb-g">Green:</label><input type="number" id="row-note-rgb-g" min="0" max="255">
+									<label for="row-note-rgb-b">Blue:</label><input type="number" id="row-note-rgb-b" min="0" max="255">
+									<label for="row-note-rgb-hex">Hex:</label><input type="text" id="row-note-rgb-hex" maxlength="7">
+								</div>
+							</div>
+						</div>
+						<div class="row-note-colors-side">
+							<button type="button" class="btn btn-sm btn-primary js-row-note-colors-ok">OK</button>
+							<button type="button" class="btn btn-sm btn-alt-secondary js-row-note-colors-cancel">Cancel</button>
+							<div class="row-note-colors-preview">
+								<div>New</div>
+								<span id="row-note-colors-new"></span>
+								<span id="row-note-colors-current"></span>
+								<div>Current</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+</div>
