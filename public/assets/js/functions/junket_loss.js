@@ -564,9 +564,10 @@ function removeJunketLoss(id) {
     });
 }
 
-function isJunketLossSuperAdmin() {
+/** Edit / Delete: same users as Add (everyone but PERMISSIONS 2). */
+function canEditJunketLoss() {
     const perms = parseInt($('#user-role').data('permissions'), 10);
-    return perms === 0;
+    return Number.isFinite(perms) && perms !== 2;
 }
 
 function findJunketLossRowById(id) {
@@ -590,7 +591,7 @@ function buildJunketLossActionButtons(row) {
             '</div>'
         );
     }
-    const editDeleteButtons = isJunketLossSuperAdmin()
+    const editDeleteButtons = canEditJunketLoss()
         ? '<button type="button" class="btn btn-sm btn-alt-primary btn-junket-loss-edit" data-id="' + id + '" title="Edit"><i class="fa fa-pencil-alt"></i></button>' +
           '<button type="button" class="btn btn-sm btn-alt-danger btn-junket-loss-remove" data-id="' + id + '" title="Delete"><i class="fa fa-trash-alt"></i></button>'
         : '';
@@ -1374,12 +1375,12 @@ $(document).ready(function () {
     });
 
     $('#junket-loss-tbl').on('click', '.btn-junket-loss-edit', function () {
-        if (!isJunketLossSuperAdmin()) return;
+        if (!canEditJunketLoss()) return;
         openJunketLossModal(findJunketLossRowById($(this).data('id')));
     });
 
     $('#junket-loss-tbl').on('click', '.btn-junket-loss-remove', function () {
-        if (!isJunketLossSuperAdmin()) return;
+        if (!canEditJunketLoss()) return;
         removeJunketLoss($(this).data('id'));
     });
 

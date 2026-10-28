@@ -146,7 +146,7 @@ router.get('/loss_amount_data', async (req, res) => {
 	}
 });
 
-router.post('/add_loss_amount', async (req, res) => {
+router.post('/add_loss_amount', checkSession, async (req, res) => {
 	let connection;
 	try {
 		const {
@@ -236,8 +236,9 @@ router.post('/add_loss_amount', async (req, res) => {
 });
 
 router.put('/loss_amount/:id', checkSession, async (req, res) => {
-	if (req.session?.permissions !== 0) {
-		return res.status(403).json({ message: 'Only Super Admin can edit loss amount.' });
+	// Same users as Add: everyone but PERMISSIONS 2.
+	if (Number(req.session?.permissions) === 2) {
+		return res.status(403).json({ message: 'Not authorized to edit loss amount.' });
 	}
 	let connection;
 	try {
@@ -398,8 +399,8 @@ router.put('/loss_amount/:id', checkSession, async (req, res) => {
 });
 
 router.put('/loss_amount/remove/:id', checkSession, async (req, res) => {
-	if (req.session?.permissions !== 0) {
-		return res.status(403).json({ message: 'Only Super Admin can delete loss amount.' });
+	if (Number(req.session?.permissions) === 2) {
+		return res.status(403).json({ message: 'Not authorized to delete loss amount.' });
 	}
 	try {
 		const id = parseInt(req.params.id, 10);
