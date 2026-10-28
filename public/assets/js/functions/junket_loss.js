@@ -179,18 +179,30 @@ function applyJunketLossDateFilter(fpInstance) {
     fetchJunketLossData();
 }
 
+/** Keeps a leading "-": in the form, negative = Loss, positive = Recovery. */
 function sanitizeAmountInput(value) {
-    return String(value || '').replace(/[^\d.]/g, '');
+    const str = String(value || '').trim();
+    const sign = str.charAt(0) === '-' ? '-' : '';
+    return sign + str.replace(/[^\d.]/g, '');
 }
 
 function formatAmountInput(value) {
     const cleaned = sanitizeAmountInput(value);
     if (!cleaned) return '';
-    const parts = cleaned.split('.');
+    const sign = cleaned.charAt(0) === '-' ? '-' : '';
+    const digits = sign ? cleaned.slice(1) : cleaned;
+    if (!digits) return sign;
+    const parts = digits.split('.');
     const integerPart = parts[0] || '0';
     const decimalPart = parts.length > 1 ? parts[1].slice(0, 2) : '';
     const formattedInteger = Number(integerPart).toLocaleString('en-US');
-    return decimalPart !== '' ? formattedInteger + '.' + decimalPart : formattedInteger;
+    return sign + (parts.length > 1 ? formattedInteger + '.' + decimalPart : formattedInteger);
+}
+
+/** Chip / Cash is required for a Loss ("-" amount), optional for a Recovery (positive). */
+function syncJunketLossPaymentTypeField() {
+    const isLoss = sanitizeAmountInput($('#junket-loss-amount').val()).charAt(0) === '-';
+    $('#junket-loss-type-chip').prop('required', isLoss);
 }
 
 function getJunketLossFormModalEl() {
@@ -432,8 +444,9 @@ function openJunketLossModal(data) {
     resetJunketLossFormFields();
     $('#junket-loss-id').val(id);
     $('#junket-loss-description').val(data ? (data.DESCRIPTION || '') : '');
-    // Recovery rows are stored negative; the form edits the plain amount and the server keeps the sign.
-    $('#junket-loss-amount').val(data ? formatAmountInput(data.AMOUNT ? Math.abs(Number(data.AMOUNT)) : '') : '');
+    // Stored: Loss positive, Recovery negative. Form: Loss "-", Recovery plain (the sign picks the type).
+    const formAmount = data && data.AMOUNT ? Math.abs(Number(data.AMOUNT)) : '';
+    $('#junket-loss-amount').val(formAmount === '' ? '' : (isJunketLossRecovery(data) ? '' : '-') + formatAmountInput(formAmount));
     $('#junket-loss-incharge').val(data ? (data.IN_CHARGE || '') : '');
     $('#junket-loss-modal-title').text(id ? 'Edit Loss Amount' : 'Add Loss Amount');
 
@@ -443,6 +456,7 @@ function openJunketLossModal(data) {
     ensureJunketLossProgramDatePicker(programDate);
 
     const paymentType = data && data.PAYMENT_TYPE != null ? Number(data.PAYMENT_TYPE) : null;
+    syncJunketLossPaymentTypeField();
     if (paymentType === 1) $('#junket-loss-type-chip').prop('checked', true);
     else if (paymentType === 2) $('#junket-loss-type-cash').prop('checked', true);
 
@@ -518,11 +532,10 @@ function refreshDashboardJunketLossTotal() {
     }
     $.get('/loss_amount_total', function (data) {
         const total = Number(data && data.total) || 0;
-        const formatted = total
-            ? '(' + Math.abs(total).toLocaleString('en-US') + ')'
-            : '0';
-        const html = total
-            ? '<span class="text-dash-neg">' + formatted + '</span>'
+        // Net loss (positive) shows red (x); a net recovery (negative) shows plain.
+        const formatted = Math.abs(total).toLocaleString('en-US');
+        const html = total > 0
+            ? '<span class="text-dash-neg">(' + formatted + ')</span>'
             : formatted;
         $('#dash-junket-loss-total, #dash-junket-loss-total-anticipated').html(html);
     });
@@ -1392,6 +1405,7 @@ $(document).ready(function () {
 
     $('#junket-loss-amount').on('input', function () {
         $(this).val(formatAmountInput($(this).val()));
+        syncJunketLossPaymentTypeField();
     });
 
     $('#junket-loss-form').on('submit', function (e) {
@@ -1410,7 +1424,7 @@ $(document).ready(function () {
             txtPaymentType: paymentType || ''
         };
 
-        if (!payload.txtDescription || !payload.txtAmount || !payload.txtInCharge || !payload.txtProgramDate || !payload.txtPaymentType) {
+        if (!payload.txtDescription || !Number(payload.txtAmount) || !payload.txtInCharge || !payload.txtProgramDate || (payload.txtAmount.charAt(0) === '-' && !payload.txtPaymentType)) {
             Swal.fire('Validation', 'Please fill in all required fields.', 'warning');
             return;
         }
@@ -1428,8 +1442,10 @@ $(document).ready(function () {
                 refreshDashboardJunketLossTotal();
                 Swal.fire('Success', 'Record saved successfully.', 'success');
             },
-            error: function () {
-                Swal.fire('Error', 'Failed to save record.', 'error');
+            error: function (xhr) {
+                // e.g. a Recovery (withdraw) larger than the account balance
+                const message = (xhr && xhr.responseJSON && xhr.responseJSON.message) || 'Failed to save record.';
+                Swal.fire('Error', message, 'error');
             }
         });
     });

@@ -1930,8 +1930,9 @@
     setHtmlById('dash-casino-total', formatDashAmtHtml(casinoTotal));
     setHtmlById('dash-expenses-total', formatDashAmtHtml(expenseMain, true));
     setHtmlById('dash-expenses-total-anticipated', formatDashAmtHtml(expenseMain, true));
-    setHtmlById('dash-junket-loss-total', formatDashAmtHtml(junketLoss, true));
-    setHtmlById('dash-junket-loss-total-anticipated', formatDashAmtHtml(junketLoss, true));
+    // Net loss is stored positive: a loss shows red (x); recoveries above the loss show plain.
+    setHtmlById('dash-junket-loss-total', formatDashAmtHtml(-junketLoss));
+    setHtmlById('dash-junket-loss-total-anticipated', formatDashAmtHtml(-junketLoss));
     setHtmlById('dash-commission-settlement-total', formatDashAmtHtml(commission, true));
     setHtmlById('dash-commission-settlement-anticipated', formatDashAmtHtml(commission, true));
     setHtmlById('dash-additional-commission-total', formatDashAmtHtml(additional, true));

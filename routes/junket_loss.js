@@ -53,6 +53,11 @@ function parsePaymentType(value) {
 const JUNKET_LOSS_TRANS_LOSS = 1;
 const JUNKET_LOSS_TRANS_RECOVERY = 2;
 
+/** Form amount sign picks the type: negative = Loss, positive = Recovery. */
+function junketLossTransactionFromInput(amount) {
+	return Number(amount) < 0 ? JUNKET_LOSS_TRANS_LOSS : JUNKET_LOSS_TRANS_RECOVERY;
+}
+
 /** Loss rows are stored positive, Recovery rows negative, so SUM(AMOUNT) is always the net loss. */
 function signedJunketLossAmount(amount, transaction) {
 	const abs = Math.abs(Number(amount) || 0);
@@ -142,6 +147,7 @@ router.get('/loss_amount_data', async (req, res) => {
 });
 
 router.post('/add_loss_amount', async (req, res) => {
+	let connection;
 	try {
 		const {
 			txtDescription,
@@ -163,41 +169,69 @@ router.post('/add_loss_amount', async (req, res) => {
 			!txtDescription ||
 			!txtInCharge ||
 			!programDate ||
-			!paymentType ||
-			cleanAmount === '' ||
-			Number.isNaN(Number(cleanAmount))
+			!Number(cleanAmount)
 		) {
 			return res.status(400).json({ message: 'Invalid payload' });
 		}
 
 		const encodedDt = buildEncodedDtFromProgramDate(programDate);
-		const transaction = Number(cleanAmount) < 0 ? JUNKET_LOSS_TRANS_RECOVERY : JUNKET_LOSS_TRANS_LOSS;
+		const transaction = junketLossTransactionFromInput(cleanAmount);
+		// Chip / Cash is required for a Loss, optional for a Recovery.
+		if (transaction === JUNKET_LOSS_TRANS_LOSS && !paymentType) {
+			return res.status(400).json({ message: 'Invalid payload' });
+		}
 
-		const query = `
-			INSERT INTO junket_loss (
-				DESCRIPTION, AMOUNT, IN_CHARGE, PROGRAM_DATE, ACCOUNT_ID, GUEST_ID, PAYMENT_TYPE, TRANSACTION,
-				ENCODED_BY, ENCODED_DT
+		const amountAbs = Math.abs(Number(cleanAmount));
+		const description = txtDescription.trim();
+		const userId = req.session.user_id;
+		const now = new Date();
+
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		// With an account: same as the Agent Portal Loss Amount, a "Deposit / Withdraw - Loss Amount" ledger
+		// row moves the account balance (Loss = deposit, Recovery = withdraw) and carries the cash (NON_CASH = 1).
+		let ledger = null;
+		if (accountId) {
+			ledger = await insertLossLedger(connection, { accountId, transaction, amount: amountAbs, remarks: description, userId, now });
+			if (ledger.error) {
+				await connection.rollback();
+				return res.status(400).json({ message: ledger.error });
+			}
+		}
+
+		await connection.execute(
+			`INSERT INTO junket_loss (
+				DESCRIPTION, AMOUNT, IN_CHARGE, PROGRAM_DATE, ACCOUNT_ID, GUEST_ID, PAYMENT_TYPE, NON_CASH, TRANSACTION,
+				ACCOUNT_LEDGER_ID, ENCODED_BY, ENCODED_DT
 			)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`;
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[
+				description,
+				signedJunketLossAmount(cleanAmount, transaction),
+				txtInCharge.trim(),
+				programDate,
+				accountId,
+				guestId,
+				paymentType,
+				ledger ? 1 : 0,
+				transaction,
+				ledger ? ledger.ledgerId : null,
+				userId,
+				encodedDt
+			]
+		);
 
-		await pool.execute(query, [
-			txtDescription.trim(),
-			signedJunketLossAmount(cleanAmount, transaction),
-			txtInCharge.trim(),
-			programDate,
-			accountId,
-			guestId,
-			paymentType,
-			transaction,
-			req.session.user_id,
-			encodedDt
-		]);
+		await connection.commit();
+		if (ledger) await recordLossLedgerHistory(ledger, description, userId, now);
 
 		res.json({ message: 'Saved successfully' });
 	} catch (error) {
+		if (connection) await connection.rollback().catch(() => {});
 		console.error('Error inserting junket loss:', error);
 		res.status(500).json({ message: 'Failed to save junket loss' });
+	} finally {
+		if (connection) connection.release();
 	}
 });
 
@@ -205,6 +239,7 @@ router.put('/loss_amount/:id', checkSession, async (req, res) => {
 	if (req.session?.permissions !== 0) {
 		return res.status(403).json({ message: 'Only Super Admin can edit loss amount.' });
 	}
+	let connection;
 	try {
 		const id = parseInt(req.params.id, 10);
 		const {
@@ -229,9 +264,7 @@ router.put('/loss_amount/:id', checkSession, async (req, res) => {
 			!txtDescription ||
 			!txtInCharge ||
 			!programDate ||
-			!paymentType ||
-			cleanAmount === '' ||
-			Number.isNaN(Number(cleanAmount))
+			!Number(cleanAmount)
 		) {
 			return res.status(400).json({ message: 'Invalid payload' });
 		}
@@ -240,78 +273,127 @@ router.put('/loss_amount/:id', checkSession, async (req, res) => {
 			return res.status(409).json({ message: JUNKET_LOSS_SETTLED_LOCKED });
 		}
 
-		// Keep the row's Loss / Recovery type: the edit form only sends the amount, never its sign.
 		const [existingRows] = await pool.execute(
-			'SELECT TRANSACTION, AMOUNT, ACCOUNT_ID, ACCOUNT_LEDGER_ID FROM junket_loss WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
+			`SELECT DESCRIPTION, ACCOUNT_ID, ACCOUNT_LEDGER_ID, PAYMENT_TYPE, GAME_ID, NON_CASH
+			 FROM junket_loss WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1`,
 			[id]
 		);
 		if (!existingRows.length) {
 			return res.status(404).json({ message: 'Loss amount not found' });
 		}
-		const transaction = parseInt(existingRows[0].TRANSACTION, 10) || JUNKET_LOSS_TRANS_LOSS;
+		const existing = existingRows[0];
+		const transaction = junketLossTransactionFromInput(cleanAmount);
+		const ledger = await fetchPortalLossLedger(existing.ACCOUNT_LEDGER_ID);
 
-		// Agent Portal Loss Amount: move its "Withdraw / Deposit - Loss Amount" ledger row with it,
-		// on the same account (a withdraw takes from the balance, so the new amount must fit).
-		const portalLedger = await fetchPortalLossLedger(existingRows[0].ACCOUNT_LEDGER_ID);
-		if (portalLedger) {
-			const newAbs = Math.abs(Number(cleanAmount) || 0);
-			if (parseInt(portalLedger.TRANSACTION_ID, 10) === 2) {
-				const available = (await getAccountCashBalance(pool, portalLedger.ACCOUNT_ID)) + (parseFloat(portalLedger.AMOUNT) || 0);
-				if (newAbs > available + 0.009) {
-					return res.status(400).json({
-						message: `Amount exceeds the account balance (${available.toLocaleString('en-US')}).`
-					});
-				}
-			}
-			await pool.execute(
-				`UPDATE junket_loss
-				 SET DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?, PROGRAM_DATE = ?, GUEST_ID = ?, PAYMENT_TYPE = ?,
-				     EDITED_BY = ?, EDITED_DT = ?
-				 WHERE IDNo = ? AND ACTIVE = 1`,
-				[
-					txtDescription.trim(),
-					signedJunketLossAmount(cleanAmount, transaction),
-					txtInCharge.trim(),
-					programDate,
-					guestId,
-					paymentType,
-					req.session.user_id,
-					date_now,
-					id
-				]
-			);
-			await pool.execute(
-				`UPDATE account_ledger SET AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
-				[newAbs, req.session.user_id, date_now, portalLedger.IDNo]
-			);
-			return res.json({ message: 'Updated successfully' });
+		// Chip / Cash is optional on a Recovery: left blank on a linked row, keep the row's own type.
+		const savedPaymentType = paymentType || (ledger ? parsePaymentType(existing.PAYMENT_TYPE) : null);
+		if (transaction === JUNKET_LOSS_TRANS_LOSS && !savedPaymentType) {
+			return res.status(400).json({ message: 'Invalid payload' });
 		}
 
-		const query = `
-			UPDATE junket_loss
-			SET DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?, PROGRAM_DATE = ?,
-				ACCOUNT_ID = ?, GUEST_ID = ?, PAYMENT_TYPE = ?,
-				EDITED_BY = ?, EDITED_DT = ?
-			WHERE IDNo = ? AND ACTIVE = 1
-		`;
+		const amountAbs = Math.abs(Number(cleanAmount));
+		const description = txtDescription.trim();
+		const userId = req.session.user_id;
+		// A row keeps / gets a ledger row when it has an account: an already linked row, or an account
+		// newly picked here. Game Book rows (GAME_ID) and older rows whose account is unchanged stay as they are.
+		const wantsLedger = !!accountId && (
+			!!ledger || (existing.GAME_ID == null && Number(existing.ACCOUNT_ID || 0) !== accountId)
+		);
 
-		await pool.execute(query, [
-			txtDescription.trim(),
-			signedJunketLossAmount(cleanAmount, transaction),
-			txtInCharge.trim(),
-			programDate,
-			accountId,
-			guestId,
-			paymentType,
-			req.session.user_id,
-			date_now,
-			id
-		]);
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		let ledgerId = ledger ? ledger.IDNo : null;
+		let nonCash = Number(existing.NON_CASH) || 0;
+		let newLedger = null;
+
+		if (wantsLedger && ledger) {
+			const ledgerTxnId = lossLedgerTransactionId(transaction);
+			if (ledgerTxnId === LOSS_LEDGER_WITHDRAW) {
+				// Balance without this row's own ledger amount.
+				let available = await getAccountCashBalance(connection, accountId);
+				if (Number(ledger.ACCOUNT_ID) === accountId) {
+					const oldAmount = parseFloat(ledger.AMOUNT) || 0;
+					available += parseInt(ledger.TRANSACTION_ID, 10) === LOSS_LEDGER_WITHDRAW ? oldAmount : -oldAmount;
+				}
+				if (amountAbs > available + 0.009) {
+					await connection.rollback();
+					return res.status(400).json({ message: insufficientBalanceMessage(available) });
+				}
+			}
+			// Keep the ledger's own remarks unless the description was changed here.
+			const remarksChanged = description !== String(existing.DESCRIPTION || '').trim();
+			await connection.execute(
+				`UPDATE account_ledger
+				 SET ACCOUNT_ID = ?, TRANSACTION_ID = ?, AMOUNT = ?, AUTO_REMARKS = ?,
+				     REMARKS = ${remarksChanged ? '?' : 'REMARKS'}, EDITED_BY = ?, EDITED_DT = ?
+				 WHERE IDNo = ? AND ACTIVE = 1`,
+				[
+					accountId,
+					ledgerTxnId,
+					amountAbs,
+					lossLedgerAutoRemarks(ledgerTxnId),
+					...(remarksChanged ? [description] : []),
+					userId,
+					date_now,
+					ledger.IDNo
+				]
+			);
+			const txnName = lossLedgerTransactionName(ledgerTxnId);
+			await connection.execute(
+				`UPDATE account_transaction_history
+				 SET amount = ?, account_id = ?, transaction_id = ?, transaction_name = ?, direction = ?
+				 WHERE ledger_id = ?`,
+				[amountAbs, accountId, ledgerTxnId, txnName, txnName, ledger.IDNo]
+			).catch((err) => console.error('account_transaction_history update failed:', err));
+		} else if (wantsLedger) {
+			newLedger = await insertLossLedger(connection, { accountId, transaction, amount: amountAbs, remarks: description, userId, now: date_now });
+			if (newLedger.error) {
+				await connection.rollback();
+				return res.status(400).json({ message: newLedger.error });
+			}
+			ledgerId = newLedger.ledgerId;
+			nonCash = 1;
+		} else if (ledger) {
+			// Account cleared: the ledger row goes, and the loss carries the cash itself again.
+			await archiveLossLedger(connection, ledger.IDNo, userId, date_now);
+			ledgerId = null;
+			nonCash = 0;
+		}
+
+		await connection.execute(
+			`UPDATE junket_loss
+			 SET DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?, PROGRAM_DATE = ?,
+				 ACCOUNT_ID = ?, GUEST_ID = ?, PAYMENT_TYPE = ?, TRANSACTION = ?, NON_CASH = ?, ACCOUNT_LEDGER_ID = ?,
+				 EDITED_BY = ?, EDITED_DT = ?
+			 WHERE IDNo = ? AND ACTIVE = 1`,
+			[
+				description,
+				signedJunketLossAmount(cleanAmount, transaction),
+				txtInCharge.trim(),
+				programDate,
+				accountId,
+				guestId,
+				savedPaymentType,
+				transaction,
+				nonCash,
+				ledgerId,
+				userId,
+				date_now,
+				id
+			]
+		);
+
+		await connection.commit();
+		if (newLedger) await recordLossLedgerHistory(newLedger, description, userId, date_now);
 
 		res.json({ message: 'Updated successfully' });
 	} catch (error) {
+		if (connection) await connection.rollback().catch(() => {});
 		console.error('Error updating junket loss:', error);
 		res.status(500).json({ message: 'Failed to update junket loss' });
+	} finally {
+		if (connection) connection.release();
 	}
 });
 
@@ -333,13 +415,10 @@ router.put('/loss_amount/remove/:id', checkSession, async (req, res) => {
 		const query = `UPDATE junket_loss SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
 		await pool.execute(query, [0, req.session.user_id, date_now, id]);
 
-		// Agent Portal Loss Amount: its ledger row on the account goes with it.
+		// Loss Amount with an account (Agent Portal or this form): its ledger row on the account goes with it.
 		const portalLedger = await fetchPortalLossLedger(lossRows[0] && lossRows[0].ACCOUNT_LEDGER_ID);
 		if (portalLedger) {
-			await pool.execute(
-				'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1',
-				[req.session.user_id, date_now, portalLedger.IDNo]
-			);
+			await archiveLossLedger(pool, portalLedger.IDNo, req.session.user_id, date_now);
 		}
 
 		res.json({ message: 'Archived successfully' });
@@ -349,9 +428,78 @@ router.put('/loss_amount/remove/:id', checkSession, async (req, res) => {
 	}
 });
 
+/** account_ledger TRANSACTION_ID of a Loss Amount ledger row: Loss = deposit, Recovery = withdraw (as in the Agent Portal). */
+const LOSS_LEDGER_DEPOSIT = 1;
+const LOSS_LEDGER_WITHDRAW = 2;
+
+function lossLedgerTransactionId(transaction) {
+	return transaction === JUNKET_LOSS_TRANS_LOSS ? LOSS_LEDGER_DEPOSIT : LOSS_LEDGER_WITHDRAW;
+}
+
+function lossLedgerTransactionName(ledgerTxnId) {
+	return ledgerTxnId === LOSS_LEDGER_DEPOSIT ? 'DEPOSIT' : 'WITHDRAW';
+}
+
+function lossLedgerAutoRemarks(ledgerTxnId) {
+	return ledgerTxnId === LOSS_LEDGER_DEPOSIT ? 'Deposit - Loss Amount' : 'Withdraw - Loss Amount';
+}
+
+function insufficientBalanceMessage(available) {
+	return `Insufficient account balance. Available: ${available.toLocaleString('en-US')}.`;
+}
+
+/**
+ * Adds the "Deposit / Withdraw - Loss Amount" ledger row on the account (same row the Agent Portal writes).
+ * A withdraw (Recovery) must fit the account balance. Returns { ledgerId, ... } or { error }.
+ */
+async function insertLossLedger(connection, { accountId, transaction, amount, remarks, userId, now }) {
+	const ledgerTxnId = lossLedgerTransactionId(transaction);
+	const balanceBefore = await getAccountCashBalance(connection, accountId);
+	if (ledgerTxnId === LOSS_LEDGER_WITHDRAW && amount > balanceBefore + 0.009) {
+		return { error: insufficientBalanceMessage(balanceBefore) };
+	}
+	const [result] = await connection.execute(
+		`INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, AUTO_REMARKS, ENCODED_BY, ENCODED_DT)
+		 VALUES (?, ?, 2, 'ACCOUNT DETAILS', ?, ?, ?, ?, ?)`,
+		[accountId, ledgerTxnId, amount, remarks || null, lossLedgerAutoRemarks(ledgerTxnId), userId, now]
+	);
+	return {
+		ledgerId: result.insertId,
+		accountId,
+		ledgerTxnId,
+		amount,
+		balanceBefore,
+		balanceAfter: balanceBefore + (ledgerTxnId === LOSS_LEDGER_DEPOSIT ? amount : -amount)
+	};
+}
+
+/** Account history line for a new Loss Amount ledger row (after commit; a failure only logs). */
+async function recordLossLedgerHistory(ledger, remarks, userId, now) {
+	const name = lossLedgerTransactionName(ledger.ledgerTxnId);
+	try {
+		await pool.execute(
+			`INSERT INTO account_transaction_history
+			 (ledger_id, account_id, transaction_id, transaction_name, amount, balance_before, balance_after, remarks, transfer_account_id, direction, encoded_by, encoded_dt)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)`,
+			[ledger.ledgerId, ledger.accountId, ledger.ledgerTxnId, name, ledger.amount, ledger.balanceBefore, ledger.balanceAfter, remarks || null, name, userId, now]
+		);
+	} catch (err) {
+		console.error('account_transaction_history insert failed:', err);
+	}
+}
+
+async function archiveLossLedger(db, ledgerId, userId, now) {
+	await db.execute(
+		'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1',
+		[userId, now, ledgerId]
+	);
+	await db.execute('DELETE FROM account_transaction_history WHERE ledger_id = ?', [ledgerId])
+		.catch((err) => console.error('account_transaction_history delete failed:', err));
+}
+
 const JUNKET_LOSS_SETTLED_LOCKED = 'This loss amount is already settled and can no longer be changed.';
 
-/** Active "Withdraw / Deposit - Loss Amount" ledger row an Agent Portal Loss Amount is linked to. */
+/** Active "Withdraw / Deposit - Loss Amount" ledger row a Loss Amount (Agent Portal or with an account) is linked to. */
 async function fetchPortalLossLedger(ledgerId) {
 	const id = parseInt(ledgerId, 10);
 	if (!id) return null;
