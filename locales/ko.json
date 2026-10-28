@@ -1102,6 +1102,13 @@
 		"loading_update_cc_chips": "로딩중..."
 	},
 	"dashboard_new_capital": {
+		"deposit_withdrawal": "입금 / 출금",
+		"choose_an_account": "계정 선택",
+		"type_credit": "크레딧",
+		"type_add_charge": "추가 요금",
+		"type_settlement_commission": "정산 (커미션)",
+		"type_settlement_additional": "정산 (추가)",
+		"add_row": "행 추가",
 		"house_balance": "승인된 마스터 계정",
 		"loading_house_balance": "로딩중...",
 		"junket_balance_amount": "금액 입력란",

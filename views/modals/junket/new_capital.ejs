@@ -464,36 +464,133 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 	background-color: #fff !important;
 }
 
-#modal-new-capital .hb-type-grid {
+/* Entry row: Program Date | Deposit / Withdrawal | Remarks */
+#modal-new-capital .hb-entry-grid {
 	display: grid;
-	grid-template-columns: repeat(5, minmax(0, 1fr));
-	column-gap: 0.75rem;
-	row-gap: 0.45rem;
-	align-items: center;
-	margin-top: 0.35rem;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+	gap: 0.75rem;
+	margin-bottom: 0.75rem;
+}
+
+/* Program Date on its own line; Deposit / Withdrawal + Remarks below */
+#modal-new-capital .hb-entry-grid .hb-entry-date {
+	grid-column: 1;
+	grid-row: 1;
+}
+
+#modal-new-capital .hb-entry-grid .hb-entry-amount {
+	grid-column: 1;
+	grid-row: 2;
+}
+
+#modal-new-capital .hb-entry-grid .hb-entry-remarks {
+	grid-column: 2;
+	grid-row: 2;
+}
+
+/* Negative house-balance amount while typing: red (1,000) */
+.hb-field-amount.is-negative-amount,
+.hb-field-amount.is-negative-amount:focus {
+	color: #dc3545 !important;
+}
+
+#modal-new-capital .hb-entry-field .form-label {
+	margin-bottom: 0.25rem;
+}
+
+/* Category cells — each opens the category popup */
+#modal-new-capital .hb-category-grid {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 0.5rem;
+}
+
+#modal-new-capital .hb-category-btn {
+	position: relative;
+	overflow: hidden;
+	padding: 0.5rem 0.4rem;
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.2;
+	color: var(--gd-marker-gold-text);
+	background: #fff;
+	border: 1px solid rgba(200, 162, 76, 0.35);
+	border-radius: 8px;
+	transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+#modal-new-capital .hb-category-btn:hover,
+#modal-new-capital .hb-category-btn:focus-visible {
+	background: #fbf6e9;
+	border-color: rgba(200, 162, 76, 0.7);
+	outline: 0;
 }
 
 @media (max-width: 991.98px) {
-	#modal-new-capital .hb-type-grid {
-		grid-template-columns: repeat(3, minmax(0, 1fr));
+	#modal-new-capital .hb-category-grid {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
 	}
 }
 
 @media (max-width: 575.98px) {
-	#modal-new-capital .hb-type-grid {
+	#modal-new-capital .hb-entry-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	#modal-new-capital .hb-entry-grid .hb-entry-field {
+		grid-column: auto;
+		grid-row: auto;
+	}
+	#modal-new-capital .hb-category-grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 }
 
-#modal-new-capital .hb-type-grid .form-check {
-	margin: 0;
-	min-height: 0;
-	padding-left: 1.4rem;
-	white-space: nowrap;
+/* Category modal: one line per entry (Account | Amount | Remarks) */
+#modal-capital-category .hb-cat-rows {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
 }
 
-#modal-new-capital .hb-type-grid .form-check-input {
-	margin-top: 0.2rem;
+#modal-capital-category .hb-cat-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto;
+	gap: 0.5rem;
+	align-items: center;
+}
+
+#modal-capital-category.is-transfer .hb-cat-row {
+	grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.4fr) auto;
+}
+
+#modal-capital-category .hb-cat-row .select2-container {
+	width: 100% !important;
+}
+
+#modal-capital-category .hb-cat-remove {
+	padding: 0.15rem 0.35rem;
+	color: #dc2626;
+	background: transparent;
+	border: 0;
+}
+
+#modal-capital-category .hb-cat-add-row {
+	margin-top: 0.6rem;
+	font-weight: 600;
+	color: var(--gd-marker-gold-text, #4a3208);
+	background: #fff;
+	border: 1px dashed rgba(200, 162, 76, 0.6);
+}
+
+#modal-capital-category .hb-cat-add-row:disabled {
+	opacity: 0.5;
+}
+
+@media (max-width: 575.98px) {
+	#modal-capital-category .hb-cat-row,
+	#modal-capital-category.is-transfer .hb-cat-row {
+		grid-template-columns: minmax(0, 1fr) auto;
+	}
 }
 
 </style>
@@ -519,75 +616,37 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 						<form id="add_junket_capital" action="/add_junket_capital" method="POST">
 							<%# Manager (11): table only, no entry panel %>
 							<div class="house-balance-entry-panel<%= String(permissions) === '11' ? ' d-none' : '' %>">
-								<div class="row mb-3">
-									<div class="col-sm-6">
+								<div class="hb-entry-grid">
+									<div class="hb-entry-field hb-entry-date">
 										<label for="capitalProgramDate" class="form-label"><%= __('dashboard_new_capital.program_date') %></label>
 										<input type="text" id="capitalProgramDate" name="txtProgramDate" class="form-control input-program-date" placeholder="<%= __('dashboard_new_capital.program_date') %>" autocomplete="off" required/>
 									</div>
-									<div class="col-sm-6">
-										<label for="txtAmount" class="form-label"><%= __('dashboard_new_capital.junket_balance_amount') %></label>
-										<input type="text" id="txtAmount" name="txtAmount" class="form-control hb-field-amount" placeholder="+ / - Amount" title="Use + for dagdag, - for bawas" onkeypress="return onlyCapitalSignedAmountKey(event)" data-type="signed-amount" autocomplete="off"/>
+									<div class="hb-entry-field hb-entry-amount">
+										<label for="txtAmount" class="form-label"><%= __('dashboard_new_capital.deposit_withdrawal') %></label>
+										<input type="text" id="txtAmount" name="txtAmount" class="form-control hb-field-amount" placeholder="+ / - Amount" title="+ Deposit, - Withdrawal" onkeypress="return onlyCapitalSignedAmountKey(event)" data-type="signed-amount" autocomplete="off"/>
+									</div>
+									<div class="hb-entry-field hb-entry-remarks">
+										<label for="capitalRemarks" class="form-label"><%= __('dashboard_new_capital.remarks_placeholder') %></label>
+										<input type="text" class="form-control" id="capitalRemarks" name="Remarks" placeholder="<%= __('dashboard_new_capital.remarks_placeholder') %>" autocomplete="off"/>
 									</div>
 								</div>
 
-								<div class="mb-3">
-									<label for="capitalRemarks" class="form-label"><%= __('dashboard_new_capital.remarks_placeholder') %></label>
-									<textarea class="form-control" id="capitalRemarks" name="Remarks" placeholder="<%= __('dashboard_new_capital.remarks_placeholder') %>" rows="2"></textarea>
-								</div>
-
-								<div class="hb-type-grid" role="group" aria-label="Transaction type">
-									<div class="form-check">
-										<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeTransfer" name="optCapitalType" value="Transfer" data-txn="2">
-										<label class="form-check-label" for="hbTypeTransfer"><%= __('dashboard_new_capital.type_transfer') %></label>
-									</div>
-									<div class="form-check">
-										<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeDeposit" name="optCapitalType" value="Deposit" data-txn="1">
-										<label class="form-check-label" for="hbTypeDeposit"><%= __('dashboard_new_capital.type_deposit') %></label>
-									</div>
-									<div class="form-check">
-										<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeWithdrawal" name="optCapitalType" value="Withdrawal" data-txn="2">
-										<label class="form-check-label" for="hbTypeWithdrawal"><%= __('dashboard_new_capital.type_withdrawal') %></label>
-									</div>
-									<div class="form-check">
-										<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeLossAmount" name="optCapitalType" value="Loss Amount" data-txn="2">
-										<label class="form-check-label" for="hbTypeLossAmount"><%= __('dashboard_new_capital.type_loss_amount') %></label>
-									</div>
-									<div class="form-check">
-										<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeSettlement" name="optCapitalType" value="Settlement" data-txn="2">
-										<label class="form-check-label" for="hbTypeSettlement"><%= __('dashboard_new_capital.type_settlement') %></label>
-									</div>
-									<div class="form-check">
-										<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeFnb" name="optCapitalType" value="F&B" data-txn="2">
-										<label class="form-check-label" for="hbTypeFnb"><%= __('dashboard_new_capital.type_fnb') %></label>
-									</div>
-									<div class="form-check">
-										<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeHotel" name="optCapitalType" value="Hotel" data-txn="2">
-										<label class="form-check-label" for="hbTypeHotel"><%= __('dashboard_new_capital.type_hotel') %></label>
-									</div>
-									<div class="form-check">
-										<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeIncidental" name="optCapitalType" value="Incidental" data-txn="2">
-										<label class="form-check-label" for="hbTypeIncidental"><%= __('dashboard_new_capital.type_incidental') %></label>
-									</div>
-									<div class="form-check">
-										<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeExpenses" name="optCapitalType" value="Expenses" data-txn="2">
-										<label class="form-check-label" for="hbTypeExpenses"><%= __('dashboard_new_capital.type_expenses') %></label>
-									</div>
-								</div>
-
-								<div class="mb-3 d-none" id="capital-transfer-account-wrap">
-									<label for="capital-transfer-account" class="form-label"><%= __('dashboard_new_capital.choose_account') %></label>
-									<select id="capital-transfer-account" name="txtAccountId" class="js-select2 form-control" style="width: 100%;" data-placeholder="<%= __('dashboard_new_capital.choose_account') %>">
-										<option value=""><%= __('dashboard_new_capital.choose_account') %></option>
-									</select>
-									<div class="form-text text-muted" id="capital-transfer-account-hint"></div>
+								<%# Each opens the category modal (multi-row entry); only Transfer has an account column %>
+								<div class="hb-category-grid" role="group" aria-label="Category">
+									<button type="button" class="hb-category-btn" data-category="Transfer" data-title="<%= __('dashboard_new_capital.type_transfer') %>"><%= __('dashboard_new_capital.choose_an_account') %></button>
+									<button type="button" class="hb-category-btn" data-category="Credit" data-title="<%= __('dashboard_new_capital.type_credit') %>"><%= __('dashboard_new_capital.type_credit') %></button>
+									<button type="button" class="hb-category-btn" data-category="Expenses" data-title="<%= __('dashboard_new_capital.type_expenses') %>"><%= __('dashboard_new_capital.type_expenses') %></button>
+									<button type="button" class="hb-category-btn" data-category="Loss Amount" data-title="<%= __('dashboard_new_capital.type_loss_amount') %>"><%= __('dashboard_new_capital.type_loss_amount') %></button>
+									<button type="button" class="hb-category-btn" data-category="Add Charge" data-title="<%= __('dashboard_new_capital.type_add_charge') %>"><%= __('dashboard_new_capital.type_add_charge') %></button>
+									<button type="button" class="hb-category-btn" data-category="Settlement (Commission)" data-title="<%= __('dashboard_new_capital.type_settlement_commission') %>"><%= __('dashboard_new_capital.type_settlement_commission') %></button>
+									<button type="button" class="hb-category-btn" data-category="Settlement (Additional)" data-title="<%= __('dashboard_new_capital.type_settlement_additional') %>"><%= __('dashboard_new_capital.type_settlement_additional') %></button>
 								</div>
 
 								<div class="house-balance-form-actions">
-									<button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-check-circle me-1"></i><%= __('dashboard_new_capital.save') %></button>
+									<button type="submit" class="btn btn-sm btn-primary" data-view-only-disable><i class="fa fa-check-circle me-1"></i><%= __('dashboard_new_capital.save') %></button>
 								</div>
 							</div>
-							<input type="hidden" name="optWithdrawDeposit" id="optWithdrawDeposit" value="">
-							
+
 							<%
 								function sumHouseBalanceServiceTotals(rows) {
 									if (!rows || !rows.length) return 0;
@@ -634,9 +693,7 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 								const refCashBalStr = refCashDisplay.toLocaleString('en-US');
 							%>
 							<input type="hidden" value="<%= refCashBalStr %>" id="cashbal" name="txtcashbal"/>
-							
-							<input type="hidden" name="description" id="description" value="">
-							
+
 							<hr class="my-2<%= String(permissions) === '11' ? ' d-none' : '' %>" style="border-color: #dee2e6;">
 							<div class="custom-datatable-entries">
 							<div class="capital-daterange-slot" id="capital-daterange-slot">
@@ -697,236 +754,40 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 	</div>
 </div>
 
+<%# Category entry (Transfer / Credit / Expenses / ...): up to 10 rows saved together; logic in capital.js %>
+<div class="modal fade" id="modal-capital-category" role="dialog" aria-labelledby="capital-category-title" aria-hidden="true"
+	data-i18n-title="<%= __('dashboard_new_capital.house_balance') %>" data-i18n-account="<%= __('dashboard_new_capital.choose_an_account') %>" data-i18n-remarks="<%= __('dashboard_new_capital.remarks_placeholder') %>"
+	data-keyboard="false" data-bs-backdrop="static">
+	<div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="block-title text-white" id="capital-category-title"><%= __('dashboard_new_capital.house_balance') %></h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<div class="hb-cat-rows" id="capital-category-rows"></div>
+				<button type="button" class="btn btn-sm hb-cat-add-row" id="capital-category-add-row">
+					<i class="fa fa-plus me-1" aria-hidden="true"></i><%= __('dashboard_new_capital.add_row') %>
+				</button>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-sm btn-primary" id="capital-category-save-btn" data-view-only-disable>
+					<i class="fa fa-check-circle me-1"></i><%= __('dashboard_new_capital.save') %>
+				</button>
+				<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('dashboard_new_capital.close') %></button>
+			</div>
+		</div>
+	</div>
+</div>
+
 <%- include('../../partials/capital_receipt_modal') %>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
-<script>
-	$(document).ready(function() {
-		// Retrieve the permissions value from the data attribute
-		const permissions = parseInt($('#user-role').data('permissions'));
-
-		// Disable the submit button if permissions are 2
-		if (permissions === 2) {
-			$('#add_junket_capital button[type="submit"]').prop('disabled', true);
-		}
-
-		function refreshHouseBalanceCashLimit() {
-			fetch('/dashboard_house_balances', { credentials: 'same-origin' })
-				.then(function(res) { return res.json(); })
-				.then(function(data) {
-					if (!data || data.message) return;
-					// Mirror the dashboard PHP figure (Balance Total - NN - CC - RC) so the
-					// capital-withdraw limit reconciles with the Cage Balance card.
-					const cash = Math.round(Number(data.php_display != null ? data.php_display : data.cashBalance) || 0);
-					$('#cashbal').val(cash.toLocaleString('en-US'));
-				})
-				.catch(function(err) {
-					console.error('refreshHouseBalanceCashLimit:', err);
-				});
-		}
-
-		function ensureCapitalProgramDatePicker() {
-			var el = document.getElementById('capitalProgramDate');
-			if (!el || typeof flatpickr === 'undefined') return;
-			if (el._flatpickr) {
-				el._flatpickr.destroy();
-			}
-			flatpickr(el, {
-				enableTime: false,
-				dateFormat: 'Y-m-d',
-				altInput: true,
-				altFormat: 'M j, Y',
-				defaultDate: new Date(),
-				allowInput: true,
-				disableMobile: true,
-				closeOnSelect: true
-			});
-		}
-
-		ensureCapitalProgramDatePicker();
-		$('#modal-new-capital').on('shown.bs.modal', function() {
-			ensureCapitalProgramDatePicker();
-		});
-
-		$('#modal-new-capital').on('shown.bs.modal', refreshHouseBalanceCashLimit);
-
-		var HOUSE_BALANCE_ACTIVE_TYPES = {
-			'Transfer': true,
-			'Deposit': true,
-			'Withdrawal': true,
-			'Loss Amount': true,
-			'Settlement': true,
-			'F&B': true,
-			'Hotel': true,
-			'Incidental': true,
-			'Expenses': true
-		};
-
-		function isHouseBalanceTypeActive(label) {
-			return !!(label && HOUSE_BALANCE_ACTIVE_TYPES[String(label)]);
-		}
-
-		function getSelectedCapitalType() {
-			const $checked = $('#add_junket_capital .hb-type-check:checked');
-			if (!$checked.length) return null;
-			return {
-				label: $checked.val(),
-				txn: String($checked.data('txn') || ''),
-			};
-		}
-
-		function updateCapitalTypeFields() {
-			const selected = getSelectedCapitalType();
-			if (!selected) {
-				$('#optWithdrawDeposit').val('');
-				$('#description').val('');
-				return;
-			}
-			$('#optWithdrawDeposit').val(selected.txn);
-			$('#description').val('<span class="css-blue">' + selected.label + '</span>');
-		}
-
-		$('#add_junket_capital').on('change', '.hb-type-check', function () {
-			if (this.checked) {
-				$('#add_junket_capital .hb-type-check').not(this).prop('checked', false);
-			}
-			updateCapitalTypeFields();
-			if (typeof syncCapitalTransferUi === 'function') {
-				syncCapitalTransferUi('#add_junket_capital', '#capital-transfer-account-wrap', '#capital-transfer-account');
-			}
-		});
-
-		if (typeof initCapitalTransferAccountUi === 'function') {
-			initCapitalTransferAccountUi({
-				modalSelector: '#modal-new-capital',
-				wrapSelector: '#capital-transfer-account-wrap',
-				selectSelector: '#capital-transfer-account',
-				hintSelector: '#capital-transfer-account-hint',
-				typeCheckSelector: '#add_junket_capital .hb-type-check'
-			});
-		}
-
-		$('#add_junket_capital').on('submit', function(e) {
-			e.preventDefault();
-
-			const $form = $(this);
-			const parsedAmount = (typeof parseCapitalSignedAmount === 'function')
-				? parseCapitalSignedAmount($('#txtAmount').val())
-				: { ok: false };
-			const cashbal = parseFloat(($('#cashbal').val() || '0').toString().replace(/,/g, '')) || 0;
-
-			if (!parsedAmount.ok) {
-				Swal.fire({
-					icon: 'warning',
-					title: 'Amount required',
-					text: 'Enter a valid amount with + (dagdag) or - (bawas), e.g. +5,000 or -5,000.',
-					confirmButtonText: 'OK'
-				});
-				return;
-			}
-
-			const programDateEl = document.getElementById('capitalProgramDate');
-			const programDateVal = (programDateEl && programDateEl.value ? programDateEl.value : '').trim();
-			if (!/^\d{4}-\d{2}-\d{2}$/.test(programDateVal)) {
-				Swal.fire({
-					icon: 'warning',
-					title: 'Program Date required',
-					text: 'Select a valid Program Date before saving.',
-					confirmButtonText: 'OK'
-				});
-				return;
-			}
-
-			const selectedType = getSelectedCapitalType();
-			if (!selectedType || !isHouseBalanceTypeActive(selectedType.label)) {
-				Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Select a transaction type.' });
-				return;
-			}
-			if (selectedType.label === 'Transfer') {
-				const accountId = ($('#capital-transfer-account').val() || '').trim();
-				if (!accountId) {
-					Swal.fire({ icon: 'warning', title: 'Account required', text: 'Select an account for transfer.' });
-					return;
-				}
-				const transferCheck = (typeof validateCapitalTransferAmount === 'function')
-					? validateCapitalTransferAmount('#capital-transfer-account', parsedAmount)
-					: { ok: true };
-				if (!transferCheck.ok) {
-					Swal.fire({
-						icon: 'error',
-						title: 'Insufficient Account Balance',
-						text: transferCheck.message,
-						confirmButtonText: 'OK'
-					});
-					return;
-				}
-			}
-			updateCapitalTypeFields();
-			// Amount +/- drives Capital In (1) / Out (2); category checkbox is the type label only
-			$('#optWithdrawDeposit').val(parsedAmount.txn);
-
-			if (parsedAmount.isOut && parsedAmount.abs > cashbal) {
-				Swal.fire({
-					icon: 'error',
-					title: 'Insufficient Balance',
-					text: 'The amount exceeds the available cash balance of ' + cashbal.toLocaleString('en-US') + '.',
-					confirmButtonText: 'OK'
-				});
-				return;
-			}
-
-			const typeLabel = selectedType.label;
-			const confirmRows = [
-				['Program Date', programDateVal],
-				['Type', typeLabel],
-				['Amount', parsedAmount.display]
-			];
-			if (typeLabel === 'Transfer') {
-				const accountLabel = $('#capital-transfer-account option:selected').text() || '-';
-				confirmRows.splice(2, 0, ['Account', accountLabel]);
-			}
-
-			SwalConfirm.fire({
-				title: 'Confirm transaction',
-				rows: confirmRows,
-				message: 'Save this house balance record?',
-				confirmButtonText: 'Yes'
-			}).then(function(result) {
-				if (!result.isConfirmed) {
-					return;
-				}
-				// Backend stores absolute amount; direction is TRANSACTION_ID from sign
-				$('#txtAmount').val(parsedAmount.abs);
-				$('#optWithdrawDeposit').val(parsedAmount.txn);
-				var $btn = $form.find("button[type='submit']");
-				$btn.prop('disabled', true).html(
-					'<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...'
-				);
-				setTimeout(function() {
-					if ($form[0] && typeof $form[0].submit === 'function') {
-						$form[0].submit();
-					}
-				}, 0);
-			});
-		});
-	});
-
-	function updateDescription() {
-		const $checked = $('#add_junket_capital .hb-type-check:checked');
-		if (!$checked.length) {
-			$('#description').val('');
-			$('#optWithdrawDeposit').val('');
-			return;
-		}
-		$('#optWithdrawDeposit').val(String($checked.data('txn') || ''));
-		$('#description').val('<span class="css-blue">' + $checked.val() + '</span>');
-	}
-</script>
-
 
 <script>
 	$(document).ready(function () {
-		$(document).on('keyup input', 'input[data-type="signed-amount"], #txtAmount.hb-field-amount, #edit-capital-amount', function () {
+		<%# House-balance amounts (.hb-field-amount) show negatives as red (1,000) — handled in capital.js %>
+		$(document).on('keyup input', 'input[data-type="signed-amount"]:not(.hb-field-amount)', function () {
 			var $this = $(this);
 			var formatted = (typeof formatCapitalSignedAmountInput === 'function')
 				? formatCapitalSignedAmountInput($this.val())

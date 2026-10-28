@@ -1331,6 +1331,116 @@ async function isExpenseSettlementCapital(capitalId) {
 	return rows.length > 0;
 }
 
+/** Validation failure inside insertJunketCapitalEntry — sent back as a 400 with this message. */
+class JunketCapitalInputError extends Error {}
+
+/**
+ * Validate and insert one junket_capital row (plus its cash_transaction and, for a Transfer,
+ * the account_ledger row) on an open transaction. Throws JunketCapitalInputError on bad input.
+ * Returns { isTransfer, accountId, txn, amount } for the post-commit Telegram notice.
+ */
+async function insertJunketCapitalEntry(connection, entry, userId, dateNow) {
+	const amount = parseFloat(String(entry.amount ?? '').replace(/,/g, ''));
+	if (!Number.isFinite(amount) || amount <= 0) {
+		throw new JunketCapitalInputError('Enter a valid amount greater than zero.');
+	}
+
+	const txn = parseInt(entry.txn, 10);
+	if (txn !== 1 && txn !== 2) {
+		throw new JunketCapitalInputError('Select a valid transaction direction.');
+	}
+
+	const description = entry.description == null ? null : entry.description;
+	const isTransfer = isCapitalTransferType(description);
+	const accountId = parseAccountId(entry.accountId);
+
+	if (isTransfer && !accountId) {
+		throw new JunketCapitalInputError('Select an account for transfer.');
+	}
+	if (!isTransfer && accountId) {
+		throw new JunketCapitalInputError('Account is only required for transfer.');
+	}
+
+	// Transfer out of the company must fit the dashboard Main → "Company" balance.
+	if (isTransfer && txn === 2) {
+		const companyBalance = await getCompanyCapitalBalance(connection);
+		if (amount > companyBalance) {
+			throw new JunketCapitalInputError(
+				'Insufficient company balance. Available: ' + companyBalance.toLocaleString('en-US') + '.'
+			);
+		}
+	}
+
+	let accountLedgerId = null;
+	// Store remarks exactly as encoded — the account link is kept via ACCOUNT_ID.
+	const storedRemarks = entry.remarks == null ? null : entry.remarks;
+	if (isTransfer) {
+		const account = await validateActiveAccount(connection, accountId);
+		if (!account) {
+			throw new JunketCapitalInputError('Invalid or inactive account.');
+		}
+
+		if (txn === 1) {
+			const accountBalance = await getAccountCashBalance(connection, accountId);
+			if (amount > accountBalance) {
+				throw new JunketCapitalInputError(
+					'Insufficient account balance. Available: ' + accountBalance.toLocaleString('en-US') + '.'
+				);
+			}
+		}
+
+		accountLedgerId = await insertCapitalTransferAccountLedger(connection, {
+			accountId,
+			amount,
+			houseTxn: txn,
+			remarks: storedRemarks,
+			userId,
+			dateNow
+		});
+	}
+
+	const [insertResult] = await connection.execute(`
+		INSERT INTO junket_capital(
+			TRANSACTION_ID, FULLNAME, DESCRIPTION, AMOUNT,
+			REMARKS, ENCODED_BY, ENCODED_DT, PROGRAM_DATE,
+			ACCOUNT_ID, ACCOUNT_LEDGER_ID
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, [
+		txn,
+		entry.fullname == null ? null : entry.fullname,
+		description,
+		amount,
+		storedRemarks,
+		userId,
+		dateNow,
+		entry.programDate,
+		isTransfer ? accountId : null,
+		accountLedgerId
+	]);
+
+	await connection.execute(`
+		INSERT INTO cash_transaction (
+			TRANSACTION_ID,
+			AMOUNT,
+			CATEGORY,
+			TYPE,
+			REMARKS,
+			ENCODED_BY,
+			ENCODED_DT
+		) VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, [
+		insertResult.insertId,
+		amount.toString(),
+		txn === 1 ? 'Capital In' : 'Capital Out',
+		txn,
+		storedRemarks,
+		userId,
+		dateNow
+	]);
+
+	return { isTransfer, accountId, txn, amount };
+}
+
 // ADD JUNKET CAPITAL (Authorized Master Account)
 router.post('/add_junket_capital', async (req, res) => {
 	let connection;
@@ -1350,134 +1460,97 @@ router.post('/add_junket_capital', async (req, res) => {
 			return res.status(400).send('Select a valid Program Date before saving.');
 		}
 
-		const date_now = new Date();
-		let txtAmount2 = parseFloat(String(txtAmount ?? '').replace(/,/g, ''));
-		if (!Number.isFinite(txtAmount2) || txtAmount2 <= 0) {
-			return res.status(400).send('Enter a valid amount greater than zero.');
-		}
-
-		const txn = parseInt(optWithdrawDeposit, 10);
-		if (txn !== 1 && txn !== 2) {
-			return res.status(400).send('Select a valid transaction direction.');
-		}
-
-		const isTransfer = isCapitalTransferType(description);
-		const accountId = parseAccountId(txtAccountId);
-
-		if (isTransfer && !accountId) {
-			return res.status(400).send('Select an account for transfer.');
-		}
-		if (!isTransfer && accountId) {
-			return res.status(400).send('Account is only required for transfer.');
-		}
-
 		connection = await pool.getConnection();
 		await connection.beginTransaction();
 
-		// Transfer out of the company must fit the dashboard Main → "Company" balance.
-		if (isTransfer && txn === 2) {
-			const companyBalance = await getCompanyCapitalBalance(connection);
-			if (txtAmount2 > companyBalance) {
-				await connection.rollback();
-				return res.status(400).send(
-					'Insufficient company balance. Available: ' + companyBalance.toLocaleString('en-US') + '.'
-				);
-			}
-		}
-
-		let accountLedgerId = null;
-		// Store remarks exactly as encoded — the account link is kept via ACCOUNT_ID.
-		const storedRemarks = Remarks;
-		if (isTransfer) {
-			const account = await validateActiveAccount(connection, accountId);
-			if (!account) {
-				await connection.rollback();
-				return res.status(400).send('Invalid or inactive account.');
-			}
-
-			if (txn === 1) {
-				const accountBalance = await getAccountCashBalance(connection, accountId);
-				if (txtAmount2 > accountBalance) {
-					await connection.rollback();
-					return res.status(400).send(
-						'Insufficient account balance. Available: ' + accountBalance.toLocaleString('en-US') + '.'
-					);
-				}
-			}
-
-			accountLedgerId = await insertCapitalTransferAccountLedger(connection, {
-				accountId,
-				amount: txtAmount2,
-				houseTxn: txn,
-				remarks: Remarks,
-				userId: req.session?.user_id ?? null,
-				dateNow: date_now
-			});
-		}
-
-		const query = `
-			INSERT INTO junket_capital(
-				TRANSACTION_ID, FULLNAME, DESCRIPTION, AMOUNT,
-				REMARKS, ENCODED_BY, ENCODED_DT, PROGRAM_DATE,
-				ACCOUNT_ID, ACCOUNT_LEDGER_ID
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`;
-
-		const [insertResult] = await connection.execute(query, [
-			txn,
-			txtFullname,
-			description,
-			txtAmount2,
-			storedRemarks,
-			req.session?.user_id ?? null,
-			date_now,
+		const saved = await insertJunketCapitalEntry(connection, {
 			programDate,
-			isTransfer ? accountId : null,
-			accountLedgerId
-		]);
-
-		const transactionConfig = {
-			1: { category: 'Capital In', type: 1 },
-			2: { category: 'Capital Out', type: 2 }
-		}[txn];
-
-		if (transactionConfig) {
-			const cashTransactionQuery = `
-				INSERT INTO cash_transaction (
-					TRANSACTION_ID,
-					AMOUNT,
-					CATEGORY,
-					TYPE,
-					REMARKS,
-					ENCODED_BY,
-					ENCODED_DT
-				) VALUES (?, ?, ?, ?, ?, ?, ?)
-			`;
-
-			await connection.execute(cashTransactionQuery, [
-				insertResult.insertId,
-				txtAmount2.toString(),
-				transactionConfig.category,
-				transactionConfig.type,
-				storedRemarks,
-				req.session?.user_id ?? null,
-				date_now
-			]);
-		}
+			amount: txtAmount,
+			txn: optWithdrawDeposit,
+			description,
+			remarks: Remarks,
+			accountId: txtAccountId,
+			fullname: txtFullname
+		}, req.session?.user_id ?? null, new Date());
 
 		await connection.commit();
-		if (isTransfer) {
+		if (saved.isTransfer) {
 			// House out (2) = the account received the amount.
-			sendCompanyTransferTelegram({ accountId, fromCompany: txn === 2, amount: txtAmount2 });
+			sendCompanyTransferTelegram({ accountId: saved.accountId, fromCompany: saved.txn === 2, amount: saved.amount });
 		}
-		// Agent Portal saves via AJAX; the dashboard form still posts natively and follows the redirect.
+		// Dashboard modal and Agent Portal save via AJAX; a native form post follows the redirect.
 		if (req.xhr) return res.json({ success: true });
 		res.redirect('/dashboard');
 	} catch (err) {
 		if (connection) {
 			try { await connection.rollback(); } catch (rollbackErr) { /* ignore */ }
 		}
+		if (err instanceof JunketCapitalInputError) {
+			return res.status(400).send(err.message);
+		}
 		console.error('Error inserting junket:', err);
+		res.status(500).send('Error inserting junket');
+	} finally {
+		if (connection) connection.release();
+	}
+});
+
+// ADD JUNKET CAPITAL — several rows of one category (Authorized Master Account category modal).
+// All rows are saved in one transaction: one bad row saves nothing.
+router.post('/add_junket_capital_batch', checkSession, async (req, res) => {
+	let connection;
+	try {
+		const { txtProgramDate = null, description = null, rows = [] } = req.body || {};
+
+		const programDate = parseJunketCapitalProgramDate(txtProgramDate);
+		if (!programDate) {
+			return res.status(400).send('Select a valid Program Date before saving.');
+		}
+		if (!Array.isArray(rows) || !rows.length) {
+			return res.status(400).send('Enter at least one amount.');
+		}
+		if (rows.length > 10) {
+			return res.status(400).send('Up to 10 rows only.');
+		}
+
+		const userId = req.session?.user_id ?? null;
+		const dateNow = new Date();
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		const saved = [];
+		for (let i = 0; i < rows.length; i++) {
+			const row = rows[i] || {};
+			try {
+				saved.push(await insertJunketCapitalEntry(connection, {
+					programDate,
+					amount: row.amount,
+					txn: row.txn,
+					description,
+					remarks: row.remarks,
+					accountId: row.accountId
+				}, userId, dateNow));
+			} catch (rowErr) {
+				if (rowErr instanceof JunketCapitalInputError) {
+					rowErr.message = 'Row ' + (i + 1) + ': ' + rowErr.message;
+				}
+				throw rowErr;
+			}
+		}
+
+		await connection.commit();
+		saved.filter((s) => s.isTransfer).forEach((s) => {
+			sendCompanyTransferTelegram({ accountId: s.accountId, fromCompany: s.txn === 2, amount: s.amount });
+		});
+		res.json({ success: true, count: saved.length });
+	} catch (err) {
+		if (connection) {
+			try { await connection.rollback(); } catch (rollbackErr) { /* ignore */ }
+		}
+		if (err instanceof JunketCapitalInputError) {
+			return res.status(400).send(err.message);
+		}
+		console.error('Error inserting junket batch:', err);
 		res.status(500).send('Error inserting junket');
 	} finally {
 		if (connection) connection.release();

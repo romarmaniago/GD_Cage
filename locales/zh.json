@@ -1102,6 +1102,13 @@
 		"loading_update_cc_chips": "加载中..."
 	},
 	"dashboard_new_capital": {
+		"deposit_withdrawal": "存款 / 取款",
+		"choose_an_account": "选择账户",
+		"type_credit": "信用",
+		"type_add_charge": "附加费用",
+		"type_settlement_commission": "结算 (佣金)",
+		"type_settlement_additional": "结算 (附加)",
+		"add_row": "添加行",
 		"house_balance": "授权主账户",
 		"loading_house_balance": "加载中...",
 		"junket_balance_amount": "接待余额",

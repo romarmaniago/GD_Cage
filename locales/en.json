@@ -1043,6 +1043,13 @@
 		"loading_update_cc_chips": "Loading..."
 	},
 	"dashboard_new_capital": {
+		"deposit_withdrawal": "Deposit / Withdrawal",
+		"choose_an_account": "Choose an Account",
+		"type_credit": "Credit",
+		"type_add_charge": "Add Charge",
+		"type_settlement_commission": "Settlement (Commission)",
+		"type_settlement_additional": "Settlement (Additional)",
+		"add_row": "Add row",
 		"house_balance": "Authorized Master Account",
 		"loading_house_balance": "Loading, please wait...",
 		"junket_balance_amount": "Junket Balance Amount",

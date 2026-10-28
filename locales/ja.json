@@ -1102,6 +1102,13 @@
 		"loading_update_cc_chips": "読み込み中..."
 	},
 	"dashboard_new_capital": {
+		"deposit_withdrawal": "入金 / 出金",
+		"choose_an_account": "アカウントを選択",
+		"type_credit": "クレジット",
+		"type_add_charge": "追加料金",
+		"type_settlement_commission": "精算 (コミッション)",
+		"type_settlement_additional": "精算 (追加)",
+		"add_row": "行を追加",
 		"house_balance": "承認済みマスターアカウント",
 		"loading_house_balance": "読み込み中...",
 		"junket_balance_amount": "ジャンケット残高",

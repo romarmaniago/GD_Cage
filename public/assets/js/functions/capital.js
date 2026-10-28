@@ -46,6 +46,10 @@ function formatCapitalSignedAmountInput(value) {
  */
 function parseCapitalSignedAmount(value) {
     var raw = String(value == null ? '' : value).replace(/,/g, '').trim();
+    // Accounting style (1000) = negative
+    if (/^\(.*\)$/.test(raw)) {
+        raw = '-' + raw.slice(1, -1).trim();
+    }
     if (!raw || raw === '+' || raw === '-') {
         return { ok: false };
     }
@@ -72,6 +76,39 @@ function houseBalanceDirectionFromTxn(txn) {
     return parseInt(txn, 10) === 1 ? 'in' : 'out';
 }
 
+/**
+ * House-balance amount input: a negative shows as (1,000) in red, a positive as plain 1,000.
+ * The caret is kept before the closing ")" so typing and Backspace act on the digits.
+ */
+function formatCapitalParenAmountInput(el) {
+    var raw = String(el.value == null ? '' : el.value);
+    var isNegative = raw.charAt(0) === '-' || raw.charAt(0) === '(';
+    var isPlus = raw.charAt(0) === '+';
+    var digits = raw.replace(/[^\d]/g, '');
+    var grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    var formatted;
+    if (isNegative) {
+        // "()" after the last digit was deleted falls back to a bare "-"
+        formatted = digits ? '(' + grouped + ')' : '-';
+    } else {
+        // Positive shows without "+" (a lone "+" stays while typing)
+        formatted = digits ? grouped : (isPlus ? '+' : '');
+    }
+    if (el.value !== formatted) {
+        el.value = formatted;
+    }
+    if (isNegative && digits && document.activeElement === el) {
+        var pos = formatted.length - 1;
+        el.setSelectionRange(pos, pos);
+    }
+    $(el).toggleClass('is-negative-amount', isNegative && !!digits);
+}
+
+$(document).on('input.capitalParenAmount', 'input.hb-field-amount', function () {
+    formatCapitalParenAmountInput(this);
+});
+
+window.formatCapitalParenAmountInput = formatCapitalParenAmountInput;
 window.onlyCapitalSignedAmountKey = onlyCapitalSignedAmountKey;
 window.formatCapitalSignedAmountInput = formatCapitalSignedAmountInput;
 window.parseCapitalSignedAmount = parseCapitalSignedAmount;
@@ -263,7 +300,10 @@ var HOUSE_BALANCE_TYPE_LABELS = {
     'Incidental': true,
     'Expenses': true,
     'Additional': true,
-    'Add Charge': true
+    'Add Charge': true,
+    'Credit': true,
+    'Settlement (Commission)': true,
+    'Settlement (Additional)': true
 };
 
 /** junket_capital row written by a Settle (Expenses / Loss Amount / Additional / Add Charge or one category). */
@@ -296,6 +336,9 @@ function isHouseBalanceCashOutType(desc) {
         label === 'Incidental' ||
         label === 'Expenses' ||
         label === 'Additional' ||
+        label === 'Credit' ||
+        label === 'Settlement (Commission)' ||
+        label === 'Settlement (Additional)' ||
         // Add Charge settlement can be a withdrawal or a deposit; direction comes from TRANSACTION_ID.
         label === 'Add Charge';
 }
@@ -708,7 +751,8 @@ function reloadCapitalData() {
                         programDate: cbalProgramDate,
                         typeLabel: cbalTypeLabel,
                         txn: row.TRANSACTION_ID,
-                        accountId: row.capital_account_id || null
+                        accountId: row.capital_account_id || null,
+                        accountLabel: row.capital_account_label || ''
                     };
                     window.__capitalReceiptRows = window.__capitalReceiptRows || {};
                     window.__capitalReceiptRows[row.IDNo] = {
@@ -1077,39 +1121,10 @@ function addCapital() {
     $('#txtTrans').val('');
     $('#txtCategory').val('');
     $('#txtDescription').val('');
-    $('#txtAmount').val('');
+    $('#txtAmount').val('').removeClass('is-negative-amount');
     $('#capitalRemarks').val('');
-    $('#add_junket_capital .hb-type-check').prop('checked', false);
-    if (typeof updateDescription === 'function') updateDescription();
     transaction_type();
     capital_category();
-}
-
-var HOUSE_BALANCE_ACTIVE_TYPES = {
-    'Transfer': true,
-    'Deposit': true,
-    'Withdrawal': true,
-    'Loss Amount': true,
-    'Settlement': true,
-    'F&B': true,
-    'Hotel': true,
-    'Incidental': true,
-    'Expenses': true
-};
-
-function isHouseBalanceTypeActive(label) {
-    return !!(label && HOUSE_BALANCE_ACTIVE_TYPES[String(label)]);
-}
-
-function updateEditCapitalTypeFields() {
-    const $checked = $('#edit_junket_capital .edit-hb-type-check:checked');
-    if (!$checked.length) {
-        $('#edit-capital-txn').val('');
-        $('#edit-capital-description').val('');
-        return;
-    }
-    $('#edit-capital-txn').val(String($checked.data('txn') || ''));
-    $('#edit-capital-description').val('<span class="css-blue">' + $checked.val() + '</span>');
 }
 
 function ensureEditCapitalProgramDatePicker(defaultDate) {
@@ -1129,6 +1144,11 @@ function ensureEditCapitalProgramDatePicker(defaultDate) {
     });
 }
 
+/** Deposit / Withdrawal (and legacy Cash-in / Cash-out) follow the amount sign; other types stay as recorded. */
+function isCapitalSignDrivenType(label) {
+    return !label || label === 'Deposit' || label === 'Withdrawal' || label === 'Cash-in' || label === 'Cash-out';
+}
+
 function edit_capital(capital_id) {
     const permissions = parseInt($('#user-role').data('permissions'), 10);
     if (permissions !== 0) {
@@ -1142,49 +1162,38 @@ function edit_capital(capital_id) {
         return;
     }
 
-    $('#edit-capital-id').val(row.id);
-    var editSign = parseInt(row.txn, 10) === 2 ? '-' : '+';
-    $('#edit-capital-amount').val(editSign + Number(row.amount || 0).toLocaleString('en-US'));
-    $('#edit-capital-remarks').val(row.remarks || '');
-    ensureEditCapitalProgramDatePicker(row.programDate || null);
-
+    const $modal = $('#modal-edit-capital');
     const typeLabel = row.typeLabel || '';
-    $('#edit_junket_capital .edit-hb-type-check').prop('checked', false);
-    if (typeLabel === 'Cash-in') {
-        $('#editHbTypeDeposit').prop('checked', true);
-    } else if (typeLabel === 'Cash-out') {
-        $('#editHbTypeWithdrawal').prop('checked', true);
-    } else {
-        $('#edit_junket_capital .edit-hb-type-check').filter(function () {
-            return $(this).val() === typeLabel;
-        }).prop('checked', true);
-    }
-    updateEditCapitalTypeFields();
-    syncCapitalTransferUi('#edit_junket_capital', '#edit-capital-transfer-account-wrap', '#edit-capital-transfer-account');
+    const signDriven = isCapitalSignDrivenType(typeLabel);
+    $modal.data('typeLabel', typeLabel);
 
-    if (typeLabel === 'Transfer') {
-        loadCapitalTransferAccounts($('#edit-capital-transfer-account'), '#modal-edit-capital', row.accountId || null);
+    $('#modal-edit-capital-title').text(($modal.data('i18n-title') || 'Edit Authorized Master Account') +
+        (signDriven ? '' : ' (' + typeLabel + ')'));
+    $('#edit-capital-amount-label').text(signDriven ? 'Deposit / Withdrawal' : typeLabel);
+
+    $('#edit-capital-id').val(row.id);
+    ensureEditCapitalProgramDatePicker(row.programDate || null);
+    // Set the value directly: the footer reloads jQuery, so .trigger('input') would miss the handler.
+    var amountEl = document.getElementById('edit-capital-amount');
+    amountEl.value = (parseInt(row.txn, 10) === 2 ? '-' : '') + Number(row.amount || 0).toLocaleString('en-US');
+    formatCapitalParenAmountInput(amountEl);
+    $('#edit-capital-remarks').val(row.remarks || '');
+
+    const isTransfer = typeLabel === 'Transfer';
+    $modal.toggleClass('is-transfer', isTransfer);
+    $('#edit-capital-transfer-account-wrap').toggleClass('d-none', !isTransfer);
+    const $accountSel = $('#edit-capital-transfer-account');
+    if (isTransfer) {
+        loadCapitalTransferAccounts($accountSel, '#modal-edit-capital', row.accountId || null);
     } else {
-        $('#edit-capital-transfer-account').val('').trigger('change');
+        $accountSel.val('');
     }
 
     const $saveBtn = $('#edit-capital-save-btn');
     $saveBtn.prop('disabled', false).html('<i class="fa fa-check-circle me-1"></i>Save');
 
-    $('#modal-edit-capital').modal('show');
+    $modal.modal('show');
 }
-
-$(document).off('change.editCapitalType', '#edit_junket_capital .edit-hb-type-check')
-    .on('change.editCapitalType', '#edit_junket_capital .edit-hb-type-check', function () {
-        if (this.checked) {
-            $('#edit_junket_capital .edit-hb-type-check').not(this).prop('checked', false);
-        }
-        updateEditCapitalTypeFields();
-        syncCapitalTransferUi('#edit_junket_capital', '#edit-capital-transfer-account-wrap', '#edit-capital-transfer-account');
-        if (isCapitalTransferTypeSelected('#edit_junket_capital .edit-hb-type-check')) {
-            loadCapitalTransferAccounts($('#edit-capital-transfer-account'), '#modal-edit-capital');
-        }
-    });
 
 $(document).off('submit.editCapital', '#edit_junket_capital').on('submit.editCapital', '#edit_junket_capital', function (e) {
     e.preventDefault();
@@ -1212,36 +1221,29 @@ $(document).off('submit.editCapital', '#edit_junket_capital').on('submit.editCap
         Swal.fire({
             icon: 'warning',
             title: 'Amount required',
-            text: 'Enter a valid amount with + (dagdag) or - (bawas), e.g. +5,000 or -5,000.'
+            text: 'Enter a valid amount with + or -, e.g. +5,000 or -5,000.'
         });
         return;
     }
 
-    updateEditCapitalTypeFields();
-    const description = ($('#edit-capital-description').val() || '').trim();
-    const selectedTypeLabel = ($('#edit_junket_capital .edit-hb-type-check:checked').val() || '').trim();
-    if (!description || !isHouseBalanceTypeActive(selectedTypeLabel)) {
-        Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Select a transaction type.' });
-        return;
-    }
-    if (selectedTypeLabel === 'Transfer') {
-        const accountId = ($('#edit-capital-transfer-account').val() || '').trim();
+    // Type is not editable: Deposit / Withdrawal follow the sign, any other type stays.
+    const recordedType = String($('#modal-edit-capital').data('typeLabel') || '');
+    const typeLabel = isCapitalSignDrivenType(recordedType)
+        ? (parsedAmount.isOut ? 'Withdrawal' : 'Deposit')
+        : recordedType;
+    const description = hbDescriptionHtml(typeLabel);
+    const accountId = typeLabel === 'Transfer' ? ($('#edit-capital-transfer-account').val() || '').trim() : '';
+    if (typeLabel === 'Transfer') {
         if (!accountId) {
             Swal.fire({ icon: 'warning', title: 'Account required', text: 'Select an account for transfer.' });
             return;
         }
         const transferCheck = validateCapitalTransferAmount('#edit-capital-transfer-account', parsedAmount);
         if (!transferCheck.ok) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Insufficient Account Balance',
-                text: transferCheck.message
-            });
+            Swal.fire({ icon: 'error', title: 'Insufficient Account Balance', text: transferCheck.message });
             return;
         }
     }
-    // Amount +/- drives Capital In (1) / Out (2)
-    $('#edit-capital-txn').val(parsedAmount.txn);
 
     const $btn = $('#edit-capital-save-btn');
     $btn.prop('disabled', true).html(
@@ -1257,7 +1259,7 @@ $(document).off('submit.editCapital', '#edit_junket_capital').on('submit.editCap
             Remarks: remarks,
             optWithdrawDeposit: parsedAmount.txn,
             description: description,
-            txtAccountId: ($('#edit-capital-transfer-account').val() || '').trim()
+            txtAccountId: accountId
         },
         success: function () {
             $('#modal-edit-capital').modal('hide');
@@ -3024,3 +3026,392 @@ if (window.gdAlignParenNumbers) {
 	window.gdAlignParenNumbers('#chips_transaction-tbl', ['tbody td:nth-child(2)']);
 	window.gdAlignParenNumbers('#junket-expense-tbl', ['tbody td:nth-child(2)']);
 }
+
+/* ---------- Authorized Master Account: add form + category modal ---------- */
+// Deposit / Withdrawal is the main amount (+ = Deposit, - = Withdrawal). Each category cell
+// (Transfer, Credit, Expenses, ...) opens #modal-capital-category for up to 10 rows that are
+// saved together through /add_junket_capital_batch. Only Transfer has an account column.
+
+var HB_CATEGORY_MAX_ROWS = 10;
+var hbCategoryState = { label: '', isTransfer: false };
+
+function hbDescriptionHtml(label) {
+    return '<span class="css-blue">' + label + '</span>';
+}
+
+function getHouseBalanceCashLimit() {
+    return parseFloat(($('#cashbal').val() || '0').toString().replace(/,/g, '')) || 0;
+}
+
+function refreshHouseBalanceCashLimit() {
+    if (!document.getElementById('cashbal')) return;
+    fetch('/dashboard_house_balances', { credentials: 'same-origin' })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            if (!data || data.message) return;
+            // Mirror the dashboard PHP figure (Balance Total - NN - CC - RC) so the
+            // capital-withdraw limit reconciles with the Cage Balance card.
+            const cash = Math.round(Number(data.php_display != null ? data.php_display : data.cashBalance) || 0);
+            $('#cashbal').val(cash.toLocaleString('en-US'));
+        })
+        .catch(function (err) {
+            console.error('refreshHouseBalanceCashLimit:', err);
+        });
+}
+
+function ensureCapitalProgramDatePicker() {
+    var el = document.getElementById('capitalProgramDate');
+    if (!el || typeof flatpickr === 'undefined') return;
+    if (el._flatpickr) {
+        el._flatpickr.destroy();
+    }
+    flatpickr(el, {
+        enableTime: false,
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'M j, Y',
+        defaultDate: new Date(),
+        allowInput: true,
+        disableMobile: true,
+        closeOnSelect: true
+    });
+}
+
+/** Program Date from the main form (shared by the category modal); warns and returns null when invalid. */
+function requireCapitalProgramDate() {
+    const el = document.getElementById('capitalProgramDate');
+    const val = (el && el.value ? el.value : '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Program Date required',
+            text: 'Select a valid Program Date before saving.',
+            confirmButtonText: 'OK'
+        });
+        return null;
+    }
+    return val;
+}
+
+function isCapitalAddViewOnly() {
+    return parseInt($('#user-role').data('permissions'), 10) === 2;
+}
+
+function confirmCapitalAdd(rows, message) {
+    if (typeof SwalConfirm !== 'undefined') {
+        return SwalConfirm.fire({ title: 'Confirm transaction', rows: rows, message: message, confirmButtonText: 'Yes' });
+    }
+    return Swal.fire({ icon: 'question', title: 'Confirm transaction', text: message, showCancelButton: true, confirmButtonText: 'Yes' });
+}
+
+function capitalAddErrorText(xhr) {
+    const text = xhr && xhr.responseText ? String(xhr.responseText) : '';
+    return text && text.length <= 300 && text.indexOf('<') === -1 ? text : 'Failed to save record.';
+}
+
+function afterCapitalAdded(text) {
+    Swal.fire({ icon: 'success', title: 'Saved', text: text, timer: 1200, showConfirmButton: false });
+    if (typeof reloadCapitalData === 'function' && $('#capital-tbl').length) reloadCapitalData();
+    refreshDashboardAfterCapitalChange();
+    refreshHouseBalanceCashLimit();
+}
+
+function setCapitalSaveBusy($btn, busy) {
+    if (busy) {
+        $btn.data('label', $btn.html()).prop('disabled', true).html(
+            '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...'
+        );
+    } else {
+        $btn.prop('disabled', isCapitalAddViewOnly()).html($btn.data('label') || $btn.html());
+    }
+}
+
+// Main form: Deposit / Withdrawal
+$(document).off('submit.addCapital', '#add_junket_capital').on('submit.addCapital', '#add_junket_capital', function (e) {
+    e.preventDefault();
+    if (isCapitalAddViewOnly()) return;
+
+    const programDate = requireCapitalProgramDate();
+    if (!programDate) return;
+
+    const parsedAmount = parseCapitalSignedAmount($('#txtAmount').val());
+    if (!parsedAmount.ok) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Amount required',
+            text: 'Enter a valid amount with + (Deposit) or - (Withdrawal), e.g. +5,000 or -5,000.',
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
+
+    const cashbal = getHouseBalanceCashLimit();
+    if (parsedAmount.isOut && parsedAmount.abs > cashbal) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Insufficient Balance',
+            text: 'The amount exceeds the available cash balance of ' + cashbal.toLocaleString('en-US') + '.',
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
+
+    const typeLabel = parsedAmount.isOut ? 'Withdrawal' : 'Deposit';
+    const remarks = $('#capitalRemarks').val() || '';
+    const $btn = $(this).find('button[type="submit"]');
+
+    confirmCapitalAdd([
+        ['Program Date', programDate],
+        ['Type', typeLabel],
+        ['Amount', parsedAmount.display]
+    ], 'Save this house balance record?').then(function (result) {
+        if (!result.isConfirmed) return;
+        setCapitalSaveBusy($btn, true);
+        $.ajax({
+            url: '/add_junket_capital',
+            type: 'POST',
+            data: {
+                txtProgramDate: programDate,
+                txtAmount: parsedAmount.abs,
+                Remarks: remarks,
+                optWithdrawDeposit: parsedAmount.txn,
+                description: hbDescriptionHtml(typeLabel)
+            }
+        }).done(function () {
+            $('#txtAmount').val('').removeClass('is-negative-amount');
+            $('#capitalRemarks').val('');
+            afterCapitalAdded('Record saved successfully.');
+        }).fail(function (xhr) {
+            Swal.fire({ icon: 'error', title: 'Error', text: capitalAddErrorText(xhr) });
+        }).always(function () {
+            setCapitalSaveBusy($btn, false);
+        });
+    });
+});
+
+function fillHbCategoryAccountSelect($sel) {
+    const $modal = $('#modal-capital-category');
+    $sel.empty().append($('<option/>', { value: '', text: $modal.data('i18n-account') || 'Choose an Account' }));
+    capitalTransferAccountsCache.forEach(function (account) {
+        if (account.account_id == null) return;
+        $sel.append($('<option/>', {
+            value: String(account.account_id),
+            text: capitalAccountOptionLabel(account),
+            'data-balance': account.total_balance != null ? String(account.total_balance) : '0'
+        }));
+    });
+    initCapitalAccountSelect2($sel, '#modal-capital-category');
+}
+
+function syncHbCategoryAddRowBtn() {
+    const count = $('#capital-category-rows .hb-cat-row').length;
+    $('#capital-category-add-row').prop('disabled', count >= HB_CATEGORY_MAX_ROWS);
+}
+
+function addHbCategoryRow() {
+    const $rows = $('#capital-category-rows');
+    if ($rows.children('.hb-cat-row').length >= HB_CATEGORY_MAX_ROWS) return;
+    const $modal = $('#modal-capital-category');
+    const $row = $('<div class="hb-cat-row"></div>');
+
+    if (hbCategoryState.isTransfer) {
+        const $sel = $('<select class="form-control hb-cat-account"></select>')
+            .attr('data-placeholder', $modal.data('i18n-account') || 'Choose an Account');
+        $row.append($('<div></div>').append($sel));
+        $rows.append($row);
+        fillHbCategoryAccountSelect($sel);
+    }
+    $row.append($('<input type="text" class="form-control hb-cat-amount hb-field-amount" data-type="signed-amount" autocomplete="off">')
+        .attr('placeholder', '+ / - Amount'));
+    $row.append($('<input type="text" class="form-control hb-cat-remarks" autocomplete="off">')
+        .attr('placeholder', $modal.data('i18n-remarks') || 'Remarks'));
+    $row.append('<button type="button" class="hb-cat-remove" title="Remove"><i class="fa fa-trash-alt" aria-hidden="true"></i></button>');
+
+    $rows.append($row);
+    syncHbCategoryAddRowBtn();
+    if (!hbCategoryState.isTransfer) $row.find('.hb-cat-amount').trigger('focus');
+}
+
+function openHbCategoryModal(label, title) {
+    const $modal = $('#modal-capital-category');
+    if (!$modal.length) return;
+    hbCategoryState = { label: label, isTransfer: label === 'Transfer' };
+
+    $modal.toggleClass('is-transfer', hbCategoryState.isTransfer);
+    $('#capital-category-title').text(($modal.data('i18n-title') || 'Authorized Master Account') + ' (' + title + ')');
+    $('#capital-category-rows').empty();
+    $('#capital-category-add-row').prop('disabled', true);
+    $('#capital-category-save-btn').prop('disabled', isCapitalAddViewOnly());
+
+    // Stack above the Authorized Master Account modal (and its backdrop).
+    $modal.appendTo('body').css('z-index', 1065);
+    bootstrap.Modal.getOrCreateInstance($modal[0]).show();
+
+    if (hbCategoryState.isTransfer) {
+        // Refetch every time so the account balances used by validation are current.
+        $.getJSON('/account_data').then(function (rows) {
+            capitalTransferAccountsCache = rows || [];
+        }).always(function () {
+            addHbCategoryRow();
+        });
+    } else {
+        addHbCategoryRow();
+    }
+}
+
+/** Read the modal rows; blank rows are skipped. Returns { rows } or { error }. */
+function collectHbCategoryRows() {
+    const rows = [];
+    let error = null;
+    $('#capital-category-rows .hb-cat-row').each(function (i) {
+        const $row = $(this);
+        const amountRaw = ($row.find('.hb-cat-amount').val() || '').trim();
+        const remarks = ($row.find('.hb-cat-remarks').val() || '').trim();
+        const $sel = $row.find('.hb-cat-account');
+        const accountId = ($sel.val() || '').trim();
+        if (!amountRaw && !remarks && !accountId) return;
+
+        const parsed = parseCapitalSignedAmount(amountRaw);
+        if (!parsed.ok) {
+            error = 'Row ' + (i + 1) + ': enter a valid amount with + or -, e.g. +5,000 or -5,000.';
+            return false;
+        }
+        if (hbCategoryState.isTransfer && !accountId) {
+            error = 'Row ' + (i + 1) + ': choose an account.';
+            return false;
+        }
+        rows.push({
+            amount: parsed.abs,
+            txn: parsed.txn,
+            isOut: parsed.isOut,
+            remarks: remarks,
+            accountId: accountId,
+            accountLabel: accountId ? $sel.find('option:selected').text() : '',
+            accountBalance: accountId ? (parseFloat($sel.find('option:selected').data('balance')) || 0) : 0
+        });
+    });
+    if (error) return { error: error };
+    if (!rows.length) return { error: 'Enter at least one amount.' };
+    return { rows: rows };
+}
+
+$(document).on('click', '#add_junket_capital .hb-category-btn', function () {
+    openHbCategoryModal(String($(this).data('category') || ''), String($(this).data('title') || $(this).text()));
+});
+
+$(document).on('click', '#capital-category-add-row', addHbCategoryRow);
+
+$(document).on('click', '#capital-category-rows .hb-cat-remove', function () {
+    const $row = $(this).closest('.hb-cat-row');
+    if ($('#capital-category-rows .hb-cat-row').length > 1) {
+        $row.find('.hb-cat-account').each(function () {
+            if ($(this).data('select2')) $(this).select2('destroy');
+        });
+        $row.remove();
+    } else {
+        $row.find('input').val('');
+        $row.find('.hb-cat-account').val('').trigger('change');
+    }
+    syncHbCategoryAddRowBtn();
+});
+
+$(document).on('keypress', '#capital-category-rows .hb-cat-amount', function (e) {
+    return onlyCapitalSignedAmountKey(e.originalEvent || e);
+});
+
+$(document).on('shown.bs.modal', '#modal-capital-category', function () {
+    $('.modal-backdrop').last().css('z-index', 1060);
+});
+
+$(document).on('click', '#capital-category-save-btn', function () {
+    if (isCapitalAddViewOnly()) return;
+    const programDate = requireCapitalProgramDate();
+    if (!programDate) return;
+
+    const collected = collectHbCategoryRows();
+    if (collected.error) {
+        Swal.fire({ icon: 'warning', title: 'Check entries', text: collected.error });
+        return;
+    }
+    const rows = collected.rows;
+
+    let totalIn = 0;
+    let totalOut = 0;
+    rows.forEach(function (r) {
+        if (r.isOut) totalOut += r.amount; else totalIn += r.amount;
+    });
+    const cashbal = getHouseBalanceCashLimit();
+    if (totalOut - totalIn > cashbal) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Insufficient Balance',
+            text: 'The amount exceeds the available cash balance of ' + cashbal.toLocaleString('en-US') + '.'
+        });
+        return;
+    }
+
+    // Transfer +: the amount comes out of the account, so it must fit the account balance.
+    if (hbCategoryState.isTransfer) {
+        const perAccount = {};
+        rows.forEach(function (r) {
+            if (r.isOut) return;
+            perAccount[r.accountId] = perAccount[r.accountId] || { label: r.accountLabel, balance: r.accountBalance, total: 0 };
+            perAccount[r.accountId].total += r.amount;
+        });
+        const over = Object.keys(perAccount).map(function (k) { return perAccount[k]; })
+            .filter(function (a) { return a.total > a.balance; })[0];
+        if (over) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Insufficient Account Balance',
+                text: over.label + ': the amount exceeds the available account balance of ' + over.balance.toLocaleString('en-US') + '.'
+            });
+            return;
+        }
+    }
+
+    const net = totalIn - totalOut;
+    const label = hbCategoryState.label;
+    const $btn = $(this);
+
+    confirmCapitalAdd([
+        ['Program Date', programDate],
+        ['Type', label],
+        ['Entries', String(rows.length)],
+        ['Total', (net < 0 ? '-' : '+') + Math.abs(net).toLocaleString('en-US')]
+    ], rows.length > 1 ? 'Save these ' + rows.length + ' records?' : 'Save this record?').then(function (result) {
+        if (!result.isConfirmed) return;
+        setCapitalSaveBusy($btn, true);
+        $.ajax({
+            url: '/add_junket_capital_batch',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                txtProgramDate: programDate,
+                description: hbDescriptionHtml(label),
+                rows: rows.map(function (r) {
+                    return { amount: r.amount, txn: r.txn, remarks: r.remarks, accountId: r.accountId || null };
+                })
+            })
+        }).done(function () {
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-capital-category')).hide();
+            afterCapitalAdded(rows.length > 1 ? rows.length + ' records saved.' : 'Record saved successfully.');
+        }).fail(function (xhr) {
+            Swal.fire({ icon: 'error', title: 'Error', text: capitalAddErrorText(xhr) });
+        }).always(function () {
+            setCapitalSaveBusy($btn, false);
+        });
+    });
+});
+
+$(document).ready(function () {
+    if (!document.getElementById('add_junket_capital')) return;
+    if (isCapitalAddViewOnly()) {
+        $('#add_junket_capital button[type="submit"]').prop('disabled', true);
+    }
+    ensureCapitalProgramDatePicker();
+    $('#modal-new-capital').on('shown.bs.modal', function () {
+        ensureCapitalProgramDatePicker();
+        refreshHouseBalanceCashLimit();
+    });
+});
