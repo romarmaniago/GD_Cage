@@ -799,6 +799,7 @@
 		"gpc_cage": "Cage",
 		"gpc_concierge": "Concierge",
 		"gpc_company": "Company",
+		"gpc_set": "Set",
 		"telegram_title": "Telegram Token",
 		"telegram_api_placeholder": "Telegram Token",
 		"save": "Save",

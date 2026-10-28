@@ -551,47 +551,49 @@
                                 </table>
                             </div>
                         </div>
-                        <!-- Column 3: Details -->
-                        <div class="col-12 d-flex mx-auto">
-                            <div class="passport-details-card rounded-3 overflow-hidden w-100 d-flex flex-column" id="gd-details-card">
-                                <div id="gd-details-capture" class="flex-grow-1 position-relative">
-                                <div id="gd-details-copy-actions">
-                                <button type="button" class="btn gd-details-copy-btn" id="btn-copy-gd-details"
+                        <!-- Column 3: Details — Set A and Set B cards (Set B ids end in "-b") -->
+                        <% ['', '-b'].forEach(function (sfx) { %>
+                        <div class="col-12 col-md-6 d-flex">
+                            <div class="passport-details-card rounded-3 overflow-hidden w-100 d-flex flex-column">
+                                <div class="gd-details-capture flex-grow-1 position-relative">
+                                <div class="gd-details-copy-actions">
+                                <button type="button" class="btn gd-details-copy-btn btn-copy-gd-details"
                                     title="<%= __('modal_account_details.copy_as_image') %>"
                                     data-copied="<%= __('modal_account_details.copied') %>"
                                     data-fail="<%= __('modal_account_details.copy_image_failed') %>">
-                                    <i class="fa fa-image"></i><span class="btn-copy-gd-label"><%= __('modal_account_details.copy_lbl_image') %></span>
+                                    <span class="btn-copy-gd-label"><%= __('modal_account_details.copy_lbl_image') %></span>
                                 </button>
-                                <button type="button" class="btn gd-details-copy-btn" id="btn-copy-gd-details-text"
+                                <button type="button" class="btn gd-details-copy-btn btn-copy-gd-details-text"
                                     title="<%= __('modal_account_details.copy_as_text') %>"
                                     data-copied="<%= __('modal_account_details.copied') %>"
                                     data-fail="<%= __('modal_account_details.copy_image_failed') %>">
-                                    <i class="fa fa-align-left"></i><span class="btn-copy-gd-label"><%= __('modal_account_details.copy_lbl_text') %></span>
+                                    <span class="btn-copy-gd-label"><%= __('modal_account_details.copy_lbl_text') %></span>
                                 </button>
                                 </div>
                                 <table class="table table-bordered passport-modal-details-table mb-0 w-100">
                                     <tbody>
                                         <tr><th colspan="2" class="passport-section-title gd-details-title">GOLDEN DRAGON</th></tr>
-                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_acc_no') %></th><td id="p-acc-no">—</td></tr>
-                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_name') %></th><td id="p-acc-name">—</td></tr>
-                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_cp') %></th><td id="p-contact">—</td></tr>
-                                        <tr><th scope="row">Telegram</th><td id="p-telegram">—</td></tr>
-                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_channel') %></th><td id="p-channel">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_acc_no') %></th><td id="p-acc-no<%= sfx %>">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_name') %></th><td id="p-acc-name<%= sfx %>">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_cp') %></th><td id="p-contact<%= sfx %>">—</td></tr>
+                                        <tr><th scope="row">Telegram</th><td id="p-telegram<%= sfx %>">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_channel') %></th><td id="p-channel<%= sfx %>">—</td></tr>
 
                                         <tr class="passport-section-gap"><td colspan="2"></td></tr>
-                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_cage') %></th><td id="p-cage-number">—</td></tr>
-                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_concierge') %></th><td id="p-concierge-number">—</td></tr>
-                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_company') %></th><td id="p-company-number">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_cage') %></th><td id="p-cage-number<%= sfx %>">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_concierge') %></th><td id="p-concierge-number<%= sfx %>">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_company') %></th><td id="p-company-number<%= sfx %>">—</td></tr>
 
                                         <tr class="passport-section-gap"><td colspan="2"></td></tr>
-                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_cage') %></th><td id="p-cage-username">—</td></tr>
-                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_concierge') %></th><td id="p-concierge-username">—</td></tr>
-                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_company') %></th><td id="p-company-username">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_cage') %></th><td id="p-cage-username<%= sfx %>">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_concierge') %></th><td id="p-concierge-username<%= sfx %>">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_company') %></th><td id="p-company-username<%= sfx %>">—</td></tr>
                                     </tbody>
                                 </table>
                                 </div>
                             </div>
                         </div>
+                        <% }); %>
                     </div>
                 </div>
             </div>
@@ -2088,7 +2090,7 @@ body > .flatpickr-calendar {
 /* Passport Details modal – improved styling */
 .passport-details-modal-content { border-radius: 12px; }
 .passport-details-dialog {
-    max-width: 500px;
+    max-width: 900px;
 }
 .passport-details-body {
     min-height: 320px;
@@ -2281,10 +2283,10 @@ body > .flatpickr-calendar {
     text-align: center;
     letter-spacing: 0.12em;
 }
-#modal-passport-details #gd-details-capture {
+#modal-passport-details .gd-details-capture {
     background: #fff;
 }
-#modal-passport-details #gd-details-copy-actions {
+#modal-passport-details .gd-details-copy-actions {
     position: absolute;
     top: 7px;
     right: 8px;
@@ -2589,16 +2591,14 @@ body > .flatpickr-calendar {
 
     // Resolve the agent's Telegram chat id to an @username; fall back to the raw id.
     function setPassportTelegram(chatId) {
-        var el = document.getElementById('p-telegram');
-        if (!el) return;
-        if (!chatId) { el.textContent = '—'; return; }
-        el.textContent = chatId;
+        if (!chatId) { setAccountDetailText('p-telegram', ''); return; }
+        setAccountDetailText('p-telegram', chatId);
         if (typeof fetchTelegramUsername === 'function') {
             fetchTelegramUsername(chatId, 'GUEST')
                 .then(function (username) {
-                    el.textContent = username ? '@' + username : chatId;
+                    setAccountDetailText('p-telegram', username ? '@' + username : chatId);
                 })
-                .catch(function () { el.textContent = chatId; });
+                .catch(function () { setAccountDetailText('p-telegram', chatId); });
         }
     }
 
@@ -2607,6 +2607,12 @@ body > .flatpickr-calendar {
         if (!el) return;
         var v = value != null ? String(value).trim() : '';
         el.textContent = v || '—';
+    }
+
+    // Account rows (Acc no / Name / CP# / Telegram) are the same on the Set A and Set B cards
+    function setAccountDetailText(id, value) {
+        setDetailText(id, value);
+        setDetailText(id + '-b', value);
     }
 
     // Cage / Concierge / Company contacts + channel link (from Telegram settings page)
@@ -2621,29 +2627,33 @@ body > .flatpickr-calendar {
             })
             .catch(function () { return {}; });
     }
+    // Set A card uses the bare fields; Set B card (ids ending "-b") uses the `_2` fields
     function applyGuestPortalContacts(c) {
         c = c || {};
-        setDetailText('p-cage-number', c.cage_number);
-        setDetailText('p-concierge-number', c.concierge_number);
-        setDetailText('p-company-number', c.company_number);
-        setDetailText('p-cage-username', c.cage_username);
-        setDetailText('p-concierge-username', c.concierge_username);
-        setDetailText('p-company-username', c.company_username);
-        var chEl = document.getElementById('p-channel');
-        if (chEl) {
-            var link = c.channel_link != null ? String(c.channel_link).trim() : '';
-            if (link) {
-                chEl.textContent = '';
-                var a = document.createElement('a');
-                a.href = link;
-                a.target = '_blank';
-                a.rel = 'noopener noreferrer';
-                a.textContent = link;
-                chEl.appendChild(a);
-            } else {
-                chEl.textContent = '—';
+        [{ id: '', field: '' }, { id: '-b', field: '_2' }].forEach(function (set) {
+            setDetailText('p-cage-number' + set.id, c['cage_number' + set.field]);
+            setDetailText('p-concierge-number' + set.id, c['concierge_number' + set.field]);
+            setDetailText('p-company-number' + set.id, c['company_number' + set.field]);
+            setDetailText('p-cage-username' + set.id, c['cage_username' + set.field]);
+            setDetailText('p-concierge-username' + set.id, c['concierge_username' + set.field]);
+            setDetailText('p-company-username' + set.id, c['company_username' + set.field]);
+            var chEl = document.getElementById('p-channel' + set.id);
+            if (chEl) {
+                var rawLink = c['channel_link' + set.field];
+                var link = rawLink != null ? String(rawLink).trim() : '';
+                if (link) {
+                    chEl.textContent = '';
+                    var a = document.createElement('a');
+                    a.href = link;
+                    a.target = '_blank';
+                    a.rel = 'noopener noreferrer';
+                    a.textContent = link;
+                    chEl.appendChild(a);
+                } else {
+                    chEl.textContent = '—';
+                }
             }
-        }
+        });
     }
 
     // Passport Details button
@@ -2675,10 +2685,10 @@ body > .flatpickr-calendar {
                 document.getElementById('p-dob').textContent = p.date_of_birth || '—';
                 document.getElementById('p-expiry').textContent = p.expiry_date || '—';
                 document.getElementById('p-gender').textContent = p.gender || '—';
-                setDetailText('p-acc-no', '');
-                setDetailText('p-acc-name', p.full_name || '');
-                document.getElementById('p-contact').textContent = '—';
-                document.getElementById('p-telegram').textContent = '—';
+                setAccountDetailText('p-acc-no', '');
+                setAccountDetailText('p-acc-name', p.full_name || '');
+                setAccountDetailText('p-contact', '');
+                setAccountDetailText('p-telegram', '');
                 loadGuestPortalContacts().then(applyGuestPortalContacts);
                 var img = document.getElementById('passport-detail-image');
                 setPassportDetailImage(window.__pendingPassportImageDataUrl || null);
@@ -2719,9 +2729,9 @@ body > .flatpickr-calendar {
                         ? (window.fmtDate ? window.fmtDate(data.EXPIRY_DATE, '—') : String(data.EXPIRY_DATE).slice(0, 10))
                         : '—';
                     document.getElementById('p-gender').textContent = hasPassport ? (data.GENDER || '—') : '—';
-                    setDetailText('p-acc-no', accountInfo ? accountInfo.agent_code : '');
-                    setDetailText('p-acc-name', accountInfo ? accountInfo.account_name : '');
-                    document.getElementById('p-contact').textContent = accountInfo && accountInfo.agent_contact ? accountInfo.agent_contact : '—';
+                    setAccountDetailText('p-acc-no', accountInfo ? accountInfo.agent_code : '');
+                    setAccountDetailText('p-acc-name', accountInfo ? accountInfo.account_name : '');
+                    setAccountDetailText('p-contact', accountInfo ? accountInfo.agent_contact : '');
                     setPassportTelegram(accountInfo && accountInfo.agent_telegram ? String(accountInfo.agent_telegram).trim() : '');
                     loadGuestPortalContacts().then(applyGuestPortalContacts);
                     setPassportDetailImage(hasPassport && data.PASSPORT_IMAGE ? '/PassportUpload/' + data.PASSPORT_IMAGE : null);

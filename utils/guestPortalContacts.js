@@ -9,7 +9,7 @@ const pool = require('../config/db');
 const KEY_PREFIX = 'guest_portal.';
 
 // Known fields — all editable from the Telegram settings page, blank until set.
-const FIELDS = [
+const BASE_FIELDS = [
 	'channel_link',
 	'cage_number',
 	'concierge_number',
@@ -18,6 +18,8 @@ const FIELDS = [
 	'concierge_username',
 	'company_username'
 ];
+// Set 1 uses the bare names; Set 2 uses the same names with a `_2` suffix.
+const FIELDS = BASE_FIELDS.concat(BASE_FIELDS.map((f) => f + '_2'));
 
 let tableEnsured = false;
 let ensurePromise = null;

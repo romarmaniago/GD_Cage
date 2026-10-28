@@ -4183,13 +4183,13 @@ document.addEventListener('DOMContentLoaded', function () {
 })();
 
 // Account Info modal (views/modals/accounts/account_details.ejs): copy the GOLDEN DRAGON
-// details card to the clipboard as an image or as plain text.
+// details cards (Set A / Set B) to the clipboard as an image or as plain text.
 (function () {
 	'use strict';
 
 	function initGdDetailsCopy() {
-		var btnCopyGdDetails = document.getElementById('btn-copy-gd-details');
-		var btnCopyGdDetailsText = document.getElementById('btn-copy-gd-details-text');
+		var btnsCopyGdDetails = document.querySelectorAll('.btn-copy-gd-details');
+		var btnsCopyGdDetailsText = document.querySelectorAll('.btn-copy-gd-details-text');
 
 		// Spinner while copying, "Copied" on success, error popup on failure, then the button's own label again
 		var runGdDetailsCopy = function (btn, copyFn) {
@@ -4218,7 +4218,7 @@ document.addEventListener('DOMContentLoaded', function () {
 				});
 		};
 
-		if (btnCopyGdDetails) {
+		if (btnsCopyGdDetails.length) {
 			var ensureGdHtml2Canvas = function (failText) {
 				if (typeof html2canvas !== 'undefined') return Promise.resolve();
 				if (typeof loadGuestPortalReceiptHtml2Canvas === 'function') return loadGuestPortalReceiptHtml2Canvas();
@@ -4231,8 +4231,9 @@ document.addEventListener('DOMContentLoaded', function () {
 				});
 			};
 
+			Array.prototype.forEach.call(btnsCopyGdDetails, function (btnCopyGdDetails) {
 			btnCopyGdDetails.addEventListener('click', function () {
-				var target = document.getElementById('gd-details-capture');
+				var target = btnCopyGdDetails.closest('.gd-details-capture');
 				if (!target) return;
 				runGdDetailsCopy(btnCopyGdDetails, function (failText) {
 					return ensureGdHtml2Canvas(failText)
@@ -4242,7 +4243,7 @@ document.addEventListener('DOMContentLoaded', function () {
 								scale: 2,
 								useCORS: true,
 								logging: false,
-								ignoreElements: function (el) { return el.id === 'gd-details-copy-actions'; }
+								ignoreElements: function (el) { return el.classList && el.classList.contains('gd-details-copy-actions'); }
 							});
 						})
 						.then(function (canvas) {
@@ -4260,6 +4261,7 @@ document.addEventListener('DOMContentLoaded', function () {
 							return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
 						});
 				});
+			});
 			});
 		}
 
@@ -4283,9 +4285,9 @@ document.addEventListener('DOMContentLoaded', function () {
 			return lines.join('\n').trim();
 		};
 
-		if (btnCopyGdDetailsText) {
+		Array.prototype.forEach.call(btnsCopyGdDetailsText, function (btnCopyGdDetailsText) {
 			btnCopyGdDetailsText.addEventListener('click', function () {
-				var target = document.getElementById('gd-details-capture');
+				var target = btnCopyGdDetailsText.closest('.gd-details-capture');
 				if (!target) return;
 				runGdDetailsCopy(btnCopyGdDetailsText, function (failText) {
 					var text = buildGdDetailsText(target);
@@ -4295,7 +4297,7 @@ document.addEventListener('DOMContentLoaded', function () {
 					return navigator.clipboard.writeText(text);
 				});
 			});
-		}
+		});
 	}
 
 	if (document.readyState === 'loading') {

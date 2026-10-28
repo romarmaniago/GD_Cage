@@ -848,6 +848,7 @@
 		"gpc_cage": "Cage",
 		"gpc_concierge": "Concierge",
 		"gpc_company": "Company",
+		"gpc_set": "세트",
 		"telegram_api_placeholder": "텔레그램 API",
 		"save": "저장",
 		"telegram_bot_details": "텔레그램 봇 세부 정보",
