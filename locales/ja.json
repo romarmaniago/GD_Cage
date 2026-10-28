@@ -1530,6 +1530,7 @@
 		"transaction": "トランザクション",
 		"amount": "金額",
 		"balance_after": "残高",
+		"processed_by": "処理者",
 		"remarks": "備考",
 		"close": "閉じる",
 		"balance_check": "残高チェック",

@@ -1530,6 +1530,7 @@
 		"transaction": "트랜잭션",
 		"amount": "금액",
 		"balance_after": "잔액",
+		"processed_by": "처리자",
 		"remarks": "발언",
 		"close": "닫기",
 		"balance_check": "잔액 확인",

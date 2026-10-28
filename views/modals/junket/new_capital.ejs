@@ -517,7 +517,8 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 					
 					<div class="modal-body">
 						<form id="add_junket_capital" action="/add_junket_capital" method="POST">
-							<div class="house-balance-entry-panel">
+							<%# Manager (11): table only, no entry panel %>
+							<div class="house-balance-entry-panel<%= String(permissions) === '11' ? ' d-none' : '' %>">
 								<div class="row mb-3">
 									<div class="col-sm-6">
 										<label for="capitalProgramDate" class="form-label"><%= __('dashboard_new_capital.program_date') %></label>
@@ -636,7 +637,7 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 							
 							<input type="hidden" name="description" id="description" value="">
 							
-							<hr class="my-2" style="border-color: #dee2e6;">
+							<hr class="my-2<%= String(permissions) === '11' ? ' d-none' : '' %>" style="border-color: #dee2e6;">
 							<div class="custom-datatable-entries">
 							<div class="capital-daterange-slot" id="capital-daterange-slot">
 								<div class="hb-field-daterange-wrap">

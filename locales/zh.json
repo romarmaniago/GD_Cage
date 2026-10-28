@@ -1530,6 +1530,7 @@
 		"transaction": "交易",
 		"amount": "金额",
 		"balance_after": "余额",
+		"processed_by": "处理人",
 		"remarks": "备注",
 		"close": "关闭",
 		"balance_check": "余额检查",

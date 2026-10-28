@@ -1486,6 +1486,7 @@
 		"transaction": "TRANSACTION",
 		"amount": "AMOUNT",
 		"balance_after": "BALANCE",
+		"processed_by": "PROCESSED BY",
 		"remarks": "REMARKS",
 		"action": "ACTION",
 		"receipt": "Receipt",

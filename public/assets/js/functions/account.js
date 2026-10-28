@@ -1706,7 +1706,7 @@ function isAccountDetailsSuperAdmin() {
 }
 
 function accountDetailsHiddenIdColIndex() {
-	return 6;
+	return 7;
 }
 
 function isGuestPortalLedgerEditable(row) {
@@ -1823,7 +1823,8 @@ function buildAccountDetailsLedgerRow(encodedDate, transactionCell, amountCell, 
 	var transactionLabel = transactionCell;
 	var autoRemarks = formatAgentPortalTransactionText(sourceRow.AUTO_REMARKS);
 	transactionCell = autoRemarks ? linkAccountLedgerGameNumbers(escapeHtmlAttr(autoRemarks)) : '—';
-	var row = [encodedDate, amountCell, balanceAfterCell, transactionCell, remarks || ''];
+	var processedBy = String(sourceRow.processed_by || '').trim();
+	var row = [encodedDate, amountCell, balanceAfterCell, transactionCell, remarks || '', processedBy ? escapeHtmlAttr(processedBy) : '—'];
 	row.push(
 		renderAccountLedgerActionCell(
 			ledgerId,
@@ -2224,7 +2225,7 @@ function disposeAccountDetailsRemarksTooltips() {
 
 function accountDetailsActionColumnDefs() {
 	return [{
-		targets: 5,
+		targets: 6,
 		orderable: false,
 		searchable: false,
 		className: 'text-center account-ledger-actions-col',
@@ -2701,8 +2702,9 @@ bindAccountDetailsForm({
 const PORTAL_TXN_FORM = '#modal-account-details #add_new_account_details_alt';
 const PORTAL_TXN_ACCOUNT = '#portal_txn_account';
 
+// Rows locked by role (data-locked, e.g. Company for non Super Admin) stay disabled.
 function portalTxnAmounts() {
-	return $(PORTAL_TXN_FORM).find('.portal-txn-amount');
+	return $(PORTAL_TXN_FORM).find('.portal-txn-amount').not('[data-locked]');
 }
 
 /** "1,000" / "+1,000" → { sign: '+', abs: 1000 }; "-1,000" → { sign: '-', abs: 1000 }. No sign means +. */
@@ -3182,7 +3184,7 @@ function getGuestPortalTablePayload() {
 		return { headers: [], rows: [] };
 	}
 	var table = $tbl.DataTable();
-	var exportColCount = 5; // DATE, AMOUNT, BALANCE AFTER, TRANSACTION, REMARKS
+	var exportColCount = 6; // DATE, AMOUNT, BALANCE AFTER, TRANSACTION, REMARKS, PROCESSED BY
 	var headers = [];
 	$tbl.find('thead th').each(function (index) {
 		if (index >= exportColCount) return;

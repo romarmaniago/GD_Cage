@@ -3466,7 +3466,9 @@ router.get('/account_details_data_deposit/:id', async (req, res) => {
 	  let query = `
 		SELECT *,
 		  account_ledger.IDNo AS account_details_id,
-		  account_ledger.ENCODED_DT AS encoded_date
+		  account_ledger.ENCODED_DT AS encoded_date,
+		  (SELECT COALESCE(NULLIF(TRIM(CONCAT_WS(' ', ui.FIRSTNAME, ui.LASTNAME)), ''), ui.USERNAME)
+		     FROM user_info ui WHERE ui.IDNo = account_ledger.ENCODED_BY) AS processed_by
 		FROM account_ledger
 		JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
 		WHERE account_ledger.ACTIVE = 1
