@@ -590,7 +590,7 @@ $(document).ready(function () {
 
     function getCommissionPanelModalPayload() {
         var agentKey = drilldownState.panelModalAgentKey;
-        var agent = agentKey ? drilldownState.agents[agentKey] : null;
+        var agent = agentKey ? findRankRow(agentKey) : null;
         var txns = getSortedPanelTransactions(agent);
         var headers = [];
         $('#commission-panel-modal-head-table thead tr:first th').each(function () {
@@ -847,6 +847,10 @@ $(document).ready(function () {
         var key = drilldownState.rankingSortKey || 'commission';
         var dir = drilldownState.rankingSortDir === 'asc' ? 'asc' : 'desc';
         return (rows || []).slice().sort(function (a, b) {
+            // Rows with no games (all 0) always go last, whatever the sort
+            var aEmpty = !(a.transactions || []).length;
+            var bEmpty = !(b.transactions || []).length;
+            if (aEmpty !== bEmpty) return aEmpty ? 1 : -1;
             var av = getAgentRankingSortValue(a, key);
             var bv = getAgentRankingSortValue(b, key);
             if (av < bv) return dir === 'asc' ? -1 : 1;
@@ -954,6 +958,7 @@ $(document).ready(function () {
         var $tbody = $('#ca-groups-tbl tbody');
         if (!getSelectedGroup()) caSelectedGroupId = '';
         $('#btn-ca-group-edit, #btn-ca-group-delete').toggleClass('d-none', !caSelectedGroupId);
+        $('#ca-groups-total').text('(' + caGroups.length + ')');
         if (!caGroups.length) {
             $tbody.html('<tr class="ca-groups-empty"><td colspan="4">No groups yet. Click <b>+ Group</b> to add one.</td></tr>');
             return;
@@ -1299,7 +1304,49 @@ $(document).ready(function () {
             item.ngr = Math.round((Number(item.winLoss) || 0) * NGR_WINLOSS_SHARE + getAgentTotalSettlement(item));
             return item;
         }).filter(agentMatchesCompareFilter).filter(agentMatchesGroupFilter);
+        drilldownState.groupRows = {};
+        if (caGroupedOnly && !getSelectedGroup()) rows = buildGroupTotalRows(rows);
         return sortAgentRowsForRanking(rows);
+    }
+
+    // "Categorize Group" tab with no group picked: one row per group, summed over its agents
+    function buildGroupTotalRows(agentRows) {
+        var byId = {};
+        agentRows.forEach(function (a) { byId[String(a.key)] = a; });
+        var out = [];
+        caGroups.forEach(function (g) {
+            var members = (g.agents || []).map(function (m) { return byId[String(m.agent_id)]; }).filter(Boolean);
+            var row = {
+                key: 'group:' + g.group_id,
+                groupId: String(g.group_id),
+                name: g.group_name,
+                totalBuyIn: 0,
+                totalChipsReturn: 0,
+                winLoss: 0,
+                totalRolling: 0,
+                commission: 0,
+                fnb: 0,
+                ngr: 0,
+                transactions: []
+            };
+            members.forEach(function (a) {
+                row.totalBuyIn += Number(a.totalBuyIn) || 0;
+                row.totalChipsReturn += Number(a.totalChipsReturn) || 0;
+                row.winLoss += Number(a.winLoss) || 0;
+                row.totalRolling += Number(a.totalRolling) || 0;
+                row.commission += Number(a.commission) || 0;
+                row.fnb += Number(a.fnb) || 0;
+                row.ngr += Number(a.ngr) || 0;
+                row.transactions = row.transactions.concat(a.transactions || []);
+            });
+            drilldownState.groupRows[row.key] = row;
+            out.push(row);
+        });
+        return out;
+    }
+
+    function findRankRow(key) {
+        return (drilldownState.groupRows || {})[key] || drilldownState.agents[key];
     }
 
     function updateCompareModeBanner() {
@@ -1379,10 +1426,12 @@ $(document).ready(function () {
 
     function renderRankTable(agentRows) {
         var metricOrder = getRankingMetricColumnOrder();
+        var groupMode = caGroupedOnly && !getSelectedGroup();
+        $('#commission-panel-tbl thead th').eq(1).html(groupMode ? 'Group Name' : 'Acc &amp; Name');
         rankTable.clear();
         (agentRows || []).forEach(function (row, idx) {
             var key = encodeURIComponent(row.key);
-            var nameLink = '<a href="#" class="js-open-agent-modal" data-agent-key="' + key + '">' + row.name + '</a>';
+            var nameLink = '<a href="#" class="js-open-agent-modal" data-agent-key="' + key + '">' + escapeHtml(row.name) + '</a>';
             var rowData = [
                 idx + 1,
                 nameLink
@@ -1754,7 +1803,7 @@ $(document).ready(function () {
     $(document).on('click', '#commission-panel-tbl .js-ca-receipt', function (e) {
         e.preventDefault();
         if (!window.GameInfoReceipt) return;
-        var agent = drilldownState.agents[decodeURIComponent($(this).attr('data-agent-key') || '')];
+        var agent = findRankRow(decodeURIComponent($(this).attr('data-agent-key') || ''));
         if (!agent) return;
         var row = window.GameInfoReceipt.row;
         var games = (agent.transactions || []).length;
@@ -1782,7 +1831,7 @@ $(document).ready(function () {
     $(document).on('click', '.js-open-agent-modal', function (e) {
         e.preventDefault();
         var key = decodeURIComponent($(this).attr('data-agent-key') || '');
-        var agent = drilldownState.agents[key];
+        var agent = findRankRow(key);
         if (!agent) return;
         drilldownState.panelTxnSortKey = 'dateTime';
         drilldownState.panelTxnSortDir = 'desc';
@@ -1802,7 +1851,7 @@ $(document).ready(function () {
             renderPanelTxnSortIndicators();
             return;
         }
-        var agent = drilldownState.agents[agentKey];
+        var agent = findRankRow(agentKey);
         if (!agent) return;
         renderModal(agent);
     });

@@ -52,7 +52,7 @@
 					<div class="ca-layout">
 					<div class="ca-groups-panel">
 						<div class="ca-groups-title">
-							<span>Categorize Group</span>
+							<span>Categorize Group <span id="ca-groups-total" class="ca-groups-total">(0)</span></span>
 							<div class="ca-group-filter">
 								<button type="button" id="btn-ca-group-new" class="btn btn-sm ca-group-btn" title="New Group" data-view-only-disable>
 									<i class="fa fa-plus" aria-hidden="true"></i>
@@ -227,7 +227,7 @@
 <%- include('../partials/footer') %>
 <script src="/assets/js/functions/num_paren_align.js"></script>
 <script src="/assets/js/functions/game_information_receipt.js?v=3"></script>
-<script src="/assets/js/functions/commission_analytics.js?v=31"></script>
+<script src="/assets/js/functions/commission_analytics.js?v=35"></script>
 
 <style>
 #modal-gi-agent-group .select2-container {
@@ -441,6 +441,9 @@
 	padding: 10px 12px;
 	flex-shrink: 0;
 	border-bottom: 1px solid #e8ecf1;
+}
+.ca-groups-total {
+	color: #b8963e;
 }
 .ca-groups-scroll {
 	flex: 1 1 0;
