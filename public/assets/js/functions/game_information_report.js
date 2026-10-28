@@ -327,11 +327,9 @@
 					className: 'text-center',
 					orderable: false,
 					searchable: false,
-					render: function (acc) {
+					render: function () {
 						return '<div class="gir-actions">' +
 							'<button type="button" class="btn btn-sm gir-receipt-btn" title="Report"><i class="fa fa-receipt" aria-hidden="true"></i></button>' +
-							'<button type="button" class="btn btn-sm gir-ticket-btn" title="Print tickets"' + (acc.event > 0 ? '' : ' disabled') + '>' +
-							'<i class="fa fa-ticket" aria-hidden="true"></i></button>' +
 							'</div>';
 					}
 				}
@@ -758,66 +756,6 @@
 		$input.on('blur', function () { finish(true); });
 	}
 
-	/* ---------- Raffle tickets ---------- */
-
-	/**
-	 * Prints one ticket per EVENT (raffle ticket) of the account, four per row, to be cut apart.
-	 * Every ticket shows the date, account code, name and the account's EVENT count.
-	 */
-	function printTickets(acc) {
-		if (!acc || !(acc.event > 0)) return;
-		var dateText = programFrom && programTo
-			? (programFrom === programTo ? programTo : programFrom + ' ~ ' + programTo)
-			: '';
-		var ticket =
-			'<div class="ticket">' +
-			'<div class="t-date">' + esc(dateText) + '</div>' +
-			'<div class="t-acc">' + esc(String(acc.agent_code || '').toUpperCase()) + '</div>' +
-			'<div class="t-name">' + esc(String(acc.agent_name || '').toUpperCase()) + '</div>' +
-			'<div class="t-count">' + fmtWhole(acc.event) + '</div>' +
-			'</div>';
-		var tickets = new Array(acc.event + 1).join(ticket);
-
-		var css = [
-			'@page{size:A4 portrait;margin:8mm;}',
-			'*{box-sizing:border-box;}',
-			'body{margin:0;font-family:Calibri,"Segoe UI",Arial,sans-serif;color:#000;}',
-			'.sheet{display:grid;grid-template-columns:repeat(4,1fr);}',
-			'.ticket{height:16mm;border:1px solid #000;margin:0 -1px -1px 0;display:flex;flex-direction:column;',
-			'align-items:center;justify-content:center;text-align:center;line-height:1.2;break-inside:avoid;page-break-inside:avoid;}',
-			'.t-date{font-size:8pt;}',
-			'.t-acc,.t-name,.t-count{font-size:9pt;font-weight:700;}'
-		].join('');
-
-		var iframe = document.createElement('iframe');
-		iframe.style.position = 'fixed';
-		iframe.style.left = '-20000px';
-		iframe.style.top = '0';
-		iframe.style.width = '800px';
-		iframe.style.height = '800px';
-		iframe.style.border = '0';
-		document.body.appendChild(iframe);
-
-		var frameWindow = iframe.contentWindow;
-		var frameDoc = frameWindow.document;
-		frameDoc.open();
-		frameDoc.write('<!doctype html><html><head><meta charset="utf-8"><title>Tickets ' + esc(acc.agent_code) +
-			'</title><style>' + css + '</style></head><body><div class="sheet">' + tickets + '</div></body></html>');
-		frameDoc.close();
-
-		var cleanup = function () {
-			setTimeout(function () {
-				if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-			}, 300);
-		};
-		frameWindow.onafterprint = cleanup;
-		setTimeout(function () {
-			frameWindow.focus();
-			frameWindow.print();
-			cleanup();
-		}, 250);
-	}
-
 	/* ---------- Print / Export ---------- */
 
 	function getTablePayload() {
@@ -927,28 +865,6 @@
 		});
 		$('#gi-report-tbl tbody').on('click', '.gir-rolling-edit', function () {
 			startCellEdit($(this).closest('td')[0], 'rolling');
-		});
-
-		$('#gi-report-tbl tbody').on('click', '.gir-ticket-btn', function (e) {
-			e.preventDefault();
-			var acc = dataTable.row($(this).closest('tr')).data();
-			if (!acc || !(acc.event > 0)) return;
-			// 68 tickets (4 x 17) fit on one A4 page — ask first before a long print
-			var pages = Math.ceil(acc.event / 68);
-			if (pages <= 5 || typeof Swal === 'undefined') {
-				printTickets(acc);
-				return;
-			}
-			Swal.fire({
-				icon: 'warning',
-				title: 'Print ' + fmtWhole(acc.event) + ' tickets?',
-				text: 'This is about ' + fmtWhole(pages) + ' pages for ' + acc.agent_code + '.',
-				showCancelButton: true,
-				confirmButtonText: 'Print',
-				cancelButtonText: 'Cancel'
-			}).then(function (result) {
-				if (result.isConfirmed) printTickets(acc);
-			});
 		});
 
 		$('#gi-report-tbl tbody').on('click', '.gir-receipt-btn', function (e) {
