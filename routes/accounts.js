@@ -2611,7 +2611,8 @@ router.post('/add_account_details', async (req, res) => {
 		txtProgramDate,
 		txtGuarantor,
 		txtCategory,
-		txtServiceType
+		txtServiceType,
+		txtCreditDeposit
 	} = req.body;
 	let date_now = new Date();
 
@@ -2748,8 +2749,11 @@ router.post('/add_account_details', async (req, res) => {
 				encodedBy: req.session.user_id,
 				encodedDt: date_now
 			});
+		}
 
-			// The credit goes straight into the account balance (cage cash nets to zero: credit out, deposit in).
+		// Agent Portal Credit "+" only: the credit goes straight into the account balance
+		// (cage cash nets to zero: credit out, deposit in). Credits modal Cash-out stays cash-only.
+		if (String(txtTrans) === '3' && String(txtCreditDeposit) === '1') {
 			const [depositResult] = await pool.query(insertQuery, [txtAccountId, 1, 2, transacDesc, txtAmountNum, userRemarks, CREDIT_DEPOSIT_AUTO_REMARKS, req.session.user_id, date_now]);
 			await recordHistory({
 				ledgerId: depositResult.insertId,

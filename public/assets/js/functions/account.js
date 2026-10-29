@@ -3040,6 +3040,7 @@ $(PORTAL_TXN_FORM).on('submit', function (event) {
 				txtAmount: String(amount),
 				txtRemarks: remarks,
 				txtGuarantor: guarantor,
+				txtCreditDeposit: '1',
 				sendToTelegram,
 				totalBalanceGuest: String(availableBalance)
 			}, 'credit'), true);
