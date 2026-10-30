@@ -329,7 +329,7 @@
 		if (!els.historyBody) return;
 		var entries = Array.isArray(payload && payload.entries) ? payload.entries : [];
 		if (!entries.length) {
-			els.historyBody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">No entries for this date</td></tr>';
+			els.historyBody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">' + (getPeriodRange() ? 'No entries for this period' : 'No entries for this date') + '</td></tr>';
 			return;
 		}
 		// Program Date, then encoded time, then id — oldest-to-newest so the latest entry sits at the bottom.
@@ -352,11 +352,26 @@
 		}).join('');
 	}
 
+	// Dashboard cut-off month range (same as the period picker); falls back to the current cut-off.
+	function getPeriodRange() {
+		var from = String(($('dash-date-from') || {}).value || '').trim();
+		var to = String(($('dash-date-to') || {}).value || '').trim();
+		if ((!from || !to) && window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.getMonthEndCutoffRange === 'function') {
+			var range = window.MonthEndCutoffRange.getMonthEndCutoffRange() || {};
+			from = from || String(range.startDate || '').slice(0, 10);
+			to = to || String(range.endDate || '').slice(0, 10);
+		}
+		return /^\d{4}-\d{2}-\d{2}$/.test(from) && /^\d{4}-\d{2}-\d{2}$/.test(to) ? { from: from, to: to } : null;
+	}
+
 	async function loadHistory(currency, reportDate) {
 		if (!els.historyBody || !currency || !reportDate) return;
 		els.historyBody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Loading...</td></tr>';
 		try {
-			var q = new URLSearchParams({ currency: currency, report_date: reportDate });
+			var period = getPeriodRange();
+			var q = new URLSearchParams(period
+				? { currency: currency, date_from: period.from, date_to: period.to }
+				: { currency: currency, report_date: reportDate });
 			var res = await fetch('/cage_manual_cash_history?' + q, { credentials: 'same-origin' });
 			var data = await res.json().catch(function () { return {}; });
 			if (!res.ok) throw new Error(data.message || 'Unable to load history.');

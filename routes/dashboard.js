@@ -4596,13 +4596,18 @@ router.get('/cage_manual_cash_history', checkSession, async (req, res) => {
 	try {
 		const currency = normalizeCageManualCurrency(req.query.currency);
 		const reportDate = String(req.query.report_date || '').trim();
+		const isYmd = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+		const dateFrom = String(req.query.date_from || '').trim();
+		const dateTo = String(req.query.date_to || '').trim();
+		const useRange = isYmd(dateFrom) && isYmd(dateTo);
 		if (!currency) {
 			return res.status(400).json({ message: 'Currency is required.' });
 		}
-		if (!reportDate) {
+		if (!useRange && !reportDate) {
 			return res.status(400).json({ message: 'Report date is required.' });
 		}
 
+		// Month range (dashboard cut-off period) when given, else the single program date.
 		const [rows] = await pool.execute(
 			`SELECT
 				cmc.IDNo AS id,
@@ -4613,9 +4618,9 @@ router.get('/cage_manual_cash_history', checkSession, async (req, res) => {
 			 FROM cage_manual_cash cmc
 			 WHERE cmc.ACTIVE = 1
 				AND UPPER(cmc.CURRENCY) = ?
-				AND cmc.REPORT_DATE = ?
+				AND ${useRange ? 'cmc.REPORT_DATE BETWEEN ? AND ?' : 'cmc.REPORT_DATE = ?'}
 			 ORDER BY cmc.ENCODED_DT DESC, cmc.IDNo DESC`,
-			[currency, reportDate]
+			useRange ? [currency, dateFrom, dateTo] : [currency, reportDate]
 		);
 
 		const entries = rows || [];
