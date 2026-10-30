@@ -188,14 +188,14 @@ $(document).ready(function() {
 
 	/**
 	 * Footer Total: signed like the Amount column / dashboard Add Charge (JUNKET = outflow), over the
-	 * filtered rows (date range, category tab, search). Settled rows are already in company capital.
+	 * filtered rows (date range, category tab, search). Settled rows are included.
 	 */
 	function updateFnbHotelTotal(api) {
 		const $total = $('#fnb-hotel-total-amount');
 		if (!$total.length || !api) return;
 		let total = 0;
 		api.rows({ search: 'applied' }).nodes().each(function (node) {
-			if (!node || node.dataset.settled === '1') return;
+			if (!node) return;
 			total += Number(node.dataset.signedAmount) || 0;
 		});
 		$total.html(typeof window.formatServiceChargeAmount === 'function'
@@ -435,9 +435,9 @@ $(document).ready(function() {
 		return headers;
 	}
 
-	// Same rule as the table Total: settled rows are already in company capital, so they are left out.
+	// Same rule as the table Total: settled rows are included.
 	function getFnbHotelOutputTotal(rows) {
-		return rows.reduce(function (sum, row) { return row.settled ? sum : sum + row.amount; }, 0);
+		return rows.reduce(function (sum, row) { return sum + row.amount; }, 0);
 	}
 
 	// As shown on screen: negative "(x)", positive plain
@@ -579,7 +579,7 @@ $(document).ready(function() {
 			return;
 		}
 		// Real values for Excel: dates as dates, Amount as a signed number. The total is sent as-is
-		// because it leaves settled rows out.
+		// (same as the table Total).
 		const rows = data.map(function (row) {
 			return [row.programDate, row.date, row.account, row.guest, row.type, row.amount, row.payment, row.remarks];
 		});

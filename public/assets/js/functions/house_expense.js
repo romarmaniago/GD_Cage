@@ -320,9 +320,14 @@ function houseExpenseGetApprovalStatus(row) {
     return Number.isNaN(s) ? 1 : s;
 }
 
-/** Counts toward totals: not rejected and not yet settled (settled rows are already paid out of capital). */
+/** Counts toward the page / modal totals: not rejected (settled rows are still counted). */
 function houseExpenseIsApprovedForTotals(row) {
-    return houseExpenseGetApprovalStatus(row) !== 2 && !houseExpenseIsSettled(row);
+    return houseExpenseGetApprovalStatus(row) !== 2;
+}
+
+/** Dashboard main panel Expenses: not rejected and not yet settled (settled rows are already paid out of capital). */
+function houseExpenseIsUnsettledForTotals(row) {
+    return houseExpenseIsApprovedForTotals(row) && !houseExpenseIsSettled(row);
 }
 
 /** Pending/rejected first; approved last. */
@@ -1059,11 +1064,13 @@ function houseExpenseNetAmountForTotals(row) {
 
 function houseExpenseSumRowsForFooter(rows) {
     var totalExpense = 0;
+    var unsettledExpense = 0;
     (rows || []).forEach(function (row) {
         if (!row) return;
         if (houseExpenseIsApprovedForTotals(row)) totalExpense += houseExpenseNetAmountForTotals(row);
+        if (houseExpenseIsUnsettledForTotals(row)) unsettledExpense += houseExpenseNetAmountForTotals(row);
     });
-    return { totalExpense: totalExpense };
+    return { totalExpense: totalExpense, unsettledExpense: unsettledExpense };
 }
 
 /**
@@ -1107,7 +1114,7 @@ function formatHouseExpenseRunningTotalHtml(total) {
 
 function updateHouseExpenseItemFooterTotals(allRows) {
     var sums = houseExpenseSumRowsForFooter(houseExpenseGetFilteredItemRows(allRows));
-    setHouseExpenseFooterTotals(sums.totalExpense);
+    setHouseExpenseFooterTotals(sums.totalExpense, sums.unsettledExpense);
 }
 
 function houseExpenseGetItemPageSize() {
@@ -2024,12 +2031,12 @@ window.showHouseExpenseEditHistory = function (expenseId) {
         });
 };
 
-/** Updates expense footer amount. */
-function setHouseExpenseFooterTotals(totalExpense) {
+/** Updates expense footer amount (settled included); the dashboard panel gets the unsettled amount. */
+function setHouseExpenseFooterTotals(totalExpense, unsettledExpense) {
     var te = Number(totalExpense) || 0;
     if (te < 0) return $('#TOTAL_EXPENSE_AMOUNT').text(formatHouseExpenseNumber(Math.abs(te)));
     $('#TOTAL_EXPENSE_AMOUNT').html(window.fmtOut ? window.fmtOut(te) : '(' + formatHouseExpenseNumber(te) + ')');
-    updateDashboardExpensesTotal(te);
+    updateDashboardExpensesTotal(unsettledExpense);
 }
 
 function updateDashboardExpensesTotal(amount) {
@@ -2052,13 +2059,15 @@ function houseExpenseApplyLoadedData(data) {
         return !!row;
     });
     var total_expense = 0;
+    var unsettled_expense = 0;
     rows.forEach(function (row) {
         if (houseExpenseIsApprovedForTotals(row)) total_expense += houseExpenseNetAmountForTotals(row);
+        if (houseExpenseIsUnsettledForTotals(row)) unsettled_expense += houseExpenseNetAmountForTotals(row);
     });
     window.houseExpenseLastRows = rows;
     houseExpenseResetItemPage();
     renderHouseExpenseAnalytics(rows, total_expense);
-    updateDashboardExpensesTotal(total_expense);
+    updateDashboardExpensesTotal(unsettled_expense);
     houseExpenseReconcileExplorerState();
     if (typeof window.updateSettleButtonState === 'function') {
         window.updateSettleButtonState(rows.length);
@@ -3079,7 +3088,7 @@ $(document).ready(function () {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
-            // TOTAL EXPENSES skips rejected / settled rows (like the page), so send it instead of a SUM of the column
+            // TOTAL EXPENSES skips rejected rows (like the page), so send it instead of a SUM of the column
             body: JSON.stringify({
                 headers: headers,
                 rows: rows,

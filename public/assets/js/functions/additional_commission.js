@@ -301,11 +301,11 @@
       if (api) {
         api.rows({ search: 'applied' }).every(function () {
           const row = this.data();
-          if (!isSettled(row)) total += Number(row && row.AMOUNT) || 0;
+          total += Number(row && row.AMOUNT) || 0;
         });
       } else {
         total = (records || []).reduce(function (sum, row) {
-          return isSettled(row) ? sum : sum + (Number(row && row.AMOUNT) || 0);
+          return sum + (Number(row && row.AMOUNT) || 0);
         }, 0);
       }
 

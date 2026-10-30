@@ -428,13 +428,13 @@ function formatJunketLossAmountDisplay(value) {
 
 function updateJunketLossTableTotal(api) {
     if (!api) return;
-    // Settled rows are already out of company capital, so they are not part of the total.
+    // Settled rows stay in the total (still part of the period's loss amount).
     const total = api
         .rows({ search: 'applied' })
         .data()
         .toArray()
         .reduce(function (sum, row) {
-            return isJunketLossSettled(row) ? sum : sum + (Number(row.AMOUNT) || 0);
+            return sum + (Number(row.AMOUNT) || 0);
         }, 0);
     $('#junket-loss-total-amount').html(formatJunketLossAmountDisplay(total));
 }
@@ -1155,10 +1155,10 @@ $(document).ready(function () {
         return headers;
     }
 
-    // Same rule as the table Total: settled entries are left out, recoveries (negative) reduce it.
+    // Same rule as the table Total: settled entries included, recoveries (negative) reduce it.
     function getJunketLossOutputTotal(rows) {
         return rows.reduce(function (sum, row) {
-            return isJunketLossSettled(row) ? sum : sum + (Number(row.AMOUNT) || 0);
+            return sum + (Number(row.AMOUNT) || 0);
         }, 0);
     }
 
@@ -1298,7 +1298,7 @@ $(document).ready(function () {
             return;
         }
         // Real values for Excel: dates as dates, Amount signed as shown (a loss is negative "(x)",
-        // a recovery positive). The total is sent as-is because it leaves settled entries out.
+        // a recovery positive). The total is sent as-is (same as the table Total).
         var rows = data.map(function (row) {
             return [
                 junketLossProgramDate(row),

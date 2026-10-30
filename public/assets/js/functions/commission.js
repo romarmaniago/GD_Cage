@@ -666,8 +666,6 @@ $(document).ready(function() {
         table.rows({ search: 'applied' }).every(function () {
             var data = this.data();
             if (!data) return;
-            // Commission → Settle: already in company capital, so not in the Grand Total.
-            if ($(this.node()).hasClass('is-settled')) return;
 
             var buyInValue = data[9] || '0';
             var chipsReturnValue = data[10] || '0';
@@ -1263,7 +1261,7 @@ $(document).ready(function() {
                                     var paymentValue = Math.round(signedCommission + fb);
 
 
-                                    // Commission → Settle: locked, tinted; calculateCommissionTotals() leaves it out of the Grand Total.
+                                    // Commission → Settle: locked, tinted; still counted in the Grand Total.
                                     var isCommissionSettled = row.COMMISSION_SETTLEMENT_ID != null && row.COMMISSION_SETTLEMENT_ID !== '';
 
                                     // Add to grand totals
