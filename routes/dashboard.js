@@ -42,7 +42,7 @@ const {
 } = require('../utils/creditService');
 const { buildTableExportXlsx, sendTableExportResponse, sanitizeSheetName } = require('../utils/ExcelExportService');
 const { buildDashboardGridExportXlsx } = require('../utils/dashboardGridExport');
-const { computeDashboardPeriodSummary } = require('../utils/dashboardPeriodSummary');
+const { computeDashboardPeriodSummary, computeAnticipatedCompanyForPeriod } = require('../utils/dashboardPeriodSummary');
 const {
 	sqlJunketExpenseResetTotal,
 	sqlJunketExpenseTotal,
@@ -1064,6 +1064,12 @@ let sqlServiceSettle = `
 		const dashboardMonthKey = currentMonthKey();
 		const dashboardWlSharePct = await loadDashboardWlSharePct(pool, dashboardMonthKey);
 		const serviceExpenseData = await loadDashboardServiceExpenseData();
+		let anticipatedCompany = null;
+		try {
+			anticipatedCompany = await computeAnticipatedCompanyForPeriod(pool, dashboardDateFromIso, dashboardDateToIso);
+		} catch (anticipatedErr) {
+			console.error('dashboard anticipated company:', anticipatedErr.message || anticipatedErr);
+		}
 
 		// Cumulative Cage Balance figures (Balance Total = Main-panel sum; PHP shown
 		// as the balancing figure). Passed so the SSR of the Cage Balance card and
@@ -1201,7 +1207,8 @@ let sqlServiceSettle = `
 			sqlCommissionSettlement: totalCommissionSettlement || 0,
 			sqlAdditionalCommission: totalAdditionalCommission || 0,
 			sqlManualBalancing: manualBalancingResult || 0,
-			serviceCategoryRows: serviceExpenseData.payload.categories || []
+			serviceCategoryRows: serviceExpenseData.payload.categories || [],
+			anticipatedCompany
 		});
 
 	} catch (err) {

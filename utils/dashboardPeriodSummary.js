@@ -111,16 +111,17 @@ async function computeExpenseForPeriod(pool, dateFrom, dateTo, { unsettledOnly =
 }
 
 /**
- * Loss Amount for the Main / Anticipated panels. Settled losses (Loss Amount → Settle) are excluded:
+ * Loss Amount for the Main panel. Settled losses (Loss Amount → Settle) are excluded:
  * they were already withdrawn from junket_capital, so they must not be subtracted a second time.
+ * includeSettled: Anticipated Profit → Company keeps settled rows (period cost, not cage cash).
  */
-async function computeJunketLossForPeriod(pool, dateFrom, dateTo) {
+async function computeJunketLossForPeriod(pool, dateFrom, dateTo, { includeSettled = false } = {}) {
 	return sumScalar(
 		pool,
 		`SELECT COALESCE(SUM(AMOUNT), 0) AS total
 		 FROM junket_loss
 		 WHERE ACTIVE = 1
-			AND LOSS_SETTLEMENT_ID IS NULL
+			${includeSettled ? '' : 'AND LOSS_SETTLEMENT_ID IS NULL'}
 			AND PROGRAM_DATE BETWEEN ? AND ?`,
 		[dateFrom, dateTo]
 	);
@@ -162,14 +163,14 @@ async function computeSoaForPeriod(pool, dateFrom, dateTo) {
 	);
 }
 
-/** Settled rows (Additional → Settle) are excluded: already withdrawn from junket_capital. */
-async function computeAdditionalCommissionForPeriod(pool, dateFrom, dateTo) {
+/** Settled rows (Additional → Settle) are excluded unless includeSettled (Anticipated Profit). */
+async function computeAdditionalCommissionForPeriod(pool, dateFrom, dateTo, { includeSettled = false } = {}) {
 	return sumScalar(
 		pool,
 		`SELECT COALESCE(SUM(AMOUNT), 0) AS total
 		 FROM additional_commission
 		 WHERE ACTIVE = 1
-			AND ADDITIONAL_SETTLEMENT_ID IS NULL
+			${includeSettled ? '' : 'AND ADDITIONAL_SETTLEMENT_ID IS NULL'}
 			AND DATE(COALESCE(PROGRAM_DATE, ENCODED_DT)) BETWEEN ? AND ?`,
 		[dateFrom, dateTo]
 	);
@@ -277,7 +278,7 @@ async function accumulateCommissionSettlement(pool, games, { resetOnly = false }
 	return Math.round(total);
 }
 
-async function computeCommissionSettlementForPeriod(pool, dateFrom, dateTo) {
+async function computeCommissionSettlementForPeriod(pool, dateFrom, dateTo, { includeSettled = false } = {}) {
 	const [games] = await pool.execute(
 		`SELECT
 			gl.IDNo AS game_list_id,
@@ -286,7 +287,7 @@ async function computeCommissionSettlementForPeriod(pool, dateFrom, dateTo) {
 		 FROM game_list gl
 		 WHERE gl.ACTIVE != 0
 			AND gl.SETTLED = 1
-			AND gl.COMMISSION_SETTLEMENT_ID IS NULL
+			${includeSettled ? '' : 'AND gl.COMMISSION_SETTLEMENT_ID IS NULL'}
 			AND DATE(COALESCE(gl.GAME_ENDED, gl.ENCODED_DT)) BETWEEN ? AND ?
 		 ORDER BY gl.IDNo ASC`,
 		[dateFrom, dateTo]
@@ -395,15 +396,19 @@ async function computeMainPanelSumTotal(pool) {
 	);
 }
 
-/** Add Charge balance; settled rows (Add Charge → Settle) are already moved into junket_capital. */
-async function loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo) {
+/**
+ * Add Charge balance; settled rows (Add Charge → Settle) are already moved into junket_capital.
+ * includeSettled: Anticipated Profit → Company keeps them.
+ */
+async function loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo, { includeSettled = false } = {}) {
+	const unsettled = includeSettled ? '' : 'AND SERVICE_SETTLEMENT_ID IS NULL';
 	const dateFilter = `AND COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) BETWEEN ? AND ?`;
 	const params = [dateFrom, dateTo];
 
 	const [junketDepositRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		 FROM game_services
-		 WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET'
+		 WHERE ACTIVE = 1 ${unsettled} AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET'
 			${dateFilter}
 		 GROUP BY SERVICE_TYPE`,
 		params
@@ -411,7 +416,7 @@ async function loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo) {
 	const [junketCashRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		 FROM game_services
-		 WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'JUNKET'
+		 WHERE ACTIVE = 1 ${unsettled} AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'JUNKET'
 			${dateFilter}
 		 GROUP BY SERVICE_TYPE`,
 		params
@@ -419,7 +424,7 @@ async function loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo) {
 	const [guestDepositRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		 FROM game_services
-		 WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST'
+		 WHERE ACTIVE = 1 ${unsettled} AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST'
 			${dateFilter}
 		 GROUP BY SERVICE_TYPE`,
 		params
@@ -427,7 +432,7 @@ async function loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo) {
 	const [guestCashRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		 FROM game_services
-		 WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'GUEST'
+		 WHERE ACTIVE = 1 ${unsettled} AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'GUEST'
 			${dateFilter}
 		 GROUP BY SERVICE_TYPE`,
 		params
@@ -782,6 +787,40 @@ async function computeCageMainForPeriod(pool, dateFrom, dateTo) {
 }
 
 /**
+ * Anticipated Profit → Company rows for the period, settled rows included: a Settle only
+ * moves the cash out of company capital, it is still a cost of the period. (The Main panel
+ * uses the unsettled-only figures, so it drops to 0 after a Settle.)
+ */
+async function computeAnticipatedCompanyForPeriod(pool, dateFromInput, dateToInput) {
+	const { dateFrom, dateTo } = resolvePeriodDates(dateFromInput, dateToInput);
+	const opts = { includeSettled: true };
+	const [expense, junketLoss, additionalCommission, commissionSettlement, servicePayload] = await Promise.all([
+		computeExpenseForPeriod(pool, dateFrom, dateTo),
+		computeJunketLossForPeriod(pool, dateFrom, dateTo, opts),
+		computeAdditionalCommissionForPeriod(pool, dateFrom, dateTo, opts),
+		computeCommissionSettlementForPeriod(pool, dateFrom, dateTo, opts),
+		loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo, opts)
+	]);
+	const serviceCategories = Array.isArray(servicePayload && servicePayload.categories)
+		? servicePayload.categories
+		: [];
+	const serviceBalanceTotal = Math.round(
+		serviceCategories.reduce((sum, cat) => sum + (Number(cat.balance) || 0), 0)
+	);
+	const companyExpenseBase = expense + junketLoss + commissionSettlement + additionalCommission;
+	return {
+		expense,
+		junketLoss,
+		additionalCommission,
+		commissionSettlement,
+		serviceCategories,
+		companyExpenseBase,
+		// "Company" section total = base costs minus the net service balance shown in the rows.
+		companyExpenseTotal: companyExpenseBase - serviceBalanceTotal
+	};
+}
+
+/**
  * Period totals for all dashboard amount panels (date-filtered like other pages).
  */
 async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
@@ -797,7 +836,8 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 		commissionSettlement,
 		servicePayload,
 		cageMain,
-		companyCapitalBalance
+		companyCapitalBalance,
+		anticipated
 	] = await Promise.all([
 		computeWinLossForPeriod(pool, dateFrom, dateTo),
 		computeExpenseForPeriod(pool, dateFrom, dateTo),
@@ -808,7 +848,8 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 		computeCommissionSettlementForPeriod(pool, dateFrom, dateTo),
 		loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo),
 		computeCageMainForPeriod(pool, dateFrom, dateTo),
-		computeJunketCapitalBalanceForPeriod(pool, dateFrom, dateTo)
+		computeJunketCapitalBalanceForPeriod(pool, dateFrom, dateTo),
+		computeAnticipatedCompanyForPeriod(pool, dateFrom, dateTo)
 	]);
 
 	const serviceCategories = Array.isArray(servicePayload && servicePayload.categories)
@@ -819,13 +860,9 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 			serviceCategories.reduce((sum, cat) => sum + (Number(cat.junketOut) || 0), 0)
 	);
 
-	// Settled expenses are excluded here too (Anticipated Profit → Company).
-	const companyExpenseBase = expenseUnsettled + junketLoss + commissionSettlement + additionalCommission;
 	const serviceBalanceTotal = Math.round(
 		serviceCategories.reduce((sum, cat) => sum + (Number(cat.balance) || 0), 0)
 	);
-	// "Company" section total = base costs minus the net service balance shown in the rows.
-	const companyExpenseTotal = companyExpenseBase - serviceBalanceTotal;
 	const mainAvailableAmount = Math.round(
 		companyCapitalBalance
 		- (Number(cageMain.credit) || 0)
@@ -849,8 +886,14 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 		commission_settlement: commissionSettlement,
 		service_categories: serviceCategories,
 		service_junket_out_total: serviceJunketOutTotal,
-		company_expense_base: companyExpenseBase,
-		company_expense_total: companyExpenseTotal,
+		// Anticipated Profit → Company (settled rows included; see computeAnticipatedCompanyForPeriod).
+		anticipated_expense: anticipated.expense,
+		anticipated_junket_loss: anticipated.junketLoss,
+		anticipated_additional_commission: anticipated.additionalCommission,
+		anticipated_commission_settlement: anticipated.commissionSettlement,
+		anticipated_service_categories: anticipated.serviceCategories,
+		company_expense_base: anticipated.companyExpenseBase,
+		company_expense_total: anticipated.companyExpenseTotal,
 		company_capital_balance: companyCapitalBalance,
 		main_available_amount: mainAvailableAmount,
 		cage: cageMain
@@ -861,5 +904,6 @@ module.exports = {
 	gameFiguresFromRecords,
 	resolvePeriodDates,
 	computeDashboardPeriodSummary,
+	computeAnticipatedCompanyForPeriod,
 	computeMainPanelSumTotal
 };

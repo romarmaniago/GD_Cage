@@ -166,6 +166,14 @@
       const grandTotalEl = document.getElementById('dash-grand-total');
 
       if (mainTotalEl) mainTotalEl.innerHTML = formatDashboardNegHtml(total);
+
+      // Dashboard: Anticipated Profit → Company keeps settled rows (total here is unsettled
+      // only), so let the period summary refresh the Anticipated card + Cage Balance.
+      if (typeof window.dashboardPeriodReload === 'function') {
+        try { window.dashboardPeriodReload(); } catch (e) { /* noop */ }
+        return;
+      }
+
       if (anticipatedEl) anticipatedEl.innerHTML = formatDashboardNegHtml(total);
 
       if (!anticipatedPanel) return;

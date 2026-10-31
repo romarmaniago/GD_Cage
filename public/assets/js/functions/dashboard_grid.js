@@ -1896,7 +1896,8 @@
 
     const winLoss = Math.round(Number(summary.win_loss) || 0);
     const expense = Math.round(Number(summary.expense) || 0);
-    // Main + Anticipated exclude settled expenses (already withdrawn from company capital).
+    // Main excludes settled rows (already withdrawn from company capital); Anticipated
+    // Profit → Company keeps them so a Settle does not zero the period's costs.
     const expenseMain = summary.expense_unsettled != null
       ? Math.round(Number(summary.expense_unsettled) || 0)
       : expense;
@@ -1907,6 +1908,14 @@
     const companyExpenseBase = Math.round(Number(summary.company_expense_base) || 0);
     const companyExpenseTotal = Math.round(Number(summary.company_expense_total) || 0);
     const categories = Array.isArray(summary.service_categories) ? summary.service_categories : [];
+    const pickAnticipated = (key, fallback) => (summary[key] != null ? Math.round(Number(summary[key]) || 0) : fallback);
+    const expenseAnt = pickAnticipated('anticipated_expense', expense);
+    const junketLossAnt = pickAnticipated('anticipated_junket_loss', junketLoss);
+    const additionalAnt = pickAnticipated('anticipated_additional_commission', additional);
+    const commissionAnt = pickAnticipated('anticipated_commission_settlement', commission);
+    const categoriesAnt = Array.isArray(summary.anticipated_service_categories)
+      ? summary.anticipated_service_categories
+      : categories;
 
     const panel = document.getElementById('dash-anticipated-panel');
     const rate = Number(panel && panel.dataset.wlRate);
@@ -1920,7 +1929,7 @@
       panel.dataset.serviceSettle = String(soa);
       panel.dataset.companyExpense = String(companyExpenseTotal);
       panel.dataset.companyExpenseBase = String(companyExpenseBase);
-      panel.dataset.additionalCommission = String(additional);
+      panel.dataset.additionalCommission = String(additionalAnt);
     }
 
     setHtmlById('winloss', formatDashAmtHtml(winLoss));
@@ -1929,14 +1938,14 @@
     setHtmlById('dash-soa-fnb-hotel-total', formatDashAmtHtml(soa || 0));
     setHtmlById('dash-casino-total', formatDashAmtHtml(casinoTotal));
     setHtmlById('dash-expenses-total', formatDashAmtHtml(expenseMain, true));
-    setHtmlById('dash-expenses-total-anticipated', formatDashAmtHtml(expenseMain, true));
+    setHtmlById('dash-expenses-total-anticipated', formatDashAmtHtml(expenseAnt, true));
     // Net loss is stored positive: a loss shows red (x); recoveries above the loss show plain.
     setHtmlById('dash-junket-loss-total', formatDashAmtHtml(-junketLoss));
-    setHtmlById('dash-junket-loss-total-anticipated', formatDashAmtHtml(-junketLoss));
+    setHtmlById('dash-junket-loss-total-anticipated', formatDashAmtHtml(-junketLossAnt));
     setHtmlById('dash-commission-settlement-total', formatDashAmtHtml(commission, true));
-    setHtmlById('dash-commission-settlement-anticipated', formatDashAmtHtml(commission, true));
+    setHtmlById('dash-commission-settlement-anticipated', formatDashAmtHtml(commissionAnt, true));
     setHtmlById('dash-additional-commission-total', formatDashAmtHtml(additional, true));
-    setHtmlById('dash-additional-commission-anticipated', formatDashAmtHtml(additional, true));
+    setHtmlById('dash-additional-commission-anticipated', formatDashAmtHtml(additionalAnt, true));
     setHtmlById('dash-company-expense-total', formatDashAmtHtml(companyExpenseTotal, true));
     setHtmlById('dash-grand-total', formatDashAmtHtml(grandTotal));
 
@@ -1955,9 +1964,9 @@
     // recomputeActualRolling(), which reads rolling_auto from lastGridPayload and the
     // live NN/RC balances from applyHouseBalances() — see below.
 
-    // Main + Anticipated Add Charge: period signed balances
+    // Main Add Charge: unsettled period balances; Anticipated: including settled rows
     renderPeriodServiceCategoryRows('dash-service-category-rows-main', categories, false);
-    renderPeriodServiceCategoryRows('dash-service-category-rows-anticipated', categories, false);
+    renderPeriodServiceCategoryRows('dash-service-category-rows-anticipated', categoriesAnt, false);
 
     const periodLabel = document.getElementById('dash-period-label');
     if (periodLabel) {
