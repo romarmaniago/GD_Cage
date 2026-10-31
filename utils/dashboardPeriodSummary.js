@@ -274,7 +274,9 @@ async function computeCommissionSettlementForPeriod(pool, dateFrom, dateTo, { in
 		 WHERE gl.ACTIVE != 0
 			AND gl.SETTLED = 1
 			${includeSettled ? '' : 'AND gl.COMMISSION_SETTLEMENT_ID IS NULL'}
-			AND DATE(COALESCE(gl.GAME_ENDED, gl.ENCODED_DT)) BETWEEN ? AND ?
+			-- Program date, like Commission → Settle (utils/commissionSettlement.js): a game ended after
+			-- midnight belongs to its program date's cut-off, so it is not counted again in the next one.
+			AND DATE(COALESCE(gl.PROGRAM_DATE, gl.ENCODED_DT)) BETWEEN ? AND ?
 		 ORDER BY gl.IDNo ASC`,
 		[dateFrom, dateTo]
 	);
