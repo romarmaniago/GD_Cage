@@ -12669,7 +12669,8 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
 
     // Function to fetch game record data and populate the modal
     function reloadDataRecord() {
-        $.ajax({ url: '/game_record_data/' + record_id, method: 'GET' })
+        // include_empty: a game with no records still loads its game/account info so it can be settled at 0
+        $.ajax({ url: '/game_record_data/' + record_id + '?include_empty=1', method: 'GET' })
             .done(function (data) {
                 dataTable.clear();
 

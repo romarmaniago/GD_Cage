@@ -7794,14 +7794,17 @@ router.get('/game_list/:id/pending_origin', checkSession, async (req, res) => {
 
 router.get('/game_record_data/:id', checkSession, async (req, res) => {
 	const id = parseInt(req.params.id);
-	const query = `SELECT *, game_list.IDNo AS game_list_id, game_record.IDNo AS game_record_id, game_record.ENCODED_DT AS record_date, game_list.ACTIVE AS game_status, account.IDNo AS account_no, agent.AGENT_CODE AS agent_code, agent.NAME AS agent_name, COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS guest_name, COALESCE((SELECT NULLIF(TRIM(gg.NAME), '') FROM game_group gg WHERE gg.IDNo = game_list.GROUP_ID LIMIT 1), 'Main') AS group_name, (SELECT al.ENCODED_DT FROM account_ledger al WHERE al.ACTIVE = 1 AND al.TRANSACTION_TYPE = 5 AND al.TRANSACTION_DESC = 'COMMISSION' AND (al.GAME_ID = game_list.IDNo OR FIND_IN_SET(game_list.IDNo, al.LINKED_GAME_IDS)) ORDER BY al.IDNo DESC LIMIT 1) AS settled_ledger_dt, game_record.ROLLER_NN_CHIPS, game_record.ROLLER_CC_CHIPS, game_record.ROLLER_TRANSACTION, game_list.FAKE_SETTLE AS FAKE_SETTLE
-					FROM game_list 
-					JOIN account ON game_list.ACCOUNT_ID = account.IDNo 
-					JOIN agent ON agent.IDNo = account.AGENT_ID 
-					JOIN agency ON agency.IDNo = agent.AGENCY 
+	// ?include_empty=1 (settlement modal): a game with no records still returns one row (game/account info,
+	// record columns null) so it can be settled at 0.
+	const includeEmpty = req.query.include_empty === '1';
+	const query = `SELECT *, game_list.IDNo AS game_list_id, game_record.IDNo AS game_record_id, game_record.ENCODED_DT AS record_date, game_list.ACTIVE AS game_status, account.IDNo AS account_no, agent.AGENT_CODE AS agent_code, agent.NAME AS agent_name, COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS guest_name, COALESCE((SELECT NULLIF(TRIM(gg.NAME), '') FROM game_group gg WHERE gg.IDNo = game_list.GROUP_ID LIMIT 1), 'Main') AS group_name, (SELECT al.ENCODED_DT FROM account_ledger al WHERE al.ACTIVE = 1 AND al.TRANSACTION_TYPE = 5 AND al.TRANSACTION_DESC = 'COMMISSION' AND (al.GAME_ID = game_list.IDNo OR FIND_IN_SET(game_list.IDNo, al.LINKED_GAME_IDS)) ORDER BY al.IDNo DESC LIMIT 1) AS settled_ledger_dt, game_record.ROLLER_NN_CHIPS, game_record.ROLLER_CC_CHIPS, game_record.ROLLER_TRANSACTION, game_list.FAKE_SETTLE AS FAKE_SETTLE${includeEmpty ? ', game_list.IDNo AS GAME_ID, game_list.ACCOUNT_ID AS ACCOUNT_ID, game_list.SETTLED AS SETTLED, game_list.GAME_TYPE AS GAME_TYPE' : ''}
+					FROM game_list
+					JOIN account ON game_list.ACCOUNT_ID = account.IDNo
+					JOIN agent ON agent.IDNo = account.AGENT_ID
+					JOIN agency ON agency.IDNo = agent.AGENCY
 					LEFT JOIN guest g ON g.IDNo = game_list.GUEST_ID
-					JOIN game_record ON game_record.GAME_ID = game_list.IDNo 
-					WHERE game_record.ACTIVE != 0 AND game_list.ACTIVE != 0 AND  game_record.GAME_ID = ?
+					${includeEmpty ? 'LEFT JOIN game_record ON game_record.GAME_ID = game_list.IDNo AND game_record.ACTIVE != 0' : 'JOIN game_record ON game_record.GAME_ID = game_list.IDNo'}
+					WHERE ${includeEmpty ? '' : 'game_record.ACTIVE != 0 AND '}game_list.ACTIVE != 0 AND game_list.IDNo = ?
 					ORDER BY game_list.IDNo ASC`;
 	try {
 		const [result] = await pool.execute(query, [id]);
