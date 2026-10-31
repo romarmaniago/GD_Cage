@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
+const { requireSuperAdminPassword } = require('../utils/superAdminPassword');
 const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/ExcelExportService');
 const { getAccountCashBalance } = require('../utils/junketCapitalTransfer');
 const {
@@ -537,7 +538,7 @@ function todayLocalYmd() {
  * TRANSACTION_ID = 2 withdraw for a net loss, 1 deposit for a net recovery) and tags the rows
  * with LOSS_SETTLEMENT_ID.
  */
-router.post('/loss_amount/settle', checkSession, async (req, res) => {
+router.post('/loss_amount/settle', checkSession, requireSuperAdminPassword, async (req, res) => {
 	const fromDate = parseProgramDate(req.body?.fromDate);
 	const toDate = parseProgramDate(req.body?.toDate);
 	if (!fromDate || !toDate || fromDate > toDate) {

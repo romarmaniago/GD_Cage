@@ -191,10 +191,12 @@
             renderTotals(data);
             data.count = Number(data.count) || 0;
             // Net amount to withdraw from junket_capital (costs are negatives here).
-            pending = { count: data.count, amount: Math.round(-data.total * 100) / 100 };
+            // blockedReason (e.g. Commission while a game is ON GAME): nothing can be settled.
+            var blocked = String(data.blockedReason || '');
+            pending = { count: blocked ? 0 : data.count, amount: Math.round(-data.total * 100) / 100 };
             find('.hes-save-btn')
-                .prop('disabled', data.count === 0)
-                .attr('title', data.count === 0 ? 'Nothing to settle for the selected dates' : '');
+                .prop('disabled', !pending.count)
+                .attr('title', blocked || (data.count === 0 ? 'Nothing to settle for the selected dates' : ''));
         }
 
         /** data = { mains: [{ name, amount }], total } */
@@ -203,6 +205,9 @@
             if (!Array.isArray(data.mains)) data.mains = [];
             data.total = Number(data.total) || 0;
             var html = [];
+            if (data.blockedReason) {
+                html.push('<div class="hes-blocked">' + esc(data.blockedReason) + '</div>');
+            }
             if (!data.mains.length) {
                 html.push('<div class="hes-empty">' + esc(config.emptyLabel || 'No records') + '</div>');
             }
@@ -264,7 +269,9 @@
             var $list = find('.hes-cat-list').children();
             for (var i = 0; i < $list.length; i++) {
                 var $el = $list.eq(i);
-                if ($el.hasClass('hes-divider')) {
+                if ($el.hasClass('hes-blocked')) {
+                    continue;
+                } else if ($el.hasClass('hes-divider')) {
                     lines.push('');
                 } else if ($el.hasClass('hes-group-title') || $el.hasClass('hes-empty')) {
                     lines.push($el.text().trim());
@@ -329,19 +336,26 @@
                 (amount < 0 ? ' will be added to' : ' will be deducted from') +
                 ' the Authorized Master Account. Settled records can no longer be edited.';
 
+            // Settling needs the password of any active Super Admin (the server checks it).
             var confirmPromise = typeof Swal !== 'undefined'
                 ? Swal.fire({
                     icon: 'question',
                     title: config.confirmTitle || 'Settle?',
                     text: confirmText,
+                    input: 'password',
+                    inputPlaceholder: 'Super Admin password',
+                    inputAttributes: { autocomplete: 'new-password', autocapitalize: 'off', autocorrect: 'off' },
                     showCancelButton: true,
                     confirmButtonText: 'Settle',
-                    cancelButtonText: 'Cancel'
-                }).then(function (r) { return !!r.isConfirmed; })
-                : Promise.resolve(window.confirm(confirmText));
+                    cancelButtonText: 'Cancel',
+                    inputValidator: function (value) {
+                        return String(value || '') ? undefined : 'Please enter the Super Admin password.';
+                    }
+                }).then(function (r) { return r.isConfirmed ? String(r.value || '') : null; })
+                : Promise.resolve(window.prompt(confirmText + '\n\nSuper Admin password:'));
 
-            confirmPromise.then(function (ok) {
-                if (!ok) return;
+            confirmPromise.then(function (password) {
+                if (!password) return;
                 var original = $btn.html();
                 $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
                 $.ajax({
@@ -349,7 +363,7 @@
                     method: 'POST',
                     contentType: 'application/json',
                     data: JSON.stringify($.extend(
-                        { fromDate: settleRange.start, toDate: settleRange.end, expectedAmount: amount },
+                        { fromDate: settleRange.start, toDate: settleRange.end, expectedAmount: amount, superAdminPassword: password },
                         typeof config.settleExtra === 'function' ? config.settleExtra(context) : {}
                     ))
                 })

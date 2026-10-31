@@ -130,14 +130,38 @@ async function buildCommissionSettlement(db, games, { settlementId = null } = {}
 	return { mains, total: round2(total), count: games.length, serviceIds, hideGrandTotal: true };
 }
 
+/**
+ * Games still ON GAME (ACTIVE = 2) or not yet settled (SETTLED = 0), started on/before toDate —
+ * commission can't be settled while any exist.
+ */
+async function countOpenGames(db, toDate) {
+	const [rows] = await db.execute(
+		`SELECT COUNT(*) AS cnt
+		 FROM game_list
+		 WHERE ACTIVE != 0
+			AND (ACTIVE = 2 OR COALESCE(SETTLED, 0) = 0)
+			AND DATE(COALESCE(PROGRAM_DATE, ENCODED_DT)) <= ?`,
+		[toDate]
+	);
+	return Number(rows[0]?.cnt) || 0;
+}
+
+/** ON GAME games count as unsettled in the message. */
+function openGamesBlockedReason(count) {
+	return count ? `${count} unsettled game(s). Settle them before settling commission.` : '';
+}
+
 async function previewCommissionSettlement(db, fromDate, toDate) {
 	const games = await loadCommissionGames(db, { fromDate, toDate });
 	const slip = await buildCommissionSettlement(db, games);
-	return { mains: slip.mains, total: slip.total, count: slip.count, hideGrandTotal: true };
+	const blockedReason = openGamesBlockedReason(await countOpenGames(db, toDate));
+	return { mains: slip.mains, total: slip.total, count: slip.count, hideGrandTotal: true, blockedReason };
 }
 
 module.exports = {
 	loadCommissionGames,
+	countOpenGames,
+	openGamesBlockedReason,
 	buildCommissionSettlement,
 	previewCommissionSettlement
 };

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
+const { requireSuperAdminPassword } = require('../utils/superAdminPassword');
 const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/ExcelExportService');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
@@ -698,7 +699,7 @@ router.get('/fnb-hotel/settlement_preview', checkSession, async (req, res) => {
  * (TRANSACTION_ID = 1). Rows get SERVICE_SETTLEMENT_ID.
  * expectedAmount is the net shown on the slip (Authorized); optional `category` settles one category only.
  */
-router.post('/fnb-hotel/settle', checkSession, async (req, res) => {
+router.post('/fnb-hotel/settle', checkSession, requireSuperAdminPassword, async (req, res) => {
 	const range = parseSettlementRange(req.body);
 	if (!range) return res.status(400).json({ error: 'Select a valid Start and Finish date.' });
 	const expectedRaw = req.body?.expectedAmount;

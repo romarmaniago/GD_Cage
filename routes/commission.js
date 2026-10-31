@@ -2,8 +2,11 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
+const { requireSuperAdminPassword } = require('../utils/superAdminPassword');
 const {
     loadCommissionGames,
+    countOpenGames,
+    openGamesBlockedReason,
     buildCommissionSettlement,
     previewCommissionSettlement
 } = require('../utils/commissionSettlement');
@@ -364,7 +367,7 @@ function todayLocalYmd() {
  * withdraws the total from junket_capital (TRANSACTION_ID = 2, DESCRIPTION = 'Additional') and tags
  * the rows with ADDITIONAL_SETTLEMENT_ID. Account ledgers (Transfer type) are left untouched.
  */
-router.post('/additional_commission/settle', checkSession, async (req, res) => {
+router.post('/additional_commission/settle', checkSession, requireSuperAdminPassword, async (req, res) => {
     const fromDate = parseProgramDate(req.body?.fromDate);
     const toDate = parseProgramDate(req.body?.toDate);
     if (!fromDate || !toDate || fromDate > toDate) {
@@ -708,7 +711,7 @@ router.get('/commission/settlement_preview', checkSession, async (req, res) => {
  * a net payout is withdrawn (TRANSACTION_ID = 2), a net gain deposited (TRANSACTION_ID = 1).
  * Games (locked in Gamebook) and their Add Charge rows get COMMISSION_SETTLEMENT_ID.
  */
-router.post('/commission/settle', checkSession, async (req, res) => {
+router.post('/commission/settle', checkSession, requireSuperAdminPassword, async (req, res) => {
     const range = parseCommissionSettlementRange(req.body);
     if (!range) return res.status(400).json({ error: 'Select a valid Start and Finish date.' });
     const expectedRaw = req.body?.expectedAmount;
@@ -720,6 +723,12 @@ router.post('/commission/settle', checkSession, async (req, res) => {
     try {
         connection = await pool.getConnection();
         await connection.beginTransaction();
+
+        const openGamesReason = openGamesBlockedReason(await countOpenGames(connection, range.toDate));
+        if (openGamesReason) {
+            await connection.rollback();
+            return res.status(400).json({ error: openGamesReason });
+        }
 
         const games = await loadCommissionGames(connection, { ...range, forUpdate: true });
         if (!games.length) {

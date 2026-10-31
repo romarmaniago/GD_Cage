@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
+const { requireSuperAdminPassword } = require('../utils/superAdminPassword');
 
 function requireSuperAdmin(req, res, next) {
 	const p = req.session.permissions;
@@ -1698,7 +1699,7 @@ function todayLocalYmd() {
  * DESCRIPTION = 'Expenses') and tags the rows RESET = 0 / EXPENSE_SETTLEMENT_ID.
  * No cash_transaction is written — each approved expense already has its own.
  */
-router.post('/junket_house_expense/settle', checkSession, async (req, res) => {
+router.post('/junket_house_expense/settle', checkSession, requireSuperAdminPassword, async (req, res) => {
 	const fromDate = parseProgramDate(req.body?.fromDate);
 	const toDate = parseProgramDate(req.body?.toDate);
 	if (!fromDate || !toDate || fromDate > toDate) {
