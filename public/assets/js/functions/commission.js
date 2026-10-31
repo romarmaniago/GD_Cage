@@ -80,7 +80,8 @@ $(document).ready(function() {
             var raw = String(value == null ? '' : value).trim();
             return raw && raw !== '-' ? raw : '-';
         }
-        return m.utcOffset(8).format('YYYY-MM-DD HH:mm');
+        // Cell text is already +08:00 (formatCommissionGameStart / GameEnd); parsed as utc, so no second shift.
+        return m.format('YYYY-MM-DD HH:mm');
     }
 
     function formatCommissionGameEndDisplay(value) {
