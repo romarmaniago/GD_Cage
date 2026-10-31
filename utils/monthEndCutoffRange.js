@@ -22,13 +22,13 @@ function formatDisplayDate(d) {
 	return `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
+/**
+ * Kept for existing callers, but no longer expands: the last day of the month starts the next
+ * cut-off period (Oct 31 belongs to Oct 31 – Nov 29), so widening Sep 30 – Oct 30 to Oct 31
+ * would count it in two periods. The API end date is the end date exactly as picked.
+ */
 function expandApiEndDateToMonthEnd(endDateYmd) {
-	if (!endDateYmd || !/^\d{4}-\d{2}-\d{2}/.test(String(endDateYmd))) {
-		return endDateYmd;
-	}
-	const parts = String(endDateYmd).slice(0, 10).split('-').map(Number);
-	const lastDay = new Date(parts[0], parts[1], 0);
-	return toIsoDate(lastDay);
+	return endDateYmd;
 }
 
 function getMonthEndCutoffRange(refDate) {

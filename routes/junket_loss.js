@@ -533,8 +533,9 @@ function todayLocalYmd() {
 /**
  * SETTLE LOSS AMOUNT (Settlement (Loss Amount) modal → Save)
  * Settles every unsettled junket_loss row (Loss and Recovery) whose program date is within
- * fromDate..toDate: withdraws the net amount from junket_capital (TRANSACTION_ID = 2,
- * DESCRIPTION = 'Loss Amount') and tags the rows with LOSS_SETTLEMENT_ID.
+ * fromDate..toDate: writes the net amount to junket_capital (DESCRIPTION = 'Loss Amount';
+ * TRANSACTION_ID = 2 withdraw for a net loss, 1 deposit for a net recovery) and tags the rows
+ * with LOSS_SETTLEMENT_ID.
  */
 router.post('/loss_amount/settle', checkSession, async (req, res) => {
 	const fromDate = parseProgramDate(req.body?.fromDate);
@@ -575,11 +576,6 @@ router.post('/loss_amount/settle', checkSession, async (req, res) => {
 				amount
 			});
 		}
-		if (amount < 0) {
-			await connection.rollback();
-			return res.status(400).json({ error: 'Recovery is greater than the loss for these dates.' });
-		}
-
 		const dateNow = new Date();
 		const userId = req.session?.user_id ?? null;
 
@@ -591,15 +587,16 @@ router.post('/loss_amount/settle', checkSession, async (req, res) => {
 		const settlementId = settleResult.insertId;
 
 		let capitalId = null;
-		if (amount > 0) {
+		// Net loss withdraws from Company; a net recovery (loss money handed back) deposits into it.
+		if (amount !== 0) {
 			const [userRows] = await connection.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [userId]);
 			const fullname = userRows.length ? userRows[0].FIRSTNAME || null : null;
 			const remarks = `Loss amount settlement ${formatSettlementYmd(fromDate)} - ${formatSettlementYmd(toDate)}`;
 			const [capitalResult] = await connection.execute(
 				`INSERT INTO junket_capital
 					(TRANSACTION_ID, FULLNAME, DESCRIPTION, AMOUNT, REMARKS, ACTIVE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
-				 VALUES (2, ?, 'Loss Amount', ?, ?, 1, ?, ?, ?)`,
-				[fullname, amount, remarks, userId, dateNow, todayLocalYmd()]
+				 VALUES (?, ?, 'Loss Amount', ?, ?, 1, ?, ?, ?)`,
+				[amount > 0 ? 2 : 1, fullname, Math.abs(amount), remarks, userId, dateNow, todayLocalYmd()]
 			);
 			capitalId = capitalResult.insertId;
 			await connection.execute('UPDATE junket_loss_settlement SET CAPITAL_ID = ? WHERE IDNo = ?', [capitalId, settlementId]);
