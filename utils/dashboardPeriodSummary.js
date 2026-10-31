@@ -127,27 +127,13 @@ async function computeJunketLossForPeriod(pool, dateFrom, dateTo, { includeSettl
 	);
 }
 
-async function computeJunketCapitalBalanceForPeriod(pool, dateFrom, dateTo) {
-	const p = [dateFrom, dateTo];
+// Main panel "Company" is a running (all-time) balance, not a period total — matches
+// the SSR figure (routes/dashboard.js sqlCashDeposit/sqlCashWithdraw), so it does not
+// drop to 0 when the cut-off month changes.
+async function computeJunketCapitalBalance(pool) {
 	const [deposit, withdraw] = await Promise.all([
-		sumScalar(
-			pool,
-			`SELECT COALESCE(SUM(AMOUNT), 0) AS total
-			 FROM junket_capital jc
-			 WHERE jc.ACTIVE = 1
-				AND jc.TRANSACTION_ID = 1
-				AND ${capitalDt('jc')} BETWEEN ? AND ?`,
-			p
-		),
-		sumScalar(
-			pool,
-			`SELECT COALESCE(SUM(AMOUNT), 0) AS total
-			 FROM junket_capital jc
-			 WHERE jc.ACTIVE = 1
-				AND jc.TRANSACTION_ID = 2
-				AND ${capitalDt('jc')} BETWEEN ? AND ?`,
-			p
-		)
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT), 0) AS total FROM junket_capital WHERE ACTIVE = 1 AND TRANSACTION_ID = 1`),
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT), 0) AS total FROM junket_capital WHERE ACTIVE = 1 AND TRANSACTION_ID = 2`)
 	]);
 	return Math.round(deposit - withdraw);
 }
@@ -848,7 +834,7 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 		computeCommissionSettlementForPeriod(pool, dateFrom, dateTo),
 		loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo),
 		computeCageMainForPeriod(pool, dateFrom, dateTo),
-		computeJunketCapitalBalanceForPeriod(pool, dateFrom, dateTo),
+		computeJunketCapitalBalance(pool),
 		computeAnticipatedCompanyForPeriod(pool, dateFrom, dateTo)
 	]);
 
