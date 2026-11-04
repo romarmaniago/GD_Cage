@@ -64,14 +64,10 @@
                 </div>
                 <div class="xl-box">
                     <div class="xl-title">Cash</div>
-                    <div class="xl-grid xl-grid-2">
+                    <div class="xl-grid xl-grid-1">
                         <div class="xl-head">Processing Amount</div>
-                        <div class="xl-head">Remarks</div>
                         <div class="xl-value buyin-processing-body" id="buyin-cash-processing-wrap">
                             <span id="buyin-cash-processing">0</span>
-                        </div>
-                        <div class="xl-value xl-input-cell">
-                            <input type="text" class="form-control form-control-sm text-center buyin-cash-remarks-input" id="buyin-cash-remarks" name="txtCashRemarks" placeholder="Remarks" autocomplete="off" form="add_buyin">
                         </div>
                     </div>
                 </div>
@@ -403,6 +399,7 @@ body.buyin-side-resize-active {
 }
 #modal-add-buyin .xl-grid-4 { grid-template-columns: repeat(4, 1fr); }
 #modal-add-buyin .xl-grid-2 { grid-template-columns: 1fr 1fr; }
+#modal-add-buyin .xl-grid-1 { grid-template-columns: 1fr; }
 #modal-add-buyin .xl-head,
 #modal-add-buyin .xl-value {
     display: flex;
@@ -415,7 +412,8 @@ body.buyin-side-resize-active {
     border-right: 1px solid #000;
 }
 #modal-add-buyin .xl-grid-4 > :nth-child(4n),
-#modal-add-buyin .xl-grid-2 > :nth-child(2n) {
+#modal-add-buyin .xl-grid-2 > :nth-child(2n),
+#modal-add-buyin .xl-grid-1 > * {
     border-right: 0;
 }
 #modal-add-buyin .xl-head {

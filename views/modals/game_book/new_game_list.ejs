@@ -179,14 +179,10 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                 </div>
                 <div class="xl-box">
                     <div class="xl-title">Cash</div>
-                    <div class="xl-grid xl-grid-2">
+                    <div class="xl-grid xl-grid-1">
                         <div class="xl-head">Processing Amount</div>
-                        <div class="xl-head">Remarks</div>
                         <div class="xl-value new-game-processing-body" id="new-game-cash-processing-wrap">
                             <span id="new-game-cash-processing">0</span>
-                        </div>
-                        <div class="xl-value xl-input-cell">
-                            <input type="text" class="form-control form-control-sm text-center new-game-cash-remarks-input" id="new-game-cash-remarks" name="txtCashRemarks" placeholder="Remarks" autocomplete="off" form="add_game_list">
                         </div>
                     </div>
                 </div>
@@ -637,6 +633,7 @@ body.new-game-side-resize-active {
 }
 #modal-new-game-list .xl-grid-4 { grid-template-columns: repeat(4, 1fr); }
 #modal-new-game-list .xl-grid-2 { grid-template-columns: 1fr 1fr; }
+#modal-new-game-list .xl-grid-1 { grid-template-columns: 1fr; }
 #modal-new-game-list .xl-head,
 #modal-new-game-list .xl-value {
     display: flex;
@@ -649,7 +646,8 @@ body.new-game-side-resize-active {
     border-right: 1px solid #000;
 }
 #modal-new-game-list .xl-grid-4 > :nth-child(4n),
-#modal-new-game-list .xl-grid-2 > :nth-child(2n) {
+#modal-new-game-list .xl-grid-2 > :nth-child(2n),
+#modal-new-game-list .xl-grid-1 > * {
     border-right: 0;
 }
 #modal-new-game-list .xl-head {
