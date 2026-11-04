@@ -213,10 +213,16 @@
     setSideCell('gdrs-rolling-total', fmtSideAmt(total.rolling));
     setSideCell('gdrs-expenses-today', fmtSideNeg(today.expenses));
     setSideCell('gdrs-expenses-total', fmtSideNeg(total.expenses));
+    // Loss Amount: loss (positive) shows red (x); a net recovery shows positive.
+    setSideCell('gdrs-loss-today', fmtSideAmt(-(Number(today.loss_amount) || 0)));
+    setSideCell('gdrs-loss-total', fmtSideAmt(-(Number(total.loss_amount) || 0)));
     setSideCell('gdrs-commission-today', fmtSideNeg(today.settlement_commission));
     setSideCell('gdrs-commission-total', fmtSideNeg(total.settlement_commission));
     setSideCell('gdrs-additional-today', fmtSideNeg(today.settlement_additional));
     setSideCell('gdrs-additional-total', fmtSideNeg(total.settlement_additional));
+    // Add Charge: signed balance, same as the dashboard's Add Charge rows.
+    setSideCell('gdrs-addcharge-today', fmtSideAmt(today.add_charge));
+    setSideCell('gdrs-addcharge-total', fmtSideAmt(total.add_charge));
   }
 
   function loadSideSummary(dateStr) {

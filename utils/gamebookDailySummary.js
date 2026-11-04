@@ -6,10 +6,10 @@
  * W/L, Rolling and Settlement Commission are sourced the same way as the Daily Report
  * table (utils/netProfitCalc.js computeGamebookDailyReportRows): Game Book auto totals
  * (game_list / game_record) PLUS manually-added games from the Game Information page
- * (game_information table), so a manually-added game is reflected here too. Expenses
- * and Settlement Additional reuse the dashboard's own canonical period-summary formulas
- * (utils/dashboardPeriodSummary.js) so those two figures always match the rest of the
- * dashboard.
+ * (game_information table), so a manually-added game is reflected here too. Expenses,
+ * Settlement Additional, Loss Amount and Add Charge reuse the dashboard's own canonical
+ * period-summary formulas (utils/dashboardPeriodSummary.js). Every row counts already-
+ * settled records too — this is "what happened that day", not unsettled cage cash.
  */
 
 const pool = require('../config/db');
@@ -94,12 +94,23 @@ async function computePeriodMetrics(dateFrom, dateTo) {
 		computeSettlementCommissionTotal(dateFrom, dateTo),
 	]);
 
+	// Loss Amount / Add Charge: period cost incl. already-settled rows (the dashboard's
+	// Anticipated Profit → Company figures), so a Settle doesn't zero out a past day.
+	// Loss: positive = loss, negative = recovery. Add Charge: signed service balance.
+	const addChargeCategories = Array.isArray(periodSummary.anticipated_service_categories)
+		? periodSummary.anticipated_service_categories
+		: [];
+	const addCharge = addChargeCategories.reduce((sum, cat) => sum + (Number(cat && cat.balance) || 0), 0);
+
 	return {
 		win_loss: ceilAmount(winLoss),
 		rolling: ceilAmount(rolling),
 		expenses: ceilAmount(periodSummary.expense),
+		loss_amount: Math.round(Number(periodSummary.anticipated_junket_loss) || 0),
 		settlement_commission: ceilAmount(settlementCommission),
-		settlement_additional: ceilAmount(periodSummary.additional_commission),
+		// Incl. already-settled rows (like every other row here), so a Settle doesn't zero out a past day.
+		settlement_additional: ceilAmount(periodSummary.anticipated_additional_commission),
+		add_charge: Math.round(addCharge),
 	};
 }
 
