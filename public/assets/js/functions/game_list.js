@@ -3957,7 +3957,8 @@ function buildGameRateCell(row, userPermissions, isSettled) {
 		var split = window.getShareRollingSplit(row);
 		badgeClass = 'commission-badge-l';
 		badgeTitle = window.commissionTypeText(row);
-		badgeText = 'S+R';
+		// Share + Rolling shows its split instead of the rate: "S 25% + R 50%"
+		badgeText = 'S ' + split.sharePct + '% + R ' + split.rollingPct + '%';
 		window._gameListCommissionSplit = window._gameListCommissionSplit || {};
 		window._gameListCommissionSplit[row.game_list_id] = split;
 	}
@@ -3967,6 +3968,7 @@ function buildGameRateCell(row, userPermissions, isSettled) {
 	} else {
 		badgePart = '<span class="badge commission-badge ' + badgeClass + '" title="' + badgeTitle + '">' + badgeText + '</span>';
 	}
+	if (row.COMMISSION_TYPE == 3) return badgePart;
 	return pct + '% ' + badgePart;
 }
 

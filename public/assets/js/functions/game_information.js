@@ -54,11 +54,13 @@
 			cls = 'commission-badge-s';
 			title = 'Shared';
 		} else if (type === 3) {
-			label = 'S+R';
+			// Share + Rolling shows its split instead of the rate: "S 25% + R 50%"
+			label = (window.getShareRollingSplit ? (function (s) { return 'S ' + s.sharePct + '% + R ' + s.rollingPct + '%'; })(window.getShareRollingSplit(row)) : 'S+R');
 			cls = 'commission-badge-l';
 			title = window.commissionTypeText ? window.commissionTypeText(row) : 'Share + Rolling';
 		}
-		return pct.toFixed(2) + '% <span class="badge commission-badge ' + cls + '" title="' + title + '">' + label + '</span>';
+		var badgeHtml = '<span class="badge commission-badge ' + cls + '" title="' + title + '">' + label + '</span>';
+		return type === 3 ? badgeHtml : pct.toFixed(2) + '% ' + badgeHtml;
 	}
 
 	var GI_DEBUG_SHARED = true;

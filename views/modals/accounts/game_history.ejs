@@ -1516,7 +1516,9 @@
                             } else if (row.COMMISSION_TYPE == 3) {
 
                                 const srTitle = window.commissionTypeText ? window.commissionTypeText(row) : 'Share + Rolling';
-                                badge = `<span class="badge commission-badge commission-badge-l" title="${srTitle}">S+R</span>`;
+                                badge = `<span class="badge commission-badge commission-badge-l" title="${srTitle}">${(window.getShareRollingSplit ? (function (s) { return 'S ' + s.sharePct + '% + R ' + s.rollingPct + '%'; })(window.getShareRollingSplit(row)) : 'S+R')}</span>`;
+
+                                return badge;
 
                             }
 
