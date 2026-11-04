@@ -7,6 +7,12 @@
 		GCASH: 'GCASH'
 	};
 
+	function emptyRowHtml(text, tone) {
+		return '<tr class="cage-manual-cash-empty-row"><td colspan="5" class="cage-manual-cash-empty ' + (tone || '') + '">' +
+			'<i class="fa ' + (tone === 'is-error' ? 'fa-exclamation-circle' : 'fa-inbox') + '" aria-hidden="true"></i>' +
+			'<span>' + escapeHtml(text) + '</span></td></tr>';
+	}
+
 	function $(id) {
 		return document.getElementById(id);
 	}
@@ -319,9 +325,9 @@
 
 	function renderActionCell(id, amount, remarks) {
 		return '<div class="dash-beyond-chips-actions text-center">' +
-			'<button type="button" class="btn btn-sm btn-outline-primary js-cage-manual-cash-edit me-1" data-id="' + escapeAttr(id) + '" data-amount="' + escapeAttr(amount) + '" data-remarks="' + escapeAttr(remarks || '') + '" title="Edit" aria-label="Edit">' +
+			'<button type="button" class="btn btn-sm cage-manual-cash-act is-edit js-cage-manual-cash-edit" data-id="' + escapeAttr(id) + '" data-amount="' + escapeAttr(amount) + '" data-remarks="' + escapeAttr(remarks || '') + '" title="Edit" aria-label="Edit">' +
 			'<i class="fa fa-pencil-alt" aria-hidden="true"></i></button>' +
-			'<button type="button" class="btn btn-sm btn-outline-danger js-cage-manual-cash-delete" data-id="' + escapeAttr(id) + '" title="Delete" aria-label="Delete">' +
+			'<button type="button" class="btn btn-sm cage-manual-cash-act is-delete js-cage-manual-cash-delete" data-id="' + escapeAttr(id) + '" title="Delete" aria-label="Delete">' +
 			'<i class="fa fa-trash-alt" aria-hidden="true"></i></button></div>';
 	}
 
@@ -329,7 +335,7 @@
 		if (!els.historyBody) return;
 		var entries = Array.isArray(payload && payload.entries) ? payload.entries : [];
 		if (!entries.length) {
-			els.historyBody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">' + (getPeriodRange() ? 'No entries for this period' : 'No entries for this date') + '</td></tr>';
+			els.historyBody.innerHTML = emptyRowHtml(getPeriodRange() ? 'No entries for this period' : 'No entries for this date');
 			return;
 		}
 		// Program Date, then encoded time, then id — oldest-to-newest so the latest entry sits at the bottom.
@@ -342,10 +348,13 @@
 				(sortTime(a.encoded_dt) - sortTime(b.encoded_dt)) ||
 				((Number(a.id) || 0) - (Number(b.id) || 0));
 		});
+		var running = Number(payload && payload.opening) || 0;
 		els.historyBody.innerHTML = sorted.map(function (row) {
+			running += Number(row.amount) || 0;
 			return '<tr>' +
 				'<td class="cage-manual-cash-col-date">' + escapeHtml(formatReportDate(row.report_date || row.encoded_dt)) + '</td>' +
 				'<td class="cage-manual-cash-col-amount text-end">' + formatSignedAmountCell(row.amount) + '</td>' +
+				'<td class="cage-manual-cash-col-balance text-end">' + formatAmtHtml(running) + '</td>' +
 				'<td class="cage-manual-cash-col-remarks remarks-editor-td">' + renderRemarksCell(row) + '</td>' +
 				'<td class="cage-manual-cash-col-action text-center js-cage-manual-cash-actions">' + renderActionCell(row.id, row.amount, row.remarks) + '</td>' +
 				'</tr>';
@@ -366,7 +375,7 @@
 
 	async function loadHistory(currency, reportDate) {
 		if (!els.historyBody || !currency || !reportDate) return;
-		els.historyBody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Loading...</td></tr>';
+		els.historyBody.innerHTML = '<tr class="cage-manual-cash-empty-row"><td colspan="5" class="cage-manual-cash-empty"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>Loading...</span></td></tr>';
 		try {
 			var period = getPeriodRange();
 			var q = new URLSearchParams(period
@@ -378,7 +387,7 @@
 			renderHistory(data);
 		} catch (err) {
 			console.error('loadHistory cage manual cash:', err);
-			els.historyBody.innerHTML = '<tr><td colspan="4" class="text-danger text-center py-3">Unable to load history</td></tr>';
+			els.historyBody.innerHTML = emptyRowHtml('Unable to load history', 'is-error');
 		}
 	}
 
@@ -388,6 +397,7 @@
 		var reportDate = todayProgramDateValue();
 
 		if (els.modalTitle) els.modalTitle.textContent = label;
+		if (els.modal) els.modal.setAttribute('data-currency', currency);
 		if (els.currencyInput) els.currencyInput.value = currency;
 		ensureProgramDatePicker(reportDate);
 		if (els.amountLabel) els.amountLabel.textContent = 'Amount';
@@ -589,5 +599,5 @@
 
 // Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
 if (window.gdAlignParenNumbers) {
-	window.gdAlignParenNumbers('#dash-cage-manual-cash-history-tbl', ['tbody td.cage-manual-cash-col-amount']);
+	window.gdAlignParenNumbers('#dash-cage-manual-cash-history-tbl', ['tbody td.cage-manual-cash-col-amount', 'tbody td.cage-manual-cash-col-balance']);
 }

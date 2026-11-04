@@ -4625,7 +4625,19 @@ router.get('/cage_manual_cash_history', checkSession, async (req, res) => {
 
 		const entries = rows || [];
 		const total = entries.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
-		res.json({ entries, total });
+
+		// Opening balance = every active entry before the period, so the running
+		// Balance column ends at the same all-time total shown on the dashboard.
+		const [[openingRow]] = await pool.execute(
+			`SELECT COALESCE(SUM(AMOUNT), 0) AS opening
+			 FROM cage_manual_cash
+			 WHERE ACTIVE = 1
+				AND UPPER(CURRENCY) = ?
+				AND REPORT_DATE < ?`,
+			[currency, useRange ? dateFrom : reportDate]
+		);
+		const opening = Number(openingRow && openingRow.opening) || 0;
+		res.json({ entries, total, opening });
 	} catch (error) {
 		console.error('cage_manual_cash_history:', error);
 		res.status(500).json({ message: 'Error loading cage cash history.' });

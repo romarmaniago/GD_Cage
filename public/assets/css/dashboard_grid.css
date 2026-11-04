@@ -2901,67 +2901,315 @@ body {
   line-height: 1.2;
 }
 
-/* Cage manual cash (USD / GCASH) — compact fitted layout */
+/* Cage manual cash (USD / GCASH) — card-style form + clean history table */
 .modal-dash-cage-manual-cash-dialog {
-  max-width: 34rem;
+  max-width: 42rem;
 }
 
+#modal-dash-cage-manual-cash .modal-header {
+  padding: 0.7rem 1rem !important;
+}
+
+#modal-dash-cage-manual-cash .cage-manual-cash-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+#modal-dash-cage-manual-cash .cage-manual-cash-title-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  min-width: 0;
+}
+
+#modal-dash-cage-manual-cash .modal-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+#modal-dash-cage-manual-cash .modal-body {
+  padding: 0.9rem 1rem 1rem !important;
+}
+
+/* Add form — white card */
 #modal-dash-cage-manual-cash .cage-manual-cash-add-form {
   display: grid;
-  grid-template-columns: 8.5rem 6.5rem minmax(0, 1fr);
-  gap: 0.5rem;
+  grid-template-columns: 8.5rem 7.5rem minmax(0, 1fr);
+  gap: 0.6rem;
   align-items: end;
+  padding: 0.75rem 0.8rem;
+  background: #fffdf8;
+  border: 1px solid rgba(200, 162, 76, 0.35);
+  border-radius: 0.7rem;
+  box-shadow: 0 1px 3px rgba(74, 50, 8, 0.06);
 }
 
 #modal-dash-cage-manual-cash .cage-manual-cash-add-form .form-label {
+  display: block;
   line-height: 1.2;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #8a7a5c !important;
 }
 
-#modal-dash-cage-manual-cash .cage-manual-cash-add-date .flatpickr-wrapper {
-  width: 100%;
+#modal-dash-cage-manual-cash .cage-manual-cash-add-form .form-control {
+  height: 2.1rem;
+  font-size: 0.9rem;
+  border-radius: 0.5rem;
+  border-color: #ddd3bd;
+  background-color: #fff;
+  color: #2f2a20;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
+#modal-dash-cage-manual-cash .cage-manual-cash-add-form .form-control::placeholder {
+  color: #bdb29b;
+}
+
+#modal-dash-cage-manual-cash .cage-manual-cash-add-form .form-control:focus {
+  border-color: #c8a24c;
+  box-shadow: 0 0 0 0.2rem rgba(200, 162, 76, 0.22);
+}
+
+#modal-dash-cage-manual-cash #dash-cage-manual-cash-amount {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+#modal-dash-cage-manual-cash .cage-manual-cash-add-date .flatpickr-wrapper,
 #modal-dash-cage-manual-cash .cage-manual-cash-add-date .flatpickr-alt-input,
 #modal-dash-cage-manual-cash .cage-manual-cash-add-date .flatpickr-input.form-control {
   width: 100%;
 }
 
-#dash-cage-manual-cash-history-tbl {
+/* History table — rounded card, sticky header */
+#modal-dash-cage-manual-cash .cage-manual-cash-history-card {
+  background: #fffdf8;
+  border: 1px solid rgba(200, 162, 76, 0.35);
+  border-radius: 0.7rem;
+  box-shadow: 0 1px 3px rgba(74, 50, 8, 0.06);
+  overflow: hidden;
+}
+
+/* Header lives in its own table above the scroll area, so it never scrolls away */
+#modal-dash-cage-manual-cash .cage-manual-cash-history-wrap {
+  max-height: 260px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.cage-manual-cash-tbl {
   table-layout: fixed;
   width: 100%;
+  font-size: 0.86rem;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
-#dash-cage-manual-cash-history-tbl th,
-#dash-cage-manual-cash-history-tbl td {
+.cage-manual-cash-tbl th,
+.cage-manual-cash-tbl td {
   vertical-align: middle;
-  padding: 0.35rem 0.45rem;
+  padding: 0.5rem 0.65rem;
+  border: 0;
+  border-bottom: 1px solid rgba(200, 162, 76, 0.16);
 }
 
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-col-date {
-  width: 9rem;
+.cage-manual-cash-head-tbl thead th {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: #f4eedf !important;
+  background-color: #f4eedf !important;
+  border-bottom: 1px solid rgba(200, 162, 76, 0.45) !important;
+}
+
+#dash-cage-manual-cash-history-tbl tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+#dash-cage-manual-cash-history-tbl tbody tr:nth-child(even) td {
+  background-color: rgba(200, 162, 76, 0.045) !important;
+}
+
+#dash-cage-manual-cash-history-tbl tbody tr:hover td {
+  background-color: rgba(200, 162, 76, 0.12) !important;
+}
+
+.cage-manual-cash-tbl .cage-manual-cash-col-date {
+  width: 7rem;
   white-space: nowrap;
+  color: #5c5346;
 }
 
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-col-amount {
+.cage-manual-cash-tbl .cage-manual-cash-col-amount {
   width: 5.25rem;
   white-space: nowrap;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #2f2a20;
 }
 
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-col-remarks {
+.cage-manual-cash-tbl .cage-manual-cash-col-balance {
+  width: 5.75rem;
+  white-space: nowrap;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #4a3208;
+}
+
+.cage-manual-cash-tbl .cage-manual-cash-col-remarks {
   width: auto;
   white-space: normal;
   word-break: break-word;
   overflow: hidden;
+  color: #4a4334;
 }
 
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-col-action {
-  width: 4.75rem;
+.cage-manual-cash-tbl .cage-manual-cash-col-action {
+  width: 5rem;
   white-space: nowrap;
 }
 
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-col-action .btn {
-  padding: 0.1rem 0.35rem;
-  line-height: 1.2;
+#dash-cage-manual-cash-history-tbl .dash-beyond-chips-actions {
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-act {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  line-height: 1;
+  border-radius: 0.45rem;
+  border: 1px solid transparent;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-act.is-edit {
+  color: #3f6fd8;
+  background: rgba(63, 111, 216, 0.1);
+  border-color: rgba(63, 111, 216, 0.22);
+}
+
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-act.is-edit:hover {
+  color: #fff;
+  background: #3f6fd8;
+}
+
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-act.is-delete {
+  color: #d23c3c;
+  background: rgba(210, 60, 60, 0.1);
+  border-color: rgba(210, 60, 60, 0.22);
+}
+
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-act.is-delete:hover {
+  color: #fff;
+  background: #d23c3c;
+}
+
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-empty-row td,
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-empty-row:hover td {
+  background-color: transparent !important;
+}
+
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-empty {
+  padding: 1.6rem 0.75rem;
+  text-align: center;
+  color: #a2977f;
+  font-size: 0.85rem;
+}
+
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-empty .fa {
+  display: block;
+  margin: 0 auto 0.4rem;
+  font-size: 1.5rem;
+  color: #d4c4a0;
+}
+
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-empty .spinner-border {
+  display: block;
+  margin: 0 auto 0.45rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-width: 0.15em;
+  color: #c8a24c;
+}
+
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-empty.is-error,
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-empty.is-error .fa {
+  color: #d23c3c;
+}
+
+/* Footer */
+#modal-dash-cage-manual-cash .modal-footer {
+  padding: 0.6rem 1rem !important;
+  gap: 0.4rem;
+}
+
+#modal-dash-cage-manual-cash .modal-footer .btn,
+#modal-dash-cage-manual-cash-edit .modal-footer .btn {
+  min-width: 5.5rem;
+  height: 2.1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+#modal-dash-cage-manual-cash .cage-manual-cash-btn-close {
+  background: #fff;
+  border: 1px solid #ddd3bd;
+  color: #5c5346;
+}
+
+#modal-dash-cage-manual-cash .cage-manual-cash-btn-close:hover {
+  background: #f6f1e4;
+  border-color: #c8a24c;
+}
+
+/* Edit entry modal */
+#modal-dash-cage-manual-cash-edit .modal-body .form-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #8a7a5c !important;
+}
+
+#modal-dash-cage-manual-cash-edit .modal-body .form-control {
+  height: 2.1rem;
+  border-radius: 0.5rem;
+  border-color: #ddd3bd;
+}
+
+#modal-dash-cage-manual-cash-edit .modal-body .form-control:focus {
+  border-color: #c8a24c;
+  box-shadow: 0 0 0 0.2rem rgba(200, 162, 76, 0.22);
+}
+
+#modal-dash-cage-manual-cash-edit #dash-cage-manual-cash-edit-amount {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 575.98px) {
+  #modal-dash-cage-manual-cash .cage-manual-cash-add-form {
+    grid-template-columns: 1fr 1fr;
+  }
+  #modal-dash-cage-manual-cash .cage-manual-cash-add-remarks {
+    grid-column: 1 / -1;
+  }
 }
 
 /* Dashboard "Copy as Image" button — floats in the strip above the summary

@@ -6,7 +6,11 @@
 
       <div class="modal-header bg-primary py-2">
 
-        <h5 class="modal-title text-white mb-0" id="modal-dash-cage-manual-cash-label">USD $</h5>
+        <div class="cage-manual-cash-title-wrap">
+          <div class="cage-manual-cash-title-text">
+            <h5 class="modal-title text-white mb-0" id="modal-dash-cage-manual-cash-label">USD $</h5>
+          </div>
+        </div>
 
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
 
@@ -25,40 +29,49 @@
             </div>
             <div class="cage-manual-cash-add-amount">
               <label for="dash-cage-manual-cash-amount" class="form-label small text-muted mb-1" id="dash-cage-manual-cash-amount-label">Amount</label>
-              <input type="text" class="form-control form-control-sm" id="dash-cage-manual-cash-amount" inputmode="numeric" autocomplete="off" required>
+              <input type="text" class="form-control form-control-sm" id="dash-cage-manual-cash-amount" inputmode="numeric" placeholder="+ / -" autocomplete="off" required>
             </div>
             <div class="cage-manual-cash-add-remarks">
               <label for="dash-cage-manual-cash-remarks" class="form-label small text-muted mb-1">Remarks</label>
-              <input type="text" class="form-control form-control-sm" id="dash-cage-manual-cash-remarks" name="cage_manual_cash_remarks" maxlength="500" autocomplete="off" spellcheck="true">
+              <input type="text" class="form-control form-control-sm" id="dash-cage-manual-cash-remarks" name="cage_manual_cash_remarks" maxlength="500" placeholder="Optional" autocomplete="off" spellcheck="true">
             </div>
           </div>
 
-          <div class="table-responsive dash-beyond-chips-history-wrap">
+          <div class="cage-manual-cash-history-card">
 
-            <table class="table table-sm table-bordered table-striped mb-0 dash-beyond-chips-history-tbl" id="dash-cage-manual-cash-history-tbl">
+            <table class="table table-sm mb-0 cage-manual-cash-tbl cage-manual-cash-head-tbl" aria-hidden="true">
 
               <thead>
 
                 <tr>
                   <th class="cage-manual-cash-col-date">Program Date</th>
                   <th class="cage-manual-cash-col-amount text-end">Amount</th>
+                  <th class="cage-manual-cash-col-balance text-end">Balance</th>
                   <th class="cage-manual-cash-col-remarks">Remarks</th>
                   <th class="cage-manual-cash-col-action text-center">Action</th>
                 </tr>
 
               </thead>
 
-              <tbody id="dash-cage-manual-cash-history-body">
-
-                <tr>
-
-                  <td colspan="4" class="text-muted text-center py-3">Loading...</td>
-
-                </tr>
-
-              </tbody>
-
             </table>
+
+            <div class="dash-beyond-chips-history-wrap cage-manual-cash-history-wrap">
+
+              <table class="table table-sm mb-0 dash-beyond-chips-history-tbl cage-manual-cash-tbl" id="dash-cage-manual-cash-history-tbl">
+
+                <tbody id="dash-cage-manual-cash-history-body">
+
+                  <tr>
+
+                    <td colspan="5" class="text-muted text-center py-3">Loading...</td>
+
+                  </tr>
+
+                </tbody>
+
+              </table>
+
+            </div>
 
           </div>
 
@@ -66,9 +79,9 @@
 
         <div class="modal-footer py-2">
 
-          <button type="submit" class="btn btn-sm btn-primary">Save</button>
+          <button type="button" class="btn btn-sm btn-light cage-manual-cash-btn-close" data-bs-dismiss="modal">Close</button>
 
-          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-sm btn-primary cage-manual-cash-btn-save"><i class="fa fa-save me-1" aria-hidden="true"></i>Save</button>
 
         </div>
 
@@ -84,7 +97,7 @@
 
 <div class="modal fade" id="modal-dash-cage-manual-cash-edit" tabindex="-1" aria-labelledby="modal-dash-cage-manual-cash-edit-label" aria-hidden="true" data-bs-backdrop="static">
 
-  <div class="modal-dialog modal-dialog-centered modal-sm">
+  <div class="modal-dialog modal-dialog-centered modal-sm cage-manual-cash-edit-dialog">
 
     <div class="modal-content">
 
