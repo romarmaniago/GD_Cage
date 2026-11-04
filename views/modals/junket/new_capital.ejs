@@ -786,7 +786,7 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 
 <script>
 	$(document).ready(function () {
-		<%# House-balance amounts (.hb-field-amount) show negatives as red (1,000) — handled in capital.js %>
+		// House-balance amounts (.hb-field-amount) show negatives as red (1,000) — handled in capital.js
 		$(document).on('keyup input', 'input[data-type="signed-amount"]:not(.hb-field-amount)', function () {
 			var $this = $(this);
 			var formatted = (typeof formatCapitalSignedAmountInput === 'function')

@@ -762,6 +762,7 @@ function reloadCapitalData() {
                         remarks: cbalRemarks,
                         programDate: cbalProgramDate,
                         typeLabel: cbalTypeLabel,
+                        accountLabel: row.capital_account_label || '',
                         encodedBy: fullName,
                         encodedDt: row.ENCODED_DT
                             ? moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm')
@@ -2832,40 +2833,46 @@ function capitalReceiptTextRow(label, value) {
     );
 }
 
+/** Amount row, Excel number format: OUT shows red (x); IN is plain with a hidden ")" so the digits line up. */
 function capitalReceiptAmountRow(value, direction) {
     const num = Math.abs(Number(value) || 0);
     const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     const isOut = direction === 'out';
-    // IN: plain text; OUT: red text (accounting parentheses)
-    const display = isOut ? '(' + formatted + ')' : formatted;
-    const cls = isOut ? 'cr-amount-out' : 'cr-amount-plain';
+    const display = isOut ? '(' + formatted + ')' : formatted + '<span class="cr-paren-pad" aria-hidden="true">)</span>';
     return (
-        '<tr class="cr-total-row"><td class="cr-label cr-total-label">AMOUNT</td>' +
-        '<td class="cr-value ' + cls + '">' +
+        '<tr><td class="cr-label">IN &amp; OUT</td>' +
+        '<td class="cr-value' + (isOut ? ' cr-amount-out' : '') + '">' +
         display +
         '</td></tr>'
     );
 }
 
+function capitalReceiptDateTime(value) {
+    if (!value) return '';
+    const m = moment(value, 'YYYY-MM-DD HH:mm');
+    return m.isValid() ? m.format('M/D/YYYY H:mm') : String(value);
+}
+
 function buildCapitalReceiptHtml(row) {
     row = row || {};
-    const rowsHtml =
-        capitalReceiptTextRow('DATE', row.programDate) +
-        capitalReceiptTextRow('TYPE', row.typeLabel) +
-        capitalReceiptAmountRow(row.amount, row.direction) +
+    const infoRows =
+        capitalReceiptTextRow('TYPE', row.typeLabel ? String(row.typeLabel).toUpperCase() : '') +
+        capitalReceiptTextRow('PROGRAM DATE', row.programDate) +
+        capitalReceiptTextRow('ACCOUNT', row.accountLabel) +
         capitalReceiptTextRow('REMARKS', row.remarks);
 
     return (
         '<div class="capital-receipt-slip">' +
         '<div class="capital-receipt-slip-body">' +
-        '<p class="cr-brand">GOLDEN DRAGON</p>' +
-        '<p class="cr-title">* Company *</p>' +
+        '<div class="cr-header' + (row.direction === 'out' ? '' : ' cr-header--in') + '">* COMPANY *</div>' +
+        '<div class="cr-content">' +
         '<p class="cr-datetime">' +
-        capitalReceiptEscape(row.encodedDt || '') +
+        capitalReceiptEscape(capitalReceiptDateTime(row.encodedDt)) +
         '</p>' +
-        '<table class="cr-table"><tbody>' +
-        rowsHtml +
-        '</tbody></table>' +
+        '<p class="cr-account">GOLDEN DRAGON</p>' +
+        '<table class="cr-table cr-amounts"><tbody>' + capitalReceiptAmountRow(row.amount, row.direction) + '</tbody></table>' +
+        (infoRows ? '<table class="cr-table cr-info"><tbody>' + infoRows + '</tbody></table>' : '') +
+        '</div>' +
         '</div>' +
         '<div class="capital-receipt-slip-actions">' +
         '<button type="button" class="btn capital-receipt-copy-btn js-copy-capital-receipt-image">Copy image</button>' +
