@@ -843,14 +843,50 @@ $(document).ready(function () {
         return Number(row.commission) || 0;
     }
 
+    // Name used for A→Z sorting: drops hidden/zero-width chars and spaces the DB value may carry
+    function getRankingNameSortValue(row) {
+        return String((row && row.name) || '')
+            .replace(/[\u0000-\u001F\u007F-\u00A0\u200B-\u200F\u2028-\u202F\u2060\uFEFF]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toUpperCase();
+    }
+
+    // Ranking # = NGR rank (highest NGR = 1; rows with no games last; ties by name)
+    function buildNgrRankMap(rows) {
+        var map = {};
+        (rows || []).slice().sort(function (a, b) {
+            var aEmpty = !(a.transactions || []).length;
+            var bEmpty = !(b.transactions || []).length;
+            if (aEmpty !== bEmpty) return aEmpty ? 1 : -1;
+            var diff = (Number(b.ngr) || 0) - (Number(a.ngr) || 0);
+            if (diff) return diff;
+            return String(a.name || '').localeCompare(String(b.name || ''));
+        }).forEach(function (row, i) {
+            map[String(row.key)] = i + 1;
+        });
+        return map;
+    }
+
     function sortAgentRowsForRanking(rows) {
         var key = drilldownState.rankingSortKey || 'commission';
         var dir = drilldownState.rankingSortDir === 'asc' ? 'asc' : 'desc';
+        if (key === 'rank') {
+            var rankMap = buildNgrRankMap(rows);
+            return (rows || []).slice().sort(function (a, b) {
+                var d = rankMap[String(a.key)] - rankMap[String(b.key)];
+                return dir === 'asc' ? d : -d;
+            });
+        }
         return (rows || []).slice().sort(function (a, b) {
             // Rows with no games (all 0) always go last, whatever the sort
             var aEmpty = !(a.transactions || []).length;
             var bEmpty = !(b.transactions || []).length;
             if (aEmpty !== bEmpty) return aEmpty ? 1 : -1;
+            if (key === 'name') {
+                var cmp = getRankingNameSortValue(a).localeCompare(getRankingNameSortValue(b), undefined, { numeric: true, sensitivity: 'base' });
+                return dir === 'asc' ? cmp : -cmp;
+            }
             var av = getAgentRankingSortValue(a, key);
             var bv = getAgentRankingSortValue(b, key);
             if (av < bv) return dir === 'asc' ? -1 : 1;
@@ -871,6 +907,13 @@ $(document).ready(function () {
             $th.removeClass('sorting sorting_asc sorting_desc')
                 .addClass(thKey === key ? (dir === 'asc' ? 'sorting_asc' : 'sorting_desc') : 'sorting');
             $th.toggleClass('is-active', thKey === key);
+        });
+        $('#commission-panel-tbl thead th.commission-rank-name-sortable').each(function () {
+            var $th = $(this);
+            var thKey = $th.attr('data-rank-key');
+            $th.removeClass('sorting sorting_asc sorting_desc')
+                .addClass(thKey === key ? (dir === 'asc' ? 'sorting_asc' : 'sorting_desc') : 'sorting')
+                .toggleClass('is-active', thKey === key);
         });
     }
 
@@ -1428,12 +1471,14 @@ $(document).ready(function () {
         var metricOrder = getRankingMetricColumnOrder();
         var groupMode = caGroupedOnly && !getSelectedGroup();
         $('#commission-panel-tbl thead th').eq(1).html(groupMode ? 'Group Name' : 'Acc &amp; Name');
+        // Ranking # is always the NGR rank, so it moves with the row when sorting other columns
+        var ngrRankByKey = buildNgrRankMap(agentRows);
         rankTable.clear();
         (agentRows || []).forEach(function (row, idx) {
             var key = encodeURIComponent(row.key);
             var nameLink = '<a href="#" class="js-open-agent-modal" data-agent-key="' + key + '">' + escapeHtml(row.name) + '</a>';
             var rowData = [
-                idx + 1,
+                ngrRankByKey[String(row.key)] || idx + 1,
                 nameLink
             ];
             metricOrder.forEach(function (metricKey) {
@@ -1575,8 +1620,8 @@ $(document).ready(function () {
                     var settlement = createSettlement(Number(game.COMMISSION_TYPE), rollingRate, totals, game);
                     var fnb = Number(game.fnb) || 0;
                     var payment = Math.round(settlement - fnb);
-                    var agentCode = game.agent_code || '-';
-                    var agentName = game.agent_name || '-';
+                    var agentCode = String(game.agent_code || '').trim() || '-';
+                    var agentName = String(game.agent_name || '').trim() || '-';
                     return {
                         key: String(game.agent_id || game.ACCOUNT_ID || agentCode + '-' + agentName),
                         agentCode: agentCode,
@@ -1643,6 +1688,18 @@ $(document).ready(function () {
         } else {
             drilldownState.rankingSortKey = key;
             drilldownState.rankingSortDir = 'desc';
+        }
+        renderRankTable(buildSortedAgentRowsFromState());
+    });
+
+    // Ranking # (1→N) and Group Name / Acc & Name (A→Z): ascending on first click, then toggles
+    $(document).on('click', '#commission-panel-tbl thead th.commission-rank-name-sortable', function () {
+        var key = $(this).attr('data-rank-key') || 'name';
+        if (drilldownState.rankingSortKey === key) {
+            drilldownState.rankingSortDir = drilldownState.rankingSortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            drilldownState.rankingSortKey = key;
+            drilldownState.rankingSortDir = 'asc';
         }
         renderRankTable(buildSortedAgentRowsFromState());
     });
@@ -1749,6 +1806,16 @@ $(document).ready(function () {
         if (!payload.rows.length) {
             notifyNoCommissionAnalyticsRows('Copy Image');
             return;
+        }
+        // Copy Image leaves out the NGR column (Print / Export still include it)
+        var ngrIdx = payload.headers.indexOf(RANKING_METRIC_LABELS.ngr);
+        if (ngrIdx >= 0) {
+            var dropNgr = function (r) { return r.filter(function (_, i) { return i !== ngrIdx; }); };
+            payload = {
+                headers: dropNgr(payload.headers),
+                rows: payload.rows.map(dropNgr),
+                totalRow: payload.totalRow ? dropNgr(payload.totalRow) : null
+            };
         }
         var originalHtml = btn.innerHTML;
         btn.disabled = true;

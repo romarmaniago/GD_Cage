@@ -85,8 +85,8 @@
 						<table id="commission-panel-tbl" class="table marker-balance-tbl nowrap small-text w-100 mb-0">
 							<thead>
 								<tr>
-									<th>Ranking #</th>
-									<th>Acc &amp; Name</th>
+									<th class="commission-rank-name-sortable sorting" data-rank-key="rank">Ranking #</th>
+									<th class="commission-rank-name-sortable sorting" data-rank-key="name">Acc &amp; Name</th>
 									<th class="commission-rank-sortable sorting" data-rank-key="totalBuyIn">Buy In</th>
 									<th class="commission-rank-sortable sorting" data-rank-key="totalChipsReturn">Cash Out</th>
 									<th class="commission-rank-sortable sorting" data-rank-key="winLoss">Win/Loss</th>
@@ -227,7 +227,7 @@
 <%- include('../partials/footer') %>
 <script src="/assets/js/functions/num_paren_align.js"></script>
 <script src="/assets/js/functions/game_information_receipt.js?v=3"></script>
-<script src="/assets/js/functions/commission_analytics.js?v=35"></script>
+<script src="/assets/js/functions/commission_analytics.js?v=40"></script>
 
 <style>
 #modal-gi-agent-group .select2-container {
@@ -875,7 +875,8 @@
 	padding-right: 20px;
 }
 
-#commission-panel-tbl thead th.commission-rank-sortable {
+#commission-panel-tbl thead th.commission-rank-sortable,
+#commission-panel-tbl thead th.commission-rank-name-sortable {
 	cursor: pointer;
 	user-select: none;
 }
