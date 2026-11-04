@@ -30,8 +30,7 @@
     if (!editModal || !editId || !editAmount || typeof bootstrap === 'undefined') return;
 
     editId.value = String(id);
-    const rounded = Math.round(Number(amount) || 0);
-    editAmount.value = rounded < 0 ? `-${Math.abs(rounded).toLocaleString('en-US')}` : formatBeyondChipsAmountInput(rounded);
+    setBeyondChipsSignedValue(editAmount, beyondChipsSignedFromNumber(amount));
     if (editRemarks) editRemarks.value = remarks != null ? String(remarks) : '';
     releaseBeyondChipsParentFocusTrap();
 
@@ -139,17 +138,52 @@
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  // Signed input: a leading "+" or "-" is kept (negative = deduct), digits get thousands separators.
+  // Digits-only with thousands separators (also used by the Rolling Check manual inputs).
   function formatBeyondChipsAmountInput(value) {
-    let raw = String(value ?? '').trim();
-    let sign = '';
-    if (raw.charAt(0) === '+' || raw.charAt(0) === '-') {
-      sign = raw.charAt(0);
-      raw = raw.slice(1);
-    }
-    const cleaned = raw.replace(/[^\d]/g, '');
-    if (!cleaned) return sign;
-    return sign + Number(cleaned).toLocaleString('en-US');
+    const cleaned = String(value ?? '').replace(/[^\d]/g, '');
+    if (!cleaned) return '';
+    return Number(cleaned).toLocaleString('en-US');
+  }
+
+  // Beyond Chips amount (signed): negatives show as "(10,000)" while typing.
+  // A leading "-" or "(" marks negative; deleting the "(" makes it positive again.
+  function formatBeyondChipsSignedInput(value) {
+    const raw = String(value ?? '').trim();
+    const negative = raw.charAt(0) === '-' || raw.charAt(0) === '(';
+    const digits = raw.replace(/[^\d]/g, '');
+    if (!digits) return negative ? '-' : '';
+    const grouped = Number(digits).toLocaleString('en-US');
+    return negative ? `(${grouped})` : grouped;
+  }
+
+  function beyondChipsSignedFromNumber(value) {
+    const n = Math.round(Number(value) || 0);
+    if (!n) return '';
+    return n < 0 ? `(${Math.abs(n).toLocaleString('en-US')})` : n.toLocaleString('en-US');
+  }
+
+  function bindBeyondChipsSignedInput(input) {
+    if (!input) return;
+    const paint = () => input.classList.toggle('text-dash-neg', /^[-(]/.test(input.value));
+    input.addEventListener('input', () => {
+      let raw = input.value;
+      // Backspace on the closing ")" removes the last digit instead of getting stuck.
+      if (raw.charAt(0) === '(' && raw.indexOf(')') === -1) raw = raw.replace(/\d(?=\D*$)/, '');
+      input.value = formatBeyondChipsSignedInput(raw);
+      // Keep the caret inside the parentheses so the next digit lands before ")".
+      if (input.value.endsWith(')') && document.activeElement === input) {
+        const pos = input.value.length - 1;
+        input.setSelectionRange(pos, pos);
+      }
+      paint();
+    });
+    input.addEventListener('beyondchips:paint', paint);
+  }
+
+  function setBeyondChipsSignedValue(input, value) {
+    if (!input) return;
+    input.value = value;
+    input.dispatchEvent(new Event('beyondchips:paint'));
   }
 
   function beyondChipsEmptyRow(text, tone) {
@@ -305,7 +339,7 @@
     ensureBeyondChipsDatePicker();
     dateIso.value = date;
     setBeyondChipsDate(date);
-    amountInput.value = '';
+    setBeyondChipsSignedValue(amountInput, '');
     if (beyondChipsEls.remarks) beyondChipsEls.remarks.value = '';
 
     getBeyondChipsModalInstance()?.show();
@@ -316,7 +350,9 @@
   }
 
   function parseBeyondChipsInput(raw) {
-    const cleaned = String(raw ?? '').replace(/,/g, '').trim();
+    let cleaned = String(raw ?? '').replace(/,/g, '').trim();
+    const paren = cleaned.match(/^\((.*)\)?$/);
+    if (paren) cleaned = `-${paren[1].replace(/\)$/, '')}`;
     if (cleaned === '' || cleaned === '-' || cleaned === '+') return 0;
     const n = Number(cleaned);
     return Number.isFinite(n) ? n : NaN;
@@ -366,9 +402,7 @@
       }
     });
 
-    beyondChipsEls.editAmount?.addEventListener('input', (e) => {
-      e.target.value = formatBeyondChipsAmountInput(e.target.value);
-    });
+    bindBeyondChipsSignedInput(beyondChipsEls.editAmount);
 
     beyondChipsEls.editForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -410,9 +444,7 @@
       }
     });
 
-    beyondChipsEls.amount?.addEventListener('input', (e) => {
-      e.target.value = formatBeyondChipsAmountInput(e.target.value);
-    });
+    bindBeyondChipsSignedInput(beyondChipsEls.amount);
 
     beyondChipsEls.form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -436,7 +468,7 @@
       if (saveBtn) saveBtn.disabled = true;
       try {
         await saveBeyondChips(date, addAmount, String(beyondChipsEls.remarks?.value || '').trim());
-        beyondChipsEls.amount.value = '';
+        setBeyondChipsSignedValue(beyondChipsEls.amount, '');
         if (beyondChipsEls.remarks) beyondChipsEls.remarks.value = '';
         await refreshBeyondChipsViews(date);
         if (typeof Swal !== 'undefined') {
