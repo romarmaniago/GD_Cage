@@ -12542,6 +12542,12 @@ function refreshSettlementSplitSummary() {
 	$('#settlement-split-payment').text(settlementSplitFormat(settlementSplitPaymentAbs()));
 	$('#settlement-split-remaining').text(settlementSplitFormat(remaining))
 		.toggleClass('text-danger', remaining < 0);
+	var gameAgentCode = String($('#modal-settlement').data('settlementGameAgentCode') || '').trim();
+	$('#settlement-split-note')
+		.text(remaining > 0
+			? 'Remaining ' + settlementSplitFormat(remaining) + ' will go to the game account' + (gameAgentCode ? ' (' + gameAgentCode + ')' : '') + '.'
+			: '')
+		.toggleClass('d-none', !(remaining > 0));
 	var $rows = $('#settlement-split-rows .settlement-split-row');
 	$rows.find('.settlement-split-remove').prop('disabled', $rows.length <= 1);
 }
@@ -12823,6 +12829,7 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
                 $('input[name="game_id_settle"]').val(record_id);
                 $('input[name="txtAccountIDSettle"]').val(account_id);
                 $settlementModal.data('settlementGameAccountId', account_id);
+                $settlementModal.data('settlementGameAgentCode', data[0].agent_code || '');
                 clearSettlementChooseAccount($settlementModal);
                 $settlementModal.find('input[name="txtTransType"]').prop('checked', false);
                 loadSettlementPendingOrigin(record_id);
