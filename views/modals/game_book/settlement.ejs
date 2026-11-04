@@ -416,6 +416,7 @@
                             </div>
                         </div>
                         <input type="hidden" id="txtChooseAccountID" name="txtChooseAccountID" value="">
+                        <input type="hidden" id="txtChooseAccountSplits" value="">
                     </div>
                 </div>
 
@@ -600,12 +601,14 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <label class="form-label" for="settlement-choose-account-select"><%= __('modal_settlement.choose_account') %></label>
-                <select id="settlement-choose-account-select" class="form-select js-select2" style="width: 100%;" data-placeholder="<%= __('modal_settlement.choose_account_placeholder') %>">
-                    <option value=""><%= __('modal_settlement.choose_account_placeholder') %></option>
-                </select>
-                <div class="form-text mt-2"><%= __('modal_settlement.choose_account_hint') %></div>
-            </div>
+                <div class="d-flex justify-content-between align-items-center mb-2 small">
+                    <span>Payment: <strong id="settlement-split-payment">0</strong></span>
+                    <span>Remaining: <strong id="settlement-split-remaining">0</strong></span>
+                </div>
+                <div id="settlement-split-rows"></div>
+                <button type="button" class="btn btn-alt-secondary rounded-circle d-inline-flex align-items-center justify-content-center p-0 mt-1" id="settlement-split-add" title="Add Account" aria-label="Add Account" style="width:32px;height:32px;">
+                    <i class="fa fa-plus"></i>
+                </button>            </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-sm btn-primary" id="settlement-choose-account-confirm"><%= __('modal_settlement.confirm') %></button>
                 <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_settlement.close') %></button>

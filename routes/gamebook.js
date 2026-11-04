@@ -5830,6 +5830,94 @@ router.get('/game_list/commission_settlement_detail', checkSession, async (req, 
 });
 
 // ADD SETTLEMENT
+// Deposit balance of an account (same rule as the client's fetchAccountBalanceTotal).
+async function getAccountDepositBalance(accountId) {
+	const [rows] = await pool.execute(
+		`SELECT
+			COALESCE(SUM(CASE WHEN tt.TRANSACTION IN ('DEPOSIT', 'MARKER REDEEM') THEN al.AMOUNT
+			                  WHEN tt.TRANSACTION IN ('WITHDRAW', 'IOU RETURN DEPOSIT') THEN -al.AMOUNT ELSE 0 END), 0) AS balance
+		 FROM account_ledger al
+		 JOIN transaction_type tt ON tt.IDNo = al.TRANSACTION_ID
+		 WHERE al.ACTIVE = 1 AND al.TRANSACTION_TYPE IN (2, 5, 3)
+		   AND tt.TRANSACTION NOT IN ('CREDIT', 'IOU CASH', 'CREDIT CASH')
+		   AND al.ACCOUNT_ID = ?`,
+		[accountId]
+	);
+	return parseFloat(rows[0] && rows[0].balance) || 0;
+}
+
+// Settlement paid to several accounts (Choose Account split): one agent message per account,
+// one management message listing the split.
+async function sendSplitSettlementTelegrams(ctx) {
+	const { allocations, game_id_settle, cutoffCtx, paymentNum, fakeSettleBefore, sendTelegramAgent, sendTelegramCage, mgmtAgent } = ctx;
+	try {
+		const fmt = (n) => (parseFloat(n) || 0).toLocaleString('en-US');
+		const updated_time = new Date().toLocaleTimeString();
+		const date_nowTG = new Date().toLocaleDateString();
+		const totals = cutoffCtx.isCutoff
+			? await fetchCombinedSettlementTotals(cutoffCtx.gameIds)
+			: await fetchSettlementTotalsForGameId(game_id_settle);
+		const { total_buy_in, total_cash_out, winloss, total_rolling } = totals;
+
+		let commissionTextLine = '';
+		let gameTypeLine = '';
+		let gameTypeMgmtLine = '';
+		try {
+			const [gameInfoRows] = await pool.execute(
+				'SELECT COMMISSION_TYPE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE, GAME_TYPE FROM game_list WHERE IDNo = ? LIMIT 1',
+				[game_id_settle]
+			);
+			if (Array.isArray(gameInfoRows) && gameInfoRows.length > 0) {
+				const row = gameInfoRows[0];
+				const commissionType = parseInt(row.COMMISSION_TYPE, 10) || null;
+				if (commissionType === 2 || commissionType === 3) {
+					commissionTextLine = `\nGame type: ${commissionTypeLabel(row)}`;
+				}
+				if (row.GAME_TYPE != null && String(row.GAME_TYPE).trim() !== '') {
+					const gt = telegramSettlementGameTypeLines(row.GAME_TYPE);
+					gameTypeLine = gt.agentLine;
+					gameTypeMgmtLine = gt.managementLine;
+				}
+			}
+		} catch (commissionErr) {
+			console.error('Failed to load commission type for settlement:', commissionErr.message || commissionErr);
+		}
+
+		const totalsBlock = `\n\nTotal Buy-in: ${total_buy_in.toLocaleString('en-US')}\nTotal Cash-out: ${total_cash_out.toLocaleString('en-US')}\nWin/Loss: ${winloss.toLocaleString('en-US')}\nTotal Rolling: ${total_rolling.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+		const sendAgentPaths = fakeSettleBefore !== 1 || sendTelegramAgent;
+		const sendCagePaths = fakeSettleBefore !== 1 || sendTelegramCage;
+		const settlementLogLabel = cutoffCtx.isCutoff ? 'End Game / Settlement (Cut Off)' : 'End Game / Settlement';
+
+		if (sendAgentPaths) {
+			for (const alloc of allocations) {
+				if (!alloc.agent) continue;
+				const { AGENT_CODE: agentCode, NAME: agentName } = alloc.agent;
+				const balance = await getAccountDepositBalance(alloc.accountId);
+				const text = `GD Cage\n\n* End Game / Settlement *${cutoffCtx.agentTitleLine}\n\nAccount: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\nCommission: ${fmt(alloc.amount)} - Deposit\nBalance: ${fmt(balance)}${totalsBlock}`;
+				const opts = gamebookTelegramOpts(settlementLogLabel, agentCode, agentName, alloc.amount, cutoffCtx.gameNumbersDisplay);
+				const telegramId = getAgentTelegramChatId(alloc.agent);
+				if (telegramId) {
+					try { await sendTelegramMessage(text, telegramId, opts); } catch (e) { console.error('Failed to send Telegram message to agent:', e.message); }
+				}
+				try { await sendTelegramToAdditionalChats(text, opts); } catch (e) { console.error('Failed to send Telegram message to additional chats:', e.message); }
+			}
+		}
+
+		if (sendCagePaths) {
+			const head = mgmtAgent || (allocations[0] && allocations[0].agent);
+			const accountLine = head ? `${head.AGENT_CODE} - ${head.NAME}` : '';
+			const splitLines = allocations
+				.map((a) => `\n  ${a.agent ? a.agent.AGENT_CODE + ' - ' + a.agent.NAME : 'Account #' + a.accountId}: ${fmt(a.amount)}`)
+				.join('');
+			const managementText = `GD Cage\n\n* End Game / Settlement *${cutoffCtx.mgmtTitleLine}\n\nAccount: ${accountLine}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionTextLine}\nCommission: ${fmt(paymentNum)}${splitLines}${totalsBlock}`;
+			const opts = gamebookTelegramOpts(settlementLogLabel, head ? head.AGENT_CODE : '', head ? head.NAME : '', paymentNum, cutoffCtx.gameNumbersDisplay);
+			try { await sendTelegramToManagement(managementText, opts); } catch (e) { console.error('Failed to send Telegram message to management:', e.message); }
+		}
+	} catch (err) {
+		console.error('Split settlement Telegram failed:', err.message || err);
+	}
+}
+
 router.post('/add_settlement', commissionLock(gameFromSettlementBody), async (req, res) => {
 	const {
 		game_id_settle,
@@ -5839,6 +5927,7 @@ router.post('/add_settlement', commissionLock(gameFromSettlementBody), async (re
 		txtFNB,
 		txtSettlementBalance,
 		txtCutoffLinkedGameIds,
+		txtSettlementSplits,
 		send_telegram_agent,
 		send_telegram_cage
 	} = req.body;
@@ -5901,6 +5990,48 @@ router.post('/add_settlement', commissionLock(gameFromSettlementBody), async (re
 			}
 		}
 
+		// Choose Account split: payment spread over several accounts (amounts sent unsigned, take the
+		// payment's sign). Total cannot exceed the payment; the rest goes to txtAccountIDSettle (game account).
+		const paymentNum = parseFloat(paymentValue) || 0;
+		let allocations = [{ accountId: String(txtAccountIDSettle), amount: paymentNum }];
+		let isSplit = false;
+		if (!isCommissionToLoss && String(txtTransType) === '1' && txtSettlementSplits) {
+			let splits;
+			try {
+				splits = JSON.parse(txtSettlementSplits);
+			} catch (e) {
+				return res.status(400).json({ success: false, message: 'Invalid account split.' });
+			}
+			if (!Array.isArray(splits) || splits.length === 0) {
+				return res.status(400).json({ success: false, message: 'Invalid account split.' });
+			}
+			const sign = paymentNum < 0 ? -1 : 1;
+			const byAccount = new Map();
+			let splitTotal = 0;
+			for (const sp of splits) {
+				const accId = parseInt(sp && sp.account_id, 10);
+				const amt = Math.round(Math.abs(parseFloat(String(sp && sp.amount != null ? sp.amount : '').replace(/,/g, ''))) * 100) / 100;
+				if (!accId || accId <= 0 || isNaN(amt)) {
+					return res.status(400).json({ success: false, message: 'Invalid account split.' });
+				}
+				splitTotal += amt;
+				byAccount.set(String(accId), (byAccount.get(String(accId)) || 0) + sign * amt);
+			}
+			if (splitTotal > Math.abs(paymentNum) + 0.005) {
+				return res.status(400).json({ success: false, message: 'The total of the account amounts cannot exceed the payment.' });
+			}
+			const remainder = Math.round((paymentNum - sign * splitTotal) * 100) / 100;
+			if (remainder !== 0) {
+				const key = String(txtAccountIDSettle);
+				byAccount.set(key, (byAccount.get(key) || 0) + remainder);
+			}
+			const list = [...byAccount.entries()]
+				.map(([accountId, amount]) => ({ accountId, amount: Math.round(amount * 100) / 100 }))
+				.filter((a) => a.amount !== 0);
+			allocations = list.length ? list : [{ accountId: String(parseInt(splits[0].account_id, 10)), amount: 0 }];
+			isSplit = true;
+		}
+
 		// Fetch AGENT_CODE, NAME, and TELEGRAM_ID
 		const agentQuery = `
             SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID,
@@ -5909,6 +6040,10 @@ router.post('/add_settlement', commissionLock(gameFromSettlementBody), async (re
             JOIN account ON account.AGENT_ID = agent.IDNo
             WHERE account.ACTIVE = 1 AND account.IDNo = ?
         `;
+		for (const alloc of allocations) {
+			const [rows] = await pool.query(agentQuery, [alloc.accountId]);
+			alloc.agent = rows.length > 0 ? rows[0] : null;
+		}
 
 		let time_now = new Date();
 		time_now.setHours(time_now.getHours());
@@ -5949,7 +6084,9 @@ router.post('/add_settlement', commissionLock(gameFromSettlementBody), async (re
 			// LINKED_GAME_IDS records the full group when multiple games were settled together)
 			const settlementRemarks = `Settlement - #${game_id_settle}`;
 			const insertQuery = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, AUTO_REMARKS, ENCODED_BY, ENCODED_DT, LINKED_GAME_IDS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-			await connection.execute(insertQuery, [txtAccountIDSettle, game_id_settle, txtTransType, 5, FNBDESC, paymentValue, settlementRemarks, req.session.user_id, date_now, linkedGameIdsCsv]);
+			for (const alloc of allocations) {
+				await connection.execute(insertQuery, [alloc.accountId, game_id_settle, txtTransType, 5, FNBDESC, String(alloc.amount), settlementRemarks, req.session.user_id, date_now, linkedGameIdsCsv]);
+			}
 		}
 
 		// Cut-off pair: mark linked games settled (commission recorded on primary game only)
@@ -5960,16 +6097,16 @@ router.post('/add_settlement', commissionLock(gameFromSettlementBody), async (re
 			);
 		}
 
-		const insertCashEntry = async (category, type, remark) => {
-			if (!agentId) return;
+		const insertCashEntry = async (category, type, remark, entryAgentId = agentId, entryAmount = paymentValue) => {
+			if (!entryAgentId) return;
 			const cashTransactionQuery = `
 				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 			`;
 			await connection.execute(cashTransactionQuery, [
 				game_id_settle,
-				agentId,
-				paymentValue.toString(),
+				entryAgentId,
+				entryAmount.toString(),
 				category,
 				type,
 				remark,
@@ -5983,8 +6120,12 @@ router.post('/add_settlement', commissionLock(gameFromSettlementBody), async (re
 			if (txtTransType == 5) {
 				await insertCashEntry('Commission Cash-out', 2, `Game - ${gameRemark}`);
 			} else if (txtTransType == 1) {
-				await insertCashEntry('Commission Deposit', 1, `Game - ${gameRemark}`);
-				await insertCashEntry('Commission', 2, `Game - ${gameRemark}`);
+				for (const alloc of allocations) {
+					if (!alloc.amount) continue;
+					const allocAgentId = alloc.agent ? alloc.agent.agent_id : null;
+					await insertCashEntry('Commission Deposit', 1, `Game - ${gameRemark}`, allocAgentId, alloc.amount);
+					await insertCashEntry('Commission', 2, `Game - ${gameRemark}`, allocAgentId, alloc.amount);
+				}
 			}
 		}
 
@@ -5996,7 +6137,12 @@ router.post('/add_settlement', commissionLock(gameFromSettlementBody), async (re
 		// (the cage would see an error and press Settle again).
 		res.json({ success: true, message: 'Settlement saved and status updated' });
 
-		if (agentResults.length > 0) {
+		if (isSplit) {
+			await sendSplitSettlementTelegrams({
+				allocations, game_id_settle, cutoffCtx, paymentNum,
+				fakeSettleBefore, sendTelegramAgent, sendTelegramCage, mgmtAgent: agentResults[0] || null
+			});
+		} else if (agentResults.length > 0) {
 			const { AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
 			const telegramId = getAgentTelegramChatId(agentResults[0]);
 

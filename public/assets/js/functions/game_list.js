@@ -12438,6 +12438,7 @@ function computeGameSettlementMetricsFromRows(dataRows) {
 function clearSettlementChooseAccount($modal) {
 	$modal = $modal && $modal.length ? $modal : $('#modal-settlement');
 	$modal.find('#txtChooseAccountID').val('');
+	$modal.find('#txtChooseAccountSplits').val('');
 	$modal.find('#settlement-choose-account-label').text('').addClass('d-none');
 	$modal.removeData('settlementChooseAccountId');
 	$modal.removeData('settlementChooseAccountLabel');
@@ -12487,46 +12488,135 @@ function fetchSettlementBalanceForAccount(accountId) {
 	});
 }
 
-function initSettlementChooseAccountSelect() {
-	var $sel = $('#settlement-choose-account-select');
-	if (!$sel.length || typeof $sel.select2 !== 'function') return;
-	if ($sel.data('select2')) {
-		try { $sel.select2('destroy'); } catch (e) {}
-	}
-	$sel.select2({
-		placeholder: $sel.data('placeholder') || 'Select an account',
-		allowClear: false,
-		dropdownParent: $('#modal-settlement-choose-account'),
-		width: '100%'
+// ---- Choose Account split: payment spread over one or more accounts ----
+var settlementChooseAccountOptions = [];
+
+function settlementSplitParse(value) {
+	var num = parseFloat(String(value == null ? '' : value).replace(/,/g, '').trim());
+	return isNaN(num) ? 0 : num;
+}
+
+function settlementSplitFormat(num) {
+	return (Number(num) || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+/** Payment as an unsigned amount (split amounts are entered unsigned and take the payment's sign). */
+function settlementSplitPaymentAbs() {
+	return Math.abs(settlementSplitParse($('#modal-settlement').find('#payment').val()));
+}
+
+function settlementSplitRows() {
+	var rows = [];
+	$('#settlement-split-rows .settlement-split-row').each(function () {
+		var $row = $(this);
+		var $sel = $row.find('.settlement-split-account');
+		rows.push({
+			account_id: String($sel.val() || '').trim(),
+			label: ($sel.find('option:selected').text() || '').trim(),
+			amount: Math.abs(settlementSplitParse($row.find('.settlement-split-amount').val()))
+		});
+	});
+	return rows;
+}
+
+function settlementSplitRemaining() {
+	var used = settlementSplitRows().reduce(function (sum, r) { return sum + r.amount; }, 0);
+	return Math.round((settlementSplitPaymentAbs() - used) * 100) / 100;
+}
+
+/** An account already picked on one row can't be picked again on another row. */
+function refreshSettlementSplitAccountLocks() {
+	var $sels = $('#settlement-split-rows .settlement-split-account');
+	var picked = $sels.map(function () { return String($(this).val() || ''); }).get();
+	$sels.each(function (i) {
+		var own = picked[i];
+		$(this).find('option').each(function () {
+			var v = this.value;
+			this.disabled = !!v && v !== own && picked.indexOf(v) !== -1;
+		});
 	});
 }
 
-function loadSettlementChooseAccounts(selectedId) {
-	var $sel = $('#settlement-choose-account-select');
-	var placeholder = $sel.data('placeholder') || 'Select an account';
+function refreshSettlementSplitSummary() {
+	var remaining = settlementSplitRemaining();
+	$('#settlement-split-payment').text(settlementSplitFormat(settlementSplitPaymentAbs()));
+	$('#settlement-split-remaining').text(settlementSplitFormat(remaining))
+		.toggleClass('text-danger', remaining < 0);
+	var $rows = $('#settlement-split-rows .settlement-split-row');
+	$rows.find('.settlement-split-remove').prop('disabled', $rows.length <= 1);
+}
+
+function addSettlementSplitRow(accountId, amount) {
+	var $wrap = $('#settlement-split-rows');
+	var $row = $('<div class="settlement-split-row d-flex gap-2 align-items-center mb-2"></div>');
+	var $selWrap = $('<div style="min-width:0;flex:0 0 50%;"></div>');
+	var $sel = $('<select class="form-select settlement-split-account" style="width:100%;"></select>');
+	$sel.append($('<option/>', { value: '', text: 'Select an account' }));
+	settlementChooseAccountOptions.forEach(function (o) {
+		$sel.append($('<option/>', { value: o.id, text: o.label, 'data-name': o.name }));
+	});
+	$selWrap.append($sel);
+	var $amt = $('<input type="text" class="form-control settlement-split-amount text-end" inputmode="decimal" placeholder="Amount" style="min-width:0;height:38px;flex:1 1 auto;">');
+	var $rm = $('<button type="button" class="btn btn-link settlement-split-remove d-inline-flex align-items-center justify-content-center p-0 border-0 shadow-none" title="Remove" style="width:24px;height:38px;flex:0 0 24px;background:none;"><i class="fa fa-times text-danger"></i></button>');
+	$row.append($selWrap, $amt, $rm);
+	$wrap.append($row);
+
+	if (typeof $sel.select2 === 'function') {
+		$sel.select2({
+			placeholder: 'Select an account',
+			allowClear: false,
+			dropdownParent: $('#modal-settlement-choose-account'),
+			width: '100%',
+			// Shows agent code only, but searching by the agent name still works
+			matcher: function (params, data) {
+				var term = $.trim(params.term || '').toLowerCase();
+				if (!term) return data;
+				var name = data.element ? String($(data.element).data('name') || '') : '';
+				return ((data.text || '') + ' ' + name).toLowerCase().indexOf(term) !== -1 ? data : null;
+			}
+		});
+	}
+	if (accountId != null && accountId !== '') {
+		$sel.val(String(accountId)).trigger('change');
+	}
+	refreshSettlementSplitAccountLocks();
+	var startAmount = amount != null ? amount : Math.max(settlementSplitRemaining(), 0);
+	$amt.val(startAmount ? settlementSplitFormat(startAmount) : '');
+	refreshSettlementSplitSummary();
+}
+
+function loadSettlementChooseAccounts() {
 	return $.getJSON('/account_data').then(function (rows) {
-		if ($sel.data('select2')) {
-			try { $sel.select2('destroy'); } catch (e) {}
-		}
-		$sel.empty().append($('<option/>', { value: '', text: placeholder }));
+		settlementChooseAccountOptions = [];
+		// The game's own account is not a choice: it already gets whatever remains
+		var gameAccountId = String($('#modal-settlement').data('settlementGameAccountId') || '');
 		(rows || []).forEach(function (a) {
 			var id = a.account_id;
 			if (id == null) return;
-			var parts = [a.agent_code, a.agent_name].filter(Boolean);
-			var label = parts.length ? parts.join(' - ') : ('Account #' + id);
-			$sel.append($('<option/>', { value: String(id), text: label }));
+			if (gameAccountId && String(id) === gameAccountId) return;
+			settlementChooseAccountOptions.push({
+				id: String(id),
+				label: a.agent_code || a.agent_name || ('Account #' + id),
+				name: a.agent_name || ''
+			});
 		});
-		initSettlementChooseAccountSelect();
-		if (selectedId != null && selectedId !== '') {
-			$sel.val(String(selectedId)).trigger('change');
-		}
 	});
 }
 
 function openSettlementChooseAccountModal() {
 	var $modal = $('#modal-settlement');
-	var selectedId = $modal.find('#txtChooseAccountID').val() || '';
-	loadSettlementChooseAccounts(selectedId).always(function () {
+	var saved = [];
+	try { saved = JSON.parse($modal.find('#txtChooseAccountSplits').val() || '[]') || []; } catch (e) { saved = []; }
+	loadSettlementChooseAccounts().always(function () {
+		$('#settlement-split-rows .settlement-split-account').each(function () {
+			if ($(this).data('select2')) { try { $(this).select2('destroy'); } catch (e) {} }
+		});
+		$('#settlement-split-rows').empty();
+		if (saved.length) {
+			saved.forEach(function (sp) { addSettlementSplitRow(sp.account_id, sp.amount); });
+		} else {
+			addSettlementSplitRow('', settlementSplitPaymentAbs());
+		}
 		var el = document.getElementById('modal-settlement-choose-account');
 		if (el && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
 			bootstrap.Modal.getOrCreateInstance(el).show();
@@ -12535,6 +12625,37 @@ function openSettlementChooseAccountModal() {
 		}
 	});
 }
+
+$(document).off('click.settlementSplitAdd', '#settlement-split-add')
+	.on('click.settlementSplitAdd', '#settlement-split-add', function () {
+		addSettlementSplitRow('', null);
+	});
+
+$(document).off('click.settlementSplitRemove', '.settlement-split-remove')
+	.on('click.settlementSplitRemove', '.settlement-split-remove', function () {
+		var $row = $(this).closest('.settlement-split-row');
+		var $sel = $row.find('.settlement-split-account');
+		if ($sel.data('select2')) { try { $sel.select2('destroy'); } catch (e) {} }
+		$row.remove();
+		refreshSettlementSplitAccountLocks();
+		refreshSettlementSplitSummary();
+	});
+
+$(document).off('change.settlementSplitAcc', '.settlement-split-account')
+	.on('change.settlementSplitAcc', '.settlement-split-account', function () {
+		refreshSettlementSplitAccountLocks();
+	});
+
+$(document).off('input.settlementSplitAmt', '.settlement-split-amount')
+	.on('input.settlementSplitAmt', '.settlement-split-amount', function () {
+		var raw = String($(this).val() || '').replace(/[^0-9.]/g, '');
+		var dot = raw.indexOf('.');
+		if (dot !== -1) raw = raw.slice(0, dot + 1) + raw.slice(dot + 1).replace(/\./g, '');
+		var parts = raw.split('.');
+		parts[0] = parts[0] ? Number(parts[0]).toLocaleString('en-US') : '';
+		$(this).val(parts.length > 1 ? parts[0] + '.' + parts[1].slice(0, 2) : parts[0]);
+		refreshSettlementSplitSummary();
+	});
 
 function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinuedGameId) {
     var $settlementModal = $('#modal-settlement');
@@ -12805,6 +12926,28 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
             openSettlementChooseAccountModal();
             return;
         }
+        var chooseSplits = [];
+        if (transType === 'choose') {
+            try { chooseSplits = JSON.parse($settlementModal.find('#txtChooseAccountSplits').val() || '[]') || []; } catch (e) { chooseSplits = []; }
+            if (!chooseSplits.length) {
+                chooseSplits = [{ account_id: chooseAccountId, amount: Math.abs(parseFloat(payment) || 0), label: $settlementModal.data('settlementChooseAccountLabel') || '' }];
+            }
+            var splitSum = chooseSplits.reduce(function (s, r) { return s + (parseFloat(r.amount) || 0); }, 0);
+            // Payment may have changed (rate / services edit) after the accounts were chosen
+            if (splitSum > Math.abs(parseFloat(payment) || 0) + 0.005) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Not allowed',
+                    text: 'The total of the account amounts (' + splitSum.toLocaleString('en-US') + ') exceeds the payment (' + Math.abs(parseFloat(payment) || 0).toLocaleString('en-US') + '). Please adjust the amounts.',
+                    confirmButtonText: 'OK',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    customClass: { confirmButton: 'custom-ok-btn' }
+                });
+                openSettlementChooseAccountModal();
+                return;
+            }
+        }
         var servicesValue = parseFloat(services) || 0;
         var settlementValue = parseFloat(rollingSettlement) || 0;
 
@@ -12863,6 +13006,21 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
         settlementRows.push(['Payment', confirmDueAmount(paymentNum), 'right']);
         if (transType === 'loss') {
             settlementRows.push(['Payment to', 'Loss Amount (Pending #' + ($settlementModal.data('settlementPendingGameId') || '?') + ')']);
+        } else if (transType === 'choose') {
+            // Short labels (agent code only) so long names don't run into the amount column
+            var paySign = paymentNum < 0 ? -1 : 1;
+            var splitUsed = 0;
+            settlementRows.push('spacer');
+            chooseSplits.forEach(function (r) {
+                var amt = parseFloat(r.amount) || 0;
+                splitUsed += amt;
+                var code = String(r.label || '').split(' - ')[0].trim() || ('Account #' + r.account_id);
+                settlementRows.push(['To ' + code, confirmDueAmount(paySign * amt), 'right']);
+            });
+            var splitRest = Math.round((Math.abs(paymentNum) - splitUsed) * 100) / 100;
+            if (splitRest > 0) {
+                settlementRows.push(['To Game Account', confirmDueAmount(paySign * splitRest), 'right']);
+            }
         }
 
         var $btn = $('#submit-settlement-btn');
@@ -12893,7 +13051,12 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
                 });
                 if (transType === 'choose') {
                     payload.txtTransType = '1';
-                    payload.txtAccountIDSettle = chooseAccountId;
+                    // Game account takes whatever the chosen accounts don't cover
+                    var splitGameAccountId = $settlementModal.data('settlementGameAccountId');
+                    payload.txtAccountIDSettle = (splitGameAccountId != null && splitGameAccountId !== '') ? String(splitGameAccountId) : chooseAccountId;
+                    payload.txtSettlementSplits = JSON.stringify(chooseSplits.map(function (r) {
+                        return { account_id: r.account_id, amount: r.amount };
+                    }));
                 } else if (transType === 'loss') {
                     var lossGameAccountId = $settlementModal.data('settlementGameAccountId');
                     if (lossGameAccountId != null && lossGameAccountId !== '') {
@@ -13011,28 +13174,50 @@ function loadSettlementPendingOrigin(gameId) {
 $(document).off('click.settlementChooseConfirm', '#settlement-choose-account-confirm')
 	.on('click.settlementChooseConfirm', '#settlement-choose-account-confirm', function () {
 		var $settlementModal = $('#modal-settlement');
-		var $sel = $('#settlement-choose-account-select');
-		var accountId = String($sel.val() || '').trim();
-		var label = ($sel.find('option:selected').text() || '').trim();
-		if (!accountId) {
+		var splitWarn = function (text) {
 			Swal.fire({
 				icon: 'warning',
 				title: 'Required',
-				text: 'Please select an account.',
+				text: text,
 				confirmButtonText: 'OK',
 				allowOutsideClick: false,
 				allowEscapeKey: false,
 				customClass: { confirmButton: 'custom-ok-btn' }
 			});
+		};
+		var rows = settlementSplitRows();
+		var paymentAbs = settlementSplitPaymentAbs();
+		if (!rows.length || rows.some(function (r) { return !r.account_id; })) {
+			splitWarn('Please select an account on every row.');
+			return;
+		}
+		var seen = {};
+		if (rows.some(function (r) { var dup = seen[r.account_id]; seen[r.account_id] = true; return dup; })) {
+			splitWarn('The same account is selected more than once.');
+			return;
+		}
+		if (paymentAbs > 0 && rows.some(function (r) { return !(r.amount > 0); })) {
+			splitWarn('Please enter an amount on every row.');
+			return;
+		}
+		if (settlementSplitRemaining() < 0) {
+			splitWarn('The total of the amounts cannot exceed the payment (' + settlementSplitFormat(paymentAbs) + ').');
 			return;
 		}
 
+		var splits = rows.map(function (r) { return { account_id: r.account_id, amount: r.amount, label: r.label }; });
+		var accountId = splits[0].account_id;
+		var remaining = settlementSplitRemaining();
+		var label = splits.map(function (r) {
+			return r.label + (splits.length > 1 || remaining > 0 ? ' — ' + settlementSplitFormat(r.amount) : '');
+		}).join('\n') + (remaining > 0 ? '\nGame account — ' + settlementSplitFormat(remaining) : '');
+
 		$settlementModal.find('#txtChooseAccountID').val(accountId);
+		$settlementModal.find('#txtChooseAccountSplits').val(JSON.stringify(splits));
 		$settlementModal.find('#chooseAccount').prop('checked', true);
-		$settlementModal.find('input[name="txtAccountIDSettle"]').val(accountId);
 		$settlementModal.data('settlementChooseAccountId', accountId);
 		$settlementModal.data('settlementChooseAccountLabel', label);
-		$settlementModal.find('#settlement-choose-account-label').text(label).removeClass('d-none');
+		$settlementModal.find('#settlement-choose-account-label').text(label).css('white-space', 'pre-line').removeClass('d-none');
 		fetchSettlementBalanceForAccount(accountId);
 
 		var el = document.getElementById('modal-settlement-choose-account');
