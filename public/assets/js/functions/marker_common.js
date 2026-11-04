@@ -1288,77 +1288,6 @@
     }
     window.showMarkerReceipt = showMarkerReceipt;
 
-    /** Receipt slip for a whole Cash / Chips / Total credit balance table. */
-    function buildCreditBalanceReceiptHtml(kind) {
-        var t = window.markerTranslations || {};
-        var store = (window._markerCreditBalanceData || {})[kind] || { rows: [], total: 0 };
-        var titleMap = {
-            credit: t.tab_credit || 'Cash Credit',
-            buyin: t.credit_chips || 'Chips Credit',
-            totalcredit: t.credit_total || 'Total Credit'
-        };
-        var title = String(titleMap[kind] || 'Credit');
-        var totalLabel = t.total || 'Total';
-        var dt = window.moment ? moment().format('YYYY-MM-DD HH:mm') : new Date().toLocaleString();
-
-        var rowsHtml = '';
-        // Match the order shown in the table: use the DataTable's current row order
-        // when available, otherwise fall back to balance (highest first).
-        var receiptRows = (store.rows || []).slice();
-        var tblSel = '#marker-accounts-' + kind + '-tbl';
-        if (typeof $.fn.DataTable !== 'undefined' && $.fn.DataTable.isDataTable(tblSel)) {
-            try {
-                var byName = {};
-                receiptRows.forEach(function (r) { byName[String(r.name).trim()] = r; });
-                var ordered = [];
-                // order:'current' = displayed sort; search:'none' = keep every account so the
-                // Total row always matches the listed rows even if the table is filtered.
-                $(tblSel).DataTable().rows({ order: 'current', search: 'none' }).every(function () {
-                    var nm = $(this.node()).find('td').eq(0).text().trim();
-                    if (byName[nm]) { ordered.push(byName[nm]); delete byName[nm]; }
-                });
-                Object.keys(byName).forEach(function (k) { ordered.push(byName[k]); });
-                if (ordered.length) receiptRows = ordered;
-            } catch (e) { /* noop */ }
-        } else {
-            receiptRows.sort(function (a, b) {
-                return Math.abs(Number(b.amount) || 0) - Math.abs(Number(a.amount) || 0);
-            });
-        }
-        receiptRows.forEach(function (r) {
-            rowsHtml +=
-                '<tr><td class="mrr-label">' + markerReceiptEscape(r.agent || r.name) +
-                '</td><td class="mrr-value mrr-amount-out">(' + markerReceiptFormatAmount(r.amount) + ')</td></tr>';
-        });
-        if (!rowsHtml) {
-            rowsHtml = '<tr><td class="mrr-label" colspan="2" style="text-align:center;">' +
-                markerReceiptEscape(t.no_data_available || 'No data') + '</td></tr>';
-        }
-        rowsHtml +=
-            '<tr class="mrr-total-row"><td class="mrr-label mrr-total-label">' + markerReceiptEscape(totalLabel) +
-            '</td><td class="mrr-value mrr-amount-out">(' + markerReceiptFormatAmount(store.total) + ')</td></tr>';
-
-        return (
-            '<div class="marker-receipt-slip">' +
-            '<div class="marker-receipt-slip-body">' +
-            '<p class="mrr-brand">GOLDEN DRAGON</p>' +
-            '<p class="mrr-title mrr-title-out">* ' + markerReceiptEscape(title) + ' *</p>' +
-            '<p class="mrr-datetime">' + markerReceiptEscape(dt) + '</p>' +
-            '<table class="mrr-table"><tbody>' + rowsHtml + '</tbody></table>' +
-            '</div>' +
-            '<div class="marker-receipt-slip-actions">' +
-            '<button type="button" class="btn marker-receipt-copy-btn js-copy-marker-receipt-image">' + markerReceiptEscape(t.copy_image || 'Copy image') + '</button>' +
-            '<button type="button" class="btn marker-receipt-copy-btn js-copy-marker-receipt-text">' + markerReceiptEscape(t.copy_text || 'Copy text') + '</button>' +
-            '</div>' +
-            '</div>'
-        );
-    }
-
-    function showCreditBalanceReceipt(kind) {
-        presentMarkerReceipt(buildCreditBalanceReceiptHtml(kind));
-    }
-    window.showCreditBalanceReceipt = showCreditBalanceReceipt;
-
     var markerReceiptHtml2CanvasPromise = null;
     function loadMarkerReceiptHtml2Canvas() {
         if (typeof html2canvas !== 'undefined') return Promise.resolve();
@@ -1514,10 +1443,6 @@
         $(document).on('click', '#btn-marker-credit-summary-copy', function () {
             var card = this.closest('.marker-credit-card');
             copyElementAsImage(this, card, { successMsg: 'Total Credit image copied. You can paste it anywhere.', downloadName: 'total-credit.png' });
-        });
-        $(document).on('click', '.marker-credit-receipt', function (e) {
-            e.preventDefault();
-            showCreditBalanceReceipt($(this).data('receipt-kind'));
         });
         var modalEl = document.getElementById('modal-marker-receipt');
         if (modalEl) {

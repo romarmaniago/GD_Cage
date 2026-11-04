@@ -905,33 +905,40 @@
       return `<tr><td class="acr-label">${escapeHtml(label)}</td><td class="acr-value">${escapeHtml(String(value))}</td></tr>`;
     }
 
+    /** Excel number format: payout (positive) shows red (x); a negative entry is plain with a hidden ")" so the digits line up. */
     function receiptAmountRow(label, value) {
       const raw = Number(value) || 0;
       const num = Math.abs(raw);
       const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-      const display = !num ? '0' : (raw < 0 ? formatted : `(${formatted})`);
-      return `<tr class="acr-total-row"><td class="acr-label acr-total-label">${escapeHtml(label)}</td><td class="acr-value acr-amount-value">${display}</td></tr>`;
+      const isOut = raw > 0;
+      const display = isOut ? `(${formatted})` : `${formatted}<span class="acr-paren-pad" aria-hidden="true">)</span>`;
+      return `<tr><td class="acr-label">${escapeHtml(label)}</td><td class="acr-value${isOut ? ' acr-amount-out' : ''}">${display}</td></tr>`;
     }
 
     function buildAdditionalCommissionReceiptHtml(row) {
       const typeLabel = getTypeLabel(getRowType(row));
       const account = String(row && row.account != null ? row.account : '').trim();
       const name = String(row && row.name != null ? row.name : '').trim();
-      const amountLabel = (typeLabel || 'Amount').toUpperCase().replace(/-/g, '');
-      const rows =
-        receiptTextRow('PROGRAM DATE', formatProgramDate(row)) +
-        receiptTextRow('ACCOUNT', account) +
-        receiptTextRow('NAME', name) +
-        receiptAmountRow(amountLabel, row.AMOUNT) +
+      const accountLine = [account, name].filter(Boolean).map(escapeHtml).join(' ');
+      const isOut = (Number(row.AMOUNT) || 0) > 0;
+      const infoRows =
+        receiptTextRow('TYPE', typeLabel ? String(typeLabel).toUpperCase() : '') +
         receiptTextRow('REMARKS', row.REMARKS);
+      const encoded = row.ENCODED_DT ? new Date(row.ENCODED_DT) : null;
+      const dateTime = encoded && !Number.isNaN(encoded.getTime())
+        ? `${encoded.getMonth() + 1}/${encoded.getDate()}/${encoded.getFullYear()} ${encoded.getHours()}:${String(encoded.getMinutes()).padStart(2, '0')}`
+        : '';
 
       return `
         <div class="additional-commission-receipt-slip">
           <div class="additional-commission-receipt-slip-body">
-            <p class="acr-brand">GOLDEN DRAGON</p>
-            <p class="acr-title">* Additional Settlement *</p>
-            <p class="acr-datetime">${escapeHtml(formatDateTime(row.ENCODED_DT))}</p>
-            <table class="acr-table"><tbody>${rows}</tbody></table>
+            <div class="acr-header${isOut ? '' : ' acr-header--in'}">* ADDITIONAL SETTLEMENT *</div>
+            <div class="acr-content">
+              <p class="acr-datetime">${escapeHtml(dateTime)}</p>
+              ${accountLine ? `<p class="acr-account">${accountLine}</p>` : ''}
+              <table class="acr-table acr-amounts"><tbody>${receiptAmountRow('IN & OUT', row.AMOUNT)}</tbody></table>
+              ${infoRows ? `<table class="acr-table acr-info"><tbody>${infoRows}</tbody></table>` : ''}
+            </div>
           </div>
           <div class="additional-commission-receipt-slip-actions">
             <button type="button" class="btn additional-commission-receipt-copy-btn js-copy-additional-commission-receipt-image">Copy image</button>
