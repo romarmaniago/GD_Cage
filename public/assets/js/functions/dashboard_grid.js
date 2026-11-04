@@ -14,6 +14,8 @@
     beyondChipsEls.editForm = document.getElementById('dash-beyond-chips-edit-form');
     beyondChipsEls.editId = document.getElementById('dash-beyond-chips-edit-id');
     beyondChipsEls.editAmount = document.getElementById('dash-beyond-chips-edit-amount');
+    beyondChipsEls.remarks = document.getElementById('dash-beyond-chips-remarks');
+    beyondChipsEls.editRemarks = document.getElementById('dash-beyond-chips-edit-remarks');
   }
 
   function releaseBeyondChipsParentFocusTrap() {
@@ -23,12 +25,14 @@
     }
   }
 
-  function openBeyondChipsEditModal(id, amount) {
-    const { editModal, editId, editAmount } = beyondChipsEls;
+  function openBeyondChipsEditModal(id, amount, remarks) {
+    const { editModal, editId, editAmount, editRemarks } = beyondChipsEls;
     if (!editModal || !editId || !editAmount || typeof bootstrap === 'undefined') return;
 
     editId.value = String(id);
-    editAmount.value = formatBeyondChipsAmountInput(Math.round(Number(amount) || 0));
+    const rounded = Math.round(Number(amount) || 0);
+    editAmount.value = rounded < 0 ? `-${Math.abs(rounded).toLocaleString('en-US')}` : formatBeyondChipsAmountInput(rounded);
+    if (editRemarks) editRemarks.value = remarks != null ? String(remarks) : '';
     releaseBeyondChipsParentFocusTrap();
 
     const editInstance = bootstrap.Modal.getOrCreateInstance(editModal);
@@ -38,23 +42,33 @@
     editInstance.show();
   }
 
-  function renderBeyondChipsActionCell(id, amount) {
+  function renderBeyondChipsRemarksCell(row) {
+    const remarks = row.remarks != null ? String(row.remarks) : '';
+    if (window.RemarksEditor) {
+      return window.RemarksEditor.renderCell(remarks, { source: 'beyond_chips', recordId: row.id });
+    }
+    return remarks
+      ? `<span class="text-break">${escapeHtml(remarks)}</span>`
+      : '<span class="text-muted">—</span>';
+  }
+
+  function renderBeyondChipsActionCell(id, amount, remarks) {
     return `<div class="dash-beyond-chips-actions text-center">
-      <button type="button" class="btn btn-sm btn-outline-primary js-beyond-chips-edit me-1" data-id="${escapeAttr(id)}" data-amount="${escapeAttr(amount)}" title="Edit" aria-label="Edit">
+      <button type="button" class="btn btn-sm cage-manual-cash-act is-edit js-beyond-chips-edit" data-id="${escapeAttr(id)}" data-amount="${escapeAttr(amount)}" data-remarks="${escapeAttr(remarks || '')}" title="Edit" aria-label="Edit">
         <i class="fa fa-pencil-alt" aria-hidden="true"></i>
       </button>
-      <button type="button" class="btn btn-sm btn-outline-danger js-beyond-chips-delete" data-id="${escapeAttr(id)}" title="Delete" aria-label="Delete">
+      <button type="button" class="btn btn-sm cage-manual-cash-act is-delete js-beyond-chips-delete" data-id="${escapeAttr(id)}" title="Delete" aria-label="Delete">
         <i class="fa fa-trash-alt" aria-hidden="true"></i>
       </button>
     </div>`;
   }
 
-  async function updateBeyondChipsEntry(id, amount) {
+  async function updateBeyondChipsEntry(id, amount, remarks) {
     const res = await fetch('/update_beyond_chips', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ id, amount })
+      body: JSON.stringify({ id, amount, remarks })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || 'Unable to update Beyond Chips.');
@@ -125,10 +139,28 @@
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
+  // Signed input: a leading "+" or "-" is kept (negative = deduct), digits get thousands separators.
   function formatBeyondChipsAmountInput(value) {
-    const cleaned = String(value ?? '').replace(/[^\d]/g, '');
-    if (!cleaned) return '';
-    return Number(cleaned).toLocaleString('en-US');
+    let raw = String(value ?? '').trim();
+    let sign = '';
+    if (raw.charAt(0) === '+' || raw.charAt(0) === '-') {
+      sign = raw.charAt(0);
+      raw = raw.slice(1);
+    }
+    const cleaned = raw.replace(/[^\d]/g, '');
+    if (!cleaned) return sign;
+    return sign + Number(cleaned).toLocaleString('en-US');
+  }
+
+  function beyondChipsEmptyRow(text, tone) {
+    const icon = tone === 'is-error' ? 'fa-exclamation-circle' : 'fa-inbox';
+    return `<tr class="cage-manual-cash-empty-row"><td colspan="4" class="cage-manual-cash-empty ${tone || ''}"><i class="fa ${icon}" aria-hidden="true"></i><span>${escapeHtml(text)}</span></td></tr>`;
+  }
+
+  function formatBeyondChipsAmountCell(value) {
+    const n = Math.round(Number(value) || 0);
+    if (n < 0) return `<span class="text-danger" style="color:#dc3545 !important;">(${Math.abs(n).toLocaleString('en-US')})</span>`;
+    return n.toLocaleString('en-US');
   }
 
   function formatBeyondChipsDateTime(value) {
@@ -151,43 +183,130 @@
     const entries = Array.isArray(payload?.entries) ? payload.entries : [];
 
     if (!entries.length) {
-      historyBody.innerHTML = '<tr><td colspan="3" class="text-muted text-center py-3">No entries for this date</td></tr>';
+      historyBody.innerHTML = beyondChipsEmptyRow(getBeyondChipsPeriod() ? 'No entries for this period' : 'No entries for this date');
       return;
     }
 
     historyBody.innerHTML = entries.map((row) => `
       <tr>
-        <td>${escapeHtml(formatBeyondChipsDateTime(row.encoded_dt))}</td>
-        <td class="text-end">${escapeHtml(formatAmount(row.amount))}</td>
-        <td class="text-center js-beyond-chips-actions">${renderBeyondChipsActionCell(row.id, row.amount)}</td>
+        <td class="beyond-chips-col-date">${escapeHtml(row.report_date ? formatBeyondChipsReportDate(row.report_date) : formatBeyondChipsDateTime(row.encoded_dt))}</td>
+        <td class="beyond-chips-col-amount text-end">${formatBeyondChipsAmountCell(row.amount)}</td>
+        <td class="beyond-chips-col-remarks remarks-editor-td">${renderBeyondChipsRemarksCell(row)}</td>
+        <td class="beyond-chips-col-action text-center js-beyond-chips-actions">${renderBeyondChipsActionCell(row.id, row.amount, row.remarks)}</td>
       </tr>`).join('');
+  }
+
+  // Dashboard period (same From/To as the rolling grid); null when not set.
+  function getBeyondChipsPeriod() {
+    const from = String(document.getElementById('dash-date-from')?.value || '').trim();
+    const to = String(document.getElementById('dash-date-to')?.value || '').trim();
+    const ymd = /^\d{4}-\d{2}-\d{2}$/;
+    return ymd.test(from) && ymd.test(to) ? { from, to } : null;
   }
 
   async function loadBeyondChipsHistory(date) {
     const { historyBody } = beyondChipsEls;
     if (!date || !historyBody) return;
 
-    historyBody.innerHTML = '<tr><td colspan="3" class="text-muted text-center py-3">Loading...</td></tr>';
+    historyBody.innerHTML = '<tr class="cage-manual-cash-empty-row"><td colspan="4" class="cage-manual-cash-empty"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>Loading...</span></td></tr>';
 
     try {
-      const q = new URLSearchParams({ report_date: date });
+      const period = getBeyondChipsPeriod();
+      const q = new URLSearchParams(period
+        ? { date_from: period.from, date_to: period.to }
+        : { report_date: date });
       const res = await fetch(`/beyond_chips_history?${q}`, { credentials: 'same-origin' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || 'Unable to load history.');
       renderBeyondChipsHistory(data);
     } catch (err) {
       console.error('loadBeyondChipsHistory:', err);
-      historyBody.innerHTML = '<tr><td colspan="3" class="text-danger text-center py-3">Unable to load history</td></tr>';
+      historyBody.innerHTML = beyondChipsEmptyRow('Unable to load history', 'is-error');
     }
+  }
+
+  // Program Date is editable: typed (YYYY/MM/DD, YYYY-MM-DD, MM/DD/YYYY) or picked.
+  function parseBeyondChipsDateText(raw) {
+    const text = String(raw || '').trim();
+    let y; let m; let d;
+    let match = text.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+    if (match) {
+      y = Number(match[1]); m = Number(match[2]); d = Number(match[3]);
+    } else {
+      match = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+      if (!match) return '';
+      y = Number(match[3]); m = Number(match[1]); d = Number(match[2]);
+      if (m > 12) { const t = m; m = d; d = t; }
+    }
+    const dt = new Date(y, m - 1, d);
+    if (Number.isNaN(dt.getTime()) || dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return '';
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+
+  function beyondChipsIsoToInput(iso) {
+    const match = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return match ? `${match[1]}/${match[2]}/${match[3]}` : '';
+  }
+
+  // Read the input, store the ISO date, reload history when it changed.
+  function applyBeyondChipsDateInput() {
+    const { dateLabel, dateIso } = beyondChipsEls;
+    if (!dateLabel || !dateIso) return '';
+    const iso = parseBeyondChipsDateText(dateLabel.value);
+    if (!iso) {
+      // Invalid text: fall back to the last good date.
+      if (dateIso.value) setBeyondChipsDate(dateIso.value);
+      return dateIso.value || '';
+    }
+    if (iso !== dateIso.value) {
+      dateIso.value = iso;
+      // History already covers the whole period; only reload when no period is set.
+      if (!getBeyondChipsPeriod()) loadBeyondChipsHistory(iso);
+    }
+    setBeyondChipsDate(iso);
+    return iso;
+  }
+
+  function setBeyondChipsDate(iso) {
+    const { dateLabel } = beyondChipsEls;
+    if (!dateLabel) return;
+    if (dateLabel._flatpickr) dateLabel._flatpickr.setDate(iso, false);
+    else dateLabel.value = beyondChipsIsoToInput(iso);
+  }
+
+  function ensureBeyondChipsDatePicker() {
+    const { dateLabel } = beyondChipsEls;
+    if (!dateLabel || dateLabel.dataset.beyondChipsDateBound === '1') return;
+    dateLabel.dataset.beyondChipsDateBound = '1';
+    if (typeof flatpickr !== 'undefined') {
+      flatpickr(dateLabel, {
+        enableTime: false,
+        dateFormat: 'Y/m/d',
+        allowInput: true,
+        disableMobile: true,
+        closeOnSelect: true,
+        onChange: () => applyBeyondChipsDateInput(),
+        onClose: () => applyBeyondChipsDateInput()
+      });
+    }
+    dateLabel.addEventListener('blur', () => applyBeyondChipsDateInput());
+    dateLabel.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyBeyondChipsDateInput();
+      }
+    });
   }
 
   function openBeyondChipsModal(date) {
     const { modal, dateLabel, dateIso, amount: amountInput } = beyondChipsEls;
     if (!modal || !dateLabel || !dateIso || !amountInput || typeof bootstrap === 'undefined') return;
 
-    dateLabel.value = formatBeyondChipsReportDate(date);
+    ensureBeyondChipsDatePicker();
     dateIso.value = date;
+    setBeyondChipsDate(date);
     amountInput.value = '';
+    if (beyondChipsEls.remarks) beyondChipsEls.remarks.value = '';
 
     getBeyondChipsModalInstance()?.show();
     loadBeyondChipsHistory(date);
@@ -198,19 +317,20 @@
 
   function parseBeyondChipsInput(raw) {
     const cleaned = String(raw ?? '').replace(/,/g, '').trim();
-    if (cleaned === '' || cleaned === '-') return 0;
+    if (cleaned === '' || cleaned === '-' || cleaned === '+') return 0;
     const n = Number(cleaned);
     return Number.isFinite(n) ? n : NaN;
   }
 
-  async function saveBeyondChips(date, amount) {
+  async function saveBeyondChips(date, amount, remarks) {
     const res = await fetch('/add_beyond_chips', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
       body: JSON.stringify({
         report_date: date,
-        amount
+        amount,
+        remarks
       })
     });
     const data = await res.json().catch(() => ({}));
@@ -235,7 +355,7 @@
       const editBtn = e.target.closest('.js-beyond-chips-edit');
       if (editBtn) {
         e.preventDefault();
-        openBeyondChipsEditModal(editBtn.dataset.id, editBtn.dataset.amount);
+        openBeyondChipsEditModal(editBtn.dataset.id, editBtn.dataset.amount, editBtn.dataset.remarks);
         return;
       }
 
@@ -272,7 +392,7 @@
 
       if (saveBtn) saveBtn.disabled = true;
       try {
-        await updateBeyondChipsEntry(id, amount);
+        await updateBeyondChipsEntry(id, amount, String(beyondChipsEls.editRemarks?.value || '').trim());
         if (beyondChipsEls.editModal && typeof bootstrap !== 'undefined') {
           bootstrap.Modal.getOrCreateInstance(beyondChipsEls.editModal).hide();
         }
@@ -296,12 +416,12 @@
 
     beyondChipsEls.form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const date = beyondChipsEls.dateIso?.value || '';
+      const date = applyBeyondChipsDateInput() || beyondChipsEls.dateIso?.value || '';
       const addAmount = parseBeyondChipsInput(beyondChipsEls.amount?.value);
       const saveBtn = beyondChipsEls.form.querySelector('[type="submit"]');
 
       if (!date) {
-        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Date is missing.' });
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid program date.' });
         return;
       }
       if (Number.isNaN(addAmount)) {
@@ -309,14 +429,15 @@
         return;
       }
       if (addAmount === 0) {
-        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter an amount to add.' });
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter an amount (+ to add, - to deduct).' });
         return;
       }
 
       if (saveBtn) saveBtn.disabled = true;
       try {
-        await saveBeyondChips(date, addAmount);
+        await saveBeyondChips(date, addAmount, String(beyondChipsEls.remarks?.value || '').trim());
         beyondChipsEls.amount.value = '';
+        if (beyondChipsEls.remarks) beyondChipsEls.remarks.value = '';
         await refreshBeyondChipsViews(date);
         if (typeof Swal !== 'undefined') {
           Swal.fire({ icon: 'success', title: 'Saved', text: 'Beyond Chips saved successfully.', timer: 1300, showConfirmButton: false });
@@ -677,7 +798,7 @@
         <span class="dash-rolling-body-cell is-col-casino${casinoCellClass}">${buyInCell}</span>
         <span class="dash-rolling-body-cell is-col-casino text-dash-neg${casinoCellClass}">${cashOutCell}</span>
         <span class="dash-rolling-body-cell is-col-casino${casinoCellClass}">${rollingCell}</span>
-        <span class="dash-rolling-body-cell is-col-gold js-beyond-chips-cell" data-date="${escapeAttr(row.date)}" title="Click to add Beyond Chips">${escapeHtml(formatCell(row.beyond_chips))}</span>
+        <span class="dash-rolling-body-cell is-col-gold js-beyond-chips-cell${totalNegClass(row.beyond_chips)}" data-date="${escapeAttr(row.date)}" title="Click to add Beyond Chips">${escapeHtml(formatCell(row.beyond_chips))}</span>
         <span class="dash-rolling-body-cell is-col-remarks js-rolling-remarks-cell" data-date="${escapeAttr(row.date)}" data-remarks-saved="${escapeAttr(row.remarks_saved || '')}" data-buy-in="${escapeAttr(row.buy_in ?? 0)}" data-cash-out="${escapeAttr(row.cash_out ?? 0)}" data-rolling-cc="${escapeAttr(row.rolling_cc ?? 0)}" title="Click to edit remarks">${escapeHtml(formatRollingRemarksDisplay(row))}</span>
       </div>`;
     }).join('');
@@ -908,7 +1029,7 @@
     // the Gamebook (game_list/game_record) automatically when no manual entry exists for a date.
     set('dash-actual-buyin', t.buy_in_auto);
     set('dash-actual-cashout', -Math.abs(t.cash_out_auto || 0));
-    set('dash-actual-beyond-chips', t.beyond_chips);
+    setSigned('dash-actual-beyond-chips', t.beyond_chips);
     set('dash-actual-rolling', t.rolling_auto);
     // "Gaming Acc." W/L mirrors the GD Cage (Gold Dragon) column of the W/L Check table
     // for the selected program-date range — NOT the external casino's W/L. Fall back to

@@ -95,6 +95,12 @@ const REMARKS_TABLES = {
 		editedByCol: 'UPDATED_BY',
 		editedDtCol: 'UPDATED_DT'
 	},
+	beyond_chips: {
+		table: 'beyond_chips',
+		column: 'REMARKS',
+		activeCol: 'ACTIVE',
+		activeValue: 1
+	},
 	cage_manual_cash: {
 		table: 'cage_manual_cash',
 		column: 'REMARKS',

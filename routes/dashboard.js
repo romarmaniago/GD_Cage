@@ -4450,7 +4450,11 @@ router.post('/save_dash_rolling_manual', checkSession, async (req, res) => {
 router.get('/beyond_chips_history', checkSession, async (req, res) => {
 	try {
 		const reportDate = String(req.query.report_date || '').trim();
-		if (!reportDate) {
+		const isYmd = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+		const dateFrom = String(req.query.date_from || '').trim();
+		const dateTo = String(req.query.date_to || '').trim();
+		const useRange = isYmd(dateFrom) && isYmd(dateTo);
+		if (!useRange && !reportDate) {
 			return res.status(400).json({ message: 'Report date is required.' });
 		}
 
@@ -4458,12 +4462,14 @@ router.get('/beyond_chips_history', checkSession, async (req, res) => {
 			`SELECT
 				bc.IDNo AS id,
 				bc.AMOUNT AS amount,
+				bc.REMARKS AS remarks,
+				DATE_FORMAT(bc.REPORT_DATE, '%Y-%m-%d') AS report_date,
 				DATE_FORMAT(bc.ENCODED_DT, '%Y-%m-%d %H:%i') AS encoded_dt
 			 FROM beyond_chips bc
 			 WHERE bc.ACTIVE = 1
-				AND bc.REPORT_DATE = ?
-			 ORDER BY bc.ENCODED_DT DESC, bc.IDNo DESC`,
-			[reportDate]
+				AND ${useRange ? 'bc.REPORT_DATE BETWEEN ? AND ?' : 'bc.REPORT_DATE = ?'}
+			 ORDER BY bc.REPORT_DATE ASC, bc.ENCODED_DT ASC, bc.IDNo ASC`,
+			useRange ? [dateFrom, dateTo] : [reportDate]
 		);
 
 		const entries = rows || [];
@@ -4479,6 +4485,7 @@ router.get('/beyond_chips_history', checkSession, async (req, res) => {
 router.post('/add_beyond_chips', checkSession, async (req, res) => {
 	try {
 		const reportDate = String(req.body.report_date || '').trim();
+		const remarks = String(req.body.remarks != null ? req.body.remarks : '').trim().slice(0, 500);
 		const parsedAmount = Number(req.body.amount);
 
 		if (!reportDate) {
@@ -4493,9 +4500,9 @@ router.post('/add_beyond_chips', checkSession, async (req, res) => {
 
 		await pool.execute(
 			`INSERT INTO beyond_chips
-				(REPORT_DATE, AMOUNT, ENCODED_BY, ENCODED_DT, ACTIVE)
-			 VALUES (?, ?, ?, ?, 1)`,
-			[reportDate, parsedAmount, userId, now]
+				(REPORT_DATE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT, ACTIVE)
+			 VALUES (?, ?, ?, ?, ?, 1)`,
+			[reportDate, parsedAmount, remarks || null, userId, now]
 		);
 
 		res.json({ success: true, message: 'Beyond Chips saved successfully.' });
@@ -4508,6 +4515,7 @@ router.post('/add_beyond_chips', checkSession, async (req, res) => {
 router.put('/update_beyond_chips', checkSession, async (req, res) => {
 	try {
 		const id = parseInt(req.body.id, 10);
+		const remarks = String(req.body.remarks != null ? req.body.remarks : '').trim().slice(0, 500);
 		const parsedAmount = Number(req.body.amount);
 
 		if (!id || id < 1) {
@@ -4522,9 +4530,9 @@ router.put('/update_beyond_chips', checkSession, async (req, res) => {
 
 		const [result] = await pool.execute(
 			`UPDATE beyond_chips
-			 SET AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ?
+			 SET AMOUNT = ?, REMARKS = ?, EDITED_BY = ?, EDITED_DT = ?
 			 WHERE IDNo = ? AND ACTIVE = 1`,
-			[parsedAmount, userId, now, id]
+			[parsedAmount, remarks || null, userId, now, id]
 		);
 
 		if (!result.affectedRows) {

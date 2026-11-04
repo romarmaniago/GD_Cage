@@ -2901,41 +2901,41 @@ body {
   line-height: 1.2;
 }
 
-/* Cage manual cash (USD / GCASH) — card-style form + clean history table */
+/* Cage manual cash (USD / GCASH) + Beyond Chips — card-style form + clean history table */
 .modal-dash-cage-manual-cash-dialog {
   max-width: 42rem;
 }
 
-#modal-dash-cage-manual-cash .modal-header {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .modal-header {
   padding: 0.7rem 1rem !important;
 }
 
-#modal-dash-cage-manual-cash .cage-manual-cash-title-wrap {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .cage-manual-cash-title-wrap {
   display: flex;
   align-items: center;
   gap: 0.65rem;
   min-width: 0;
 }
 
-#modal-dash-cage-manual-cash .cage-manual-cash-title-text {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .cage-manual-cash-title-text {
   display: flex;
   flex-direction: column;
   line-height: 1.15;
   min-width: 0;
 }
 
-#modal-dash-cage-manual-cash .modal-title {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .modal-title {
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
 
-#modal-dash-cage-manual-cash .modal-body {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .modal-body {
   padding: 0.9rem 1rem 1rem !important;
 }
 
 /* Add form — white card */
-#modal-dash-cage-manual-cash .cage-manual-cash-add-form {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .cage-manual-cash-add-form {
   display: grid;
   grid-template-columns: 8.5rem 7.5rem minmax(0, 1fr);
   gap: 0.6rem;
@@ -2947,7 +2947,7 @@ body {
   box-shadow: 0 1px 3px rgba(74, 50, 8, 0.06);
 }
 
-#modal-dash-cage-manual-cash .cage-manual-cash-add-form .form-label {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .cage-manual-cash-add-form .form-label {
   display: block;
   line-height: 1.2;
   font-size: 0.7rem;
@@ -2957,7 +2957,7 @@ body {
   color: #8a7a5c !important;
 }
 
-#modal-dash-cage-manual-cash .cage-manual-cash-add-form .form-control {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .cage-manual-cash-add-form .form-control {
   height: 2.1rem;
   font-size: 0.9rem;
   border-radius: 0.5rem;
@@ -2967,29 +2967,29 @@ body {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-#modal-dash-cage-manual-cash .cage-manual-cash-add-form .form-control::placeholder {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .cage-manual-cash-add-form .form-control::placeholder {
   color: #bdb29b;
 }
 
-#modal-dash-cage-manual-cash .cage-manual-cash-add-form .form-control:focus {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .cage-manual-cash-add-form .form-control:focus {
   border-color: #c8a24c;
   box-shadow: 0 0 0 0.2rem rgba(200, 162, 76, 0.22);
 }
 
-#modal-dash-cage-manual-cash #dash-cage-manual-cash-amount {
+:is(#dash-cage-manual-cash-amount, #dash-beyond-chips-amount) {
   text-align: right;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-#modal-dash-cage-manual-cash .cage-manual-cash-add-date .flatpickr-wrapper,
-#modal-dash-cage-manual-cash .cage-manual-cash-add-date .flatpickr-alt-input,
-#modal-dash-cage-manual-cash .cage-manual-cash-add-date .flatpickr-input.form-control {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .cage-manual-cash-add-date .flatpickr-wrapper,
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .cage-manual-cash-add-date .flatpickr-alt-input,
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .cage-manual-cash-add-date .flatpickr-input.form-control {
   width: 100%;
 }
 
 /* History table — rounded card, sticky header */
-#modal-dash-cage-manual-cash .cage-manual-cash-history-card {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .cage-manual-cash-history-card {
   background: #fffdf8;
   border: 1px solid rgba(200, 162, 76, 0.35);
   border-radius: 0.7rem;
@@ -2998,7 +2998,7 @@ body {
 }
 
 /* Header lives in its own table above the scroll area, so it never scrolls away */
-#modal-dash-cage-manual-cash .cage-manual-cash-history-wrap {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .cage-manual-cash-history-wrap {
   max-height: 260px;
   overflow-x: hidden;
   overflow-y: auto;
@@ -3020,7 +3020,7 @@ body {
   border-bottom: 1px solid rgba(200, 162, 76, 0.16);
 }
 
-.cage-manual-cash-head-tbl thead th {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .cage-manual-cash-head-tbl thead tr th {
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -3030,15 +3030,15 @@ body {
   border-bottom: 1px solid rgba(200, 162, 76, 0.45) !important;
 }
 
-#dash-cage-manual-cash-history-tbl tbody tr:last-child td {
+:is(#dash-cage-manual-cash-history-tbl, #dash-beyond-chips-history-tbl) tbody tr:last-child td {
   border-bottom: 0;
 }
 
-#dash-cage-manual-cash-history-tbl tbody tr:nth-child(even) td {
+:is(#dash-cage-manual-cash-history-tbl, #dash-beyond-chips-history-tbl) tbody tr:nth-child(even) td {
   background-color: rgba(200, 162, 76, 0.045) !important;
 }
 
-#dash-cage-manual-cash-history-tbl tbody tr:hover td {
+:is(#dash-cage-manual-cash-history-tbl, #dash-beyond-chips-history-tbl) tbody tr:hover td {
   background-color: rgba(200, 162, 76, 0.12) !important;
 }
 
@@ -3077,12 +3077,12 @@ body {
   white-space: nowrap;
 }
 
-#dash-cage-manual-cash-history-tbl .dash-beyond-chips-actions {
+:is(#dash-cage-manual-cash-history-tbl, #dash-beyond-chips-history-tbl) .dash-beyond-chips-actions {
   display: inline-flex;
   gap: 0.3rem;
 }
 
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-act {
+:is(#dash-cage-manual-cash-history-tbl, #dash-beyond-chips-history-tbl) .cage-manual-cash-act {
   width: 1.75rem;
   height: 1.75rem;
   padding: 0;
@@ -3096,48 +3096,48 @@ body {
   transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-act.is-edit {
+:is(#dash-cage-manual-cash-history-tbl, #dash-beyond-chips-history-tbl) .cage-manual-cash-act.is-edit {
   color: #3f6fd8;
   background: rgba(63, 111, 216, 0.1);
   border-color: rgba(63, 111, 216, 0.22);
 }
 
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-act.is-edit:hover {
+:is(#dash-cage-manual-cash-history-tbl, #dash-beyond-chips-history-tbl) .cage-manual-cash-act.is-edit:hover {
   color: #fff;
   background: #3f6fd8;
 }
 
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-act.is-delete {
+:is(#dash-cage-manual-cash-history-tbl, #dash-beyond-chips-history-tbl) .cage-manual-cash-act.is-delete {
   color: #d23c3c;
   background: rgba(210, 60, 60, 0.1);
   border-color: rgba(210, 60, 60, 0.22);
 }
 
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-act.is-delete:hover {
+:is(#dash-cage-manual-cash-history-tbl, #dash-beyond-chips-history-tbl) .cage-manual-cash-act.is-delete:hover {
   color: #fff;
   background: #d23c3c;
 }
 
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-empty-row td,
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-empty-row:hover td {
+:is(#dash-cage-manual-cash-history-tbl, #dash-beyond-chips-history-tbl) .cage-manual-cash-empty-row td,
+:is(#dash-cage-manual-cash-history-tbl, #dash-beyond-chips-history-tbl) .cage-manual-cash-empty-row:hover td {
   background-color: transparent !important;
 }
 
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-empty {
+:is(#dash-cage-manual-cash-history-tbl, #dash-beyond-chips-history-tbl) .cage-manual-cash-empty {
   padding: 1.6rem 0.75rem;
   text-align: center;
   color: #a2977f;
   font-size: 0.85rem;
 }
 
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-empty .fa {
+:is(#dash-cage-manual-cash-history-tbl, #dash-beyond-chips-history-tbl) .cage-manual-cash-empty .fa {
   display: block;
   margin: 0 auto 0.4rem;
   font-size: 1.5rem;
   color: #d4c4a0;
 }
 
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-empty .spinner-border {
+:is(#dash-cage-manual-cash-history-tbl, #dash-beyond-chips-history-tbl) .cage-manual-cash-empty .spinner-border {
   display: block;
   margin: 0 auto 0.45rem;
   width: 1.2rem;
@@ -3146,19 +3146,19 @@ body {
   color: #c8a24c;
 }
 
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-empty.is-error,
-#dash-cage-manual-cash-history-tbl .cage-manual-cash-empty.is-error .fa {
+:is(#dash-cage-manual-cash-history-tbl, #dash-beyond-chips-history-tbl) .cage-manual-cash-empty.is-error,
+:is(#dash-cage-manual-cash-history-tbl, #dash-beyond-chips-history-tbl) .cage-manual-cash-empty.is-error .fa {
   color: #d23c3c;
 }
 
 /* Footer */
-#modal-dash-cage-manual-cash .modal-footer {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .modal-footer {
   padding: 0.6rem 1rem !important;
   gap: 0.4rem;
 }
 
-#modal-dash-cage-manual-cash .modal-footer .btn,
-#modal-dash-cage-manual-cash-edit .modal-footer .btn {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips) .modal-footer .btn,
+:is(#modal-dash-cage-manual-cash-edit, #modal-dash-beyond-chips-edit) .modal-footer .btn {
   min-width: 5.5rem;
   height: 2.1rem;
   border-radius: 0.5rem;
@@ -3166,19 +3166,19 @@ body {
   margin: 0;
 }
 
-#modal-dash-cage-manual-cash .cage-manual-cash-btn-close {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips, #modal-dash-cage-manual-cash-edit, #modal-dash-beyond-chips-edit) .cage-manual-cash-btn-close {
   background: #fff;
   border: 1px solid #ddd3bd;
   color: #5c5346;
 }
 
-#modal-dash-cage-manual-cash .cage-manual-cash-btn-close:hover {
+:is(#modal-dash-cage-manual-cash, #modal-dash-beyond-chips, #modal-dash-cage-manual-cash-edit, #modal-dash-beyond-chips-edit) .cage-manual-cash-btn-close:hover {
   background: #f6f1e4;
   border-color: #c8a24c;
 }
 
 /* Edit entry modal */
-#modal-dash-cage-manual-cash-edit .modal-body .form-label {
+:is(#modal-dash-cage-manual-cash-edit, #modal-dash-beyond-chips-edit) .modal-body .form-label {
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.05em;
@@ -3186,21 +3186,63 @@ body {
   color: #8a7a5c !important;
 }
 
-#modal-dash-cage-manual-cash-edit .modal-body .form-control {
+:is(#modal-dash-cage-manual-cash-edit, #modal-dash-beyond-chips-edit) .modal-body .form-control {
   height: 2.1rem;
   border-radius: 0.5rem;
   border-color: #ddd3bd;
 }
 
-#modal-dash-cage-manual-cash-edit .modal-body .form-control:focus {
+:is(#modal-dash-cage-manual-cash-edit, #modal-dash-beyond-chips-edit) .modal-body .form-control:focus {
   border-color: #c8a24c;
   box-shadow: 0 0 0 0.2rem rgba(200, 162, 76, 0.22);
 }
 
-#modal-dash-cage-manual-cash-edit #dash-cage-manual-cash-edit-amount {
+:is(#dash-cage-manual-cash-edit-amount, #dash-beyond-chips-edit-amount) {
   text-align: right;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+/* Beyond Chips — Date (readonly) + Amount form, Date / Amount / Action table */
+.modal-dash-beyond-chips-dialog {
+  max-width: 38rem;
+}
+
+#modal-dash-beyond-chips .beyond-chips-add-form {
+  grid-template-columns: 8.5rem 10rem minmax(0, 1fr);
+}
+
+#modal-dash-beyond-chips .dash-beyond-chips-date-display {
+  background-color: #fff;
+  color: #2f2a20;
+  font-weight: 400;
+}
+
+.beyond-chips-tbl .beyond-chips-col-date {
+  width: 8rem;
+  white-space: nowrap;
+  color: #5c5346;
+}
+
+.beyond-chips-tbl .beyond-chips-col-amount {
+  width: 6rem;
+  white-space: nowrap;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #2f2a20;
+}
+
+.beyond-chips-tbl .beyond-chips-col-remarks {
+  width: auto;
+  white-space: normal;
+  word-break: break-word;
+  overflow: hidden;
+  color: #4a4334;
+}
+
+.beyond-chips-tbl .beyond-chips-col-action {
+  width: 5rem;
+  white-space: nowrap;
 }
 
 @media (max-width: 575.98px) {

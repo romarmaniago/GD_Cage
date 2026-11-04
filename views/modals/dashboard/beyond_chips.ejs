@@ -1,6 +1,6 @@
 <div class="modal fade" id="modal-dash-beyond-chips" tabindex="-1" aria-labelledby="modal-dash-beyond-chips-label" aria-hidden="true" data-bs-backdrop="static" data-bs-focus="false">
 
-   <div class="modal-dialog modal-dialog-centered modal-md">
+   <div class="modal-dialog modal-dialog-centered modal-md modal-dash-beyond-chips-dialog">
 
       <div class="modal-content">
 
@@ -18,55 +18,68 @@
 
                <input type="hidden" id="dash-beyond-chips-date-iso">
 
-               <div class="row g-2 align-items-end mb-3 dash-beyond-chips-input-row">
+               <div class="cage-manual-cash-add-form beyond-chips-add-form mb-3">
 
-                  <div class="col-auto dash-beyond-chips-date-col">
+                  <div class="cage-manual-cash-add-date">
 
-                     <label for="dash-beyond-chips-date" class="form-label small text-muted mb-1">Date</label>
+                     <label for="dash-beyond-chips-date" class="form-label small text-muted mb-1">Program Date</label>
 
-                     <input type="text" class="form-control form-control-sm dash-beyond-chips-date-display" id="dash-beyond-chips-date" readonly tabindex="-1" value="—">
+                     <input type="text" class="form-control form-control-sm dash-beyond-chips-date-display" id="dash-beyond-chips-date" placeholder="YYYY/MM/DD" autocomplete="off" spellcheck="false" required>
 
                   </div>
 
-                  <div class="col">
+                  <div class="cage-manual-cash-add-amount">
 
-                     <label for="dash-beyond-chips-amount" class="form-label small text-muted mb-1">Add Beyond Chips</label>
+                     <label for="dash-beyond-chips-amount" class="form-label small text-muted mb-1">Amount</label>
 
-                     <input type="text" class="form-control form-control-sm" id="dash-beyond-chips-amount" placeholder="0" inputmode="numeric" autocomplete="off" required>
+                     <input type="text" class="form-control form-control-sm" id="dash-beyond-chips-amount" placeholder="+ / -" inputmode="numeric" autocomplete="off" required>
+
+                  </div>
+
+                  <div class="cage-manual-cash-add-remarks">
+
+                     <label for="dash-beyond-chips-remarks" class="form-label small text-muted mb-1">Remarks</label>
+
+                     <input type="text" class="form-control form-control-sm" id="dash-beyond-chips-remarks" name="beyond_chips_remarks" maxlength="500" placeholder="Optional" autocomplete="off" spellcheck="true">
 
                   </div>
 
                </div>
 
-               <div class="table-responsive dash-beyond-chips-history-wrap">
+               <div class="cage-manual-cash-history-card">
 
-                  <table class="table table-sm table-bordered table-striped mb-0 dash-beyond-chips-history-tbl" id="dash-beyond-chips-history-tbl">
+                  <table class="table table-sm mb-0 cage-manual-cash-tbl beyond-chips-tbl cage-manual-cash-head-tbl" aria-hidden="true">
 
                      <thead>
 
                         <tr>
-
-                           <th>Date</th>
-
-                           <th class="text-end">Amount</th>
-
-                           <th class="text-center">Action</th>
-
+                           <th class="beyond-chips-col-date">Program Date</th>
+                           <th class="beyond-chips-col-amount text-end">Amount</th>
+                           <th class="beyond-chips-col-remarks">Remarks</th>
+                           <th class="beyond-chips-col-action text-center">Action</th>
                         </tr>
 
                      </thead>
 
-                     <tbody id="dash-beyond-chips-history-body">
-
-                        <tr>
-
-                           <td colspan="3" class="text-muted text-center py-3">Loading...</td>
-
-                        </tr>
-
-                     </tbody>
-
                   </table>
+
+                  <div class="dash-beyond-chips-history-wrap cage-manual-cash-history-wrap">
+
+                     <table class="table table-sm mb-0 dash-beyond-chips-history-tbl cage-manual-cash-tbl beyond-chips-tbl" id="dash-beyond-chips-history-tbl">
+
+                        <tbody id="dash-beyond-chips-history-body">
+
+                           <tr>
+
+                              <td colspan="4" class="text-muted text-center py-3">Loading...</td>
+
+                           </tr>
+
+                        </tbody>
+
+                     </table>
+
+                  </div>
 
                </div>
 
@@ -74,9 +87,9 @@
 
             <div class="modal-footer py-2">
 
-               <button type="submit" class="btn btn-sm btn-primary">Save</button>
+               <button type="button" class="btn btn-sm btn-light cage-manual-cash-btn-close" data-bs-dismiss="modal">Close</button>
 
-               <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+               <button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-save me-1" aria-hidden="true"></i>Save</button>
 
             </div>
 
@@ -96,7 +109,7 @@
 
          <div class="modal-header bg-primary py-2">
 
-            <h5 class="modal-title text-white mb-0" id="modal-dash-beyond-chips-edit-label">Edit Amount</h5>
+            <h5 class="modal-title text-white mb-0" id="modal-dash-beyond-chips-edit-label">Edit Entry</h5>
 
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
 
@@ -110,15 +123,19 @@
 
                <label for="dash-beyond-chips-edit-amount" class="form-label small text-muted mb-1">Amount</label>
 
-               <input type="text" class="form-control form-control-sm" id="dash-beyond-chips-edit-amount" placeholder="0" inputmode="numeric" autocomplete="off" required>
+               <input type="text" class="form-control form-control-sm" id="dash-beyond-chips-edit-amount" placeholder="+ / -" inputmode="numeric" autocomplete="off" required>
+
+               <label for="dash-beyond-chips-edit-remarks" class="form-label small text-muted mb-1 mt-2">Remarks</label>
+
+               <input type="text" class="form-control form-control-sm" id="dash-beyond-chips-edit-remarks" name="beyond_chips_edit_remarks" maxlength="500" placeholder="Optional" autocomplete="off" spellcheck="true">
 
             </div>
 
             <div class="modal-footer py-2">
 
-               <button type="submit" class="btn btn-sm btn-primary">Save</button>
+               <button type="button" class="btn btn-sm btn-light cage-manual-cash-btn-close" data-bs-dismiss="modal">Cancel</button>
 
-               <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+               <button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-save me-1" aria-hidden="true"></i>Save</button>
 
             </div>
 
