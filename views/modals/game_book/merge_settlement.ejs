@@ -233,7 +233,12 @@
         max-width: 100%;
     }
 
-    #modal-merge-settlement .commission-detail-table .cd-settlement-edit-input {
+    #modal-merge-settlement .commission-detail-table input.cd-rolling-edit-input {
+        width: 10ch;
+    }
+
+    #modal-merge-settlement .commission-detail-table .cd-settlement-edit-input,
+    #modal-merge-settlement .commission-detail-table .cd-rolling-edit-input {
         position: relative;
         z-index: 2;
         pointer-events: auto !important;
@@ -241,19 +246,31 @@
         width: 8ch;
         box-sizing: border-box;
         border: none;
-        background: #fffef8;
-        padding: 0;
+        border-bottom: 1px dashed rgba(138, 109, 31, 0.45);
+        margin-bottom: -1px; /* the dashed line doesn't make the row taller than the read-only table */
+        border-radius: 0;
+        background: transparent;
+        padding: 0 0.15rem;
         text-align: right;
         font: inherit;
         line-height: 1.4;
         vertical-align: baseline;
         color: inherit;
         cursor: text;
+        transition: background-color 0.15s ease, border-color 0.15s ease;
     }
 
-    #modal-merge-settlement .commission-detail-table .cd-settlement-edit-input:focus {
+    #modal-merge-settlement .commission-detail-table .cd-settlement-edit-input:hover,
+    #modal-merge-settlement .commission-detail-table .cd-rolling-edit-input:hover {
+        border-bottom-color: rgba(138, 109, 31, 0.8);
+    }
+
+    #modal-merge-settlement .commission-detail-table .cd-settlement-edit-input:focus,
+    #modal-merge-settlement .commission-detail-table .cd-rolling-edit-input:focus {
         outline: none;
-        background: #f8fbff;
+        background: #fff;
+        border-bottom: 1px solid #8a6d1f;
+        box-shadow: 0 0 0 2px rgba(201, 162, 74, 0.25);
     }
 
     #modal-merge-settlement .commission-detail-panel-card {
@@ -263,15 +280,62 @@
         border-radius: 0.35rem;
         box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.12);
         overflow: hidden;
+        /* .modal-dialog is pointer-events:none (Bootstrap) — without this the buttons can't be clicked */
+        pointer-events: auto;
     }
 
+    /* Fixed height so the read-only card (no buttons) and the editable card (Copy / Export) line up */
     #modal-merge-settlement .commission-detail-panel-card .modal-header {
-        padding: 0.5rem 0.85rem;
+        display: flex;
+        align-items: center;
+        height: 2.75rem;
         min-height: 0;
+        padding: 0 0.85rem;
     }
 
     #modal-merge-settlement .commission-detail-panel-card .modal-title {
         font-size: 0.95rem;
+    }
+
+    #modal-merge-settlement .commission-detail-panel-card .cd-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-left: auto;
+    }
+
+    #modal-merge-settlement .commission-detail-panel-card .cd-header-actions .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.2rem 0.7rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        line-height: 1.4;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(58, 46, 18, 0.25);
+        border-radius: 999px;
+        color: #3a2e12;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        cursor: pointer;
+        transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    #modal-merge-settlement .commission-detail-panel-card .cd-header-actions .btn:hover,
+    #modal-merge-settlement .commission-detail-panel-card .cd-header-actions .btn:focus-visible {
+        background: #fff;
+        border-color: rgba(58, 46, 18, 0.45);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+    }
+
+    #modal-merge-settlement .commission-detail-panel-card .cd-header-actions .btn:disabled {
+        opacity: 0.65;
+        cursor: default;
+    }
+
+    #modal-merge-settlement .commission-detail-panel-card .cd-header-actions .btn i {
+        font-size: 0.8rem;
+        color: #8a6d1f;
     }
 
     #modal-merge-settlement .commission-detail-panel-body {
@@ -677,6 +741,10 @@
             <div class="commission-detail-panel-card">
                 <div class="modal-header bg-primary">
                     <h5 class="modal-title text-white">Commission Settlement (Detail)</h5>
+                    <div class="cd-header-actions" data-html2canvas-ignore="true">
+                        <button type="button" class="btn btn-sm" id="btn-merge-commission-edit-copy-image"><i class="fa fa-copy" aria-hidden="true"></i> Copy</button>
+                        <button type="button" class="btn btn-sm" id="btn-merge-commission-edit-export"><i class="fa fa-file-excel" aria-hidden="true"></i> Export</button>
+                    </div>
                 </div>
                 <div class="commission-detail-panel-body">
                     <div class="commission-detail-table-wrap">
@@ -1039,12 +1107,25 @@
         // panel's Rate / Share % / Rolling %. Mixed games have no single formula, so the rolling part is the
         // merged Settlement split by rolling (Guest + Agent still add up to it); Share % adds W/L × Share%
         // on that side's rolling, and Rolling % scales the rolling part (0 / 100 = original split).
+        // Rolling / Settlement the Guest + Agent cards split: the edited Commission Settlement (Detail)
+        // totals when that table has rows (game list), else the main receipt (commission page)
+        function getMergeEditBase($modal) {
+            var t = $modal.data('mergeCommissionEditTotals');
+            if (t && t.hasRows) {
+                return { rolling: Number(t.rolling) || 0, settlement: Number(t.settlement) || 0 };
+            }
+            return {
+                rolling: parseAmount($modal.find('#rollingMerge').val()),
+                settlement: parseDueAmount($modal.find('#rollingSettlementMerge').val())
+            };
+        }
+
         function mergePanelSettlement($modal, winLoss, rolling, rate, split, totalRolling) {
             if ($modal.data('commissionRow')) {
                 return window.computeSplitPanelSettlement(winLoss, rolling, rate, split.sharePct, split.rollingPct, totalRolling);
             }
             var shareFactor = totalRolling ? rolling / totalRolling : 1;
-            var rollingPart = parseDueAmount($modal.find('#rollingSettlementMerge').val()) * shareFactor;
+            var rollingPart = getMergeEditBase($modal).settlement * shareFactor;
             return Math.round(rollingPart * split.rollingPct / 100 + winLoss * split.sharePct / 100 * shareFactor);
         }
 
@@ -1074,7 +1155,7 @@
             var rolling = parseAmount($panel.find('[data-field="rolling"]').val());
             var rate = parseAmount($panel.find('[data-field="rollingRate"]').val());
             var winLoss = parseAmount($modal.find('#winLossMerge').val());
-            var totalRolling = parseAmount($modal.find('#rollingMerge').val());
+            var totalRolling = getMergeEditBase($modal).rolling;
             var settlement = mergePanelSettlement($modal, winLoss, rolling, rate, getMergePanelSplit($panel), totalRolling);
             var addCharge = getMergePanelAddCharge($panel);
             var payment = settlement - addCharge;
@@ -1125,7 +1206,8 @@
             $panel.find('input[type="hidden"][data-field="rollingMerge"]').remove();
             $panel.find('[data-field="rollingMergeDisplay"]').removeClass('is-negative')
                 .html('<input class="settlement-receipt-input" type="text" data-field="rolling" data-allow-negative="1" inputmode="decimal">');
-            $panel.find('[data-field="rolling"]').val($mainModal.find('#rollingMerge').val()).prop('readonly', false);
+            // Rolling comes from the edited detail table when present, else the main receipt
+            $panel.find('[data-field="rolling"]').val(formatAmount(getMergeEditBase($mainModal).rolling)).prop('readonly', false);
             var rateRaw = String($mainModal.find('#rollingRateMergeDisplay').val() || '').replace(/%/g, '').trim();
             $panel.find('[data-field="rollingRate"]').val(rateRaw).prop('readonly', false);
             $panel.find('[data-field="sharePct"]').val($mainModal.find('#sharePctMerge').val()).prop('readonly', false);
@@ -1149,7 +1231,7 @@
             var $agentPanel = $modal.find('#merge-settlement-edit-agent-panel');
             if (!$sourcePanel || !$sourcePanel.length || !$guestPanel.length || !$agentPanel.length) return;
 
-            var totalRolling = parseAmount($modal.find('#rollingMerge').val());
+            var totalRolling = getMergeEditBase($modal).rolling;
             var isGuest = $sourcePanel.is('#merge-settlement-edit-guest-panel');
             var $otherPanel = isGuest ? $agentPanel : $guestPanel;
             var $sourceInput = $sourcePanel.find('[data-field="rolling"]');
@@ -1433,7 +1515,8 @@
                 wireMergeEditPanelCopyButtons($agentPanel);
                 $guestPanel.removeClass('d-none').attr('aria-hidden', 'false');
                 $agentPanel.removeClass('d-none').attr('aria-hidden', 'false');
-                $splitPanels.removeClass('d-none').attr('aria-hidden', 'false');
+                // Company Rate / Edit Mode (Guest) / Edit Mode (Agent) split calculators: hidden muna sa multiple settlement
+                $splitPanels.addClass('d-none').attr('aria-hidden', 'true');
                 resetMergeSplitCalculators($modal);
                 refreshMergeSplitCalculators($modal);
             } else {
@@ -1457,6 +1540,17 @@
             resetMergeSettlementModalView($modal);
             refreshMergeReceiptDisplay($modal);
             setMergeEditMode($modal, true);
+        });
+
+        // Commission Settlement (Detail) edit table changed (Rolling / Settlement): the Guest + Agent
+        // cards follow its totals (Rolling resets to the new total on both, like when the cards open).
+        $(MERGE_MODAL).on('merge-commission-edit:change', function () {
+            var $modal = $(this);
+            if (Number($modal.data('merge-settlement-edit-mode')) !== 1) return;
+            var totalRolling = getMergeEditBase($modal).rolling;
+            $modal.find('#merge-settlement-edit-guest-panel [data-field="rolling"], #merge-settlement-edit-agent-panel [data-field="rolling"]')
+                .val(formatAmount(totalRolling));
+            recalcMergeEditPanels($modal);
         });
 
         $(MERGE_MODAL).on('hidden.bs.modal', function () {

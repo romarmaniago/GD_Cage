@@ -5818,7 +5818,12 @@ router.get('/game_list/commission_settlement_detail', checkSession, async (req, 
 				fnb: fnb,
 				hotel: hotel,
 				incidental: incidental,
-				actual_settlement: settlement - fnb - hotel - incidental
+				actual_settlement: settlement - fnb - hotel - incidental,
+				// Lets the edit table recompute Settlement when Rolling is changed
+				commission_type: info.COMMISSION_TYPE,
+				commission_percentage: info.COMMISSION_PERCENTAGE,
+				share_percentage: info.SHARE_PERCENTAGE,
+				rolling_percentage: info.ROLLING_PERCENTAGE
 			});
 		}
 

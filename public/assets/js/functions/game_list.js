@@ -5192,10 +5192,11 @@ $(document).ready(function () {
 		$modal.find('#cdTotalActualSettlement').toggleClass('cd-cell-red', totals.actual_settlement > 0).text(formatMergeDueCellText(totals.actual_settlement));
 	}
 
-	// Editable twin of the read-only detail table: Settlement is a free-typed input per
-	// row; everything else (Buy In/Cash Out/W-L/Rolling/F&B/Hotel/Incidental) is fixed,
-	// only Actual Settlement (= Settlement - F&B - Hotel - Incidental) and the totals
-	// row recompute as the user edits.
+	// Editable twin of the read-only detail table: Rolling and Settlement are free-typed inputs
+	// per row (editing Rolling recomputes that row's Settlement with the game's commission formula);
+	// Buy In/Cash Out/W-L/F&B/Hotel/Incidental are fixed. Actual Settlement (= Settlement - F&B -
+	// Hotel - Incidental) and the totals row recompute as the user edits, and the modal gets a
+	// 'merge-commission-edit:change' event so the Edit Mode (Guest/Agent) cards follow the totals.
 	function recalcMergeCommissionEditTotals($modal) {
 		var totals = { buy_in: 0, cash_out: 0, win_loss: 0, rolling: 0, settlement: 0, fnb: 0, hotel: 0, incidental: 0, actual_settlement: 0 };
 
@@ -5212,7 +5213,7 @@ $(document).ready(function () {
 			totals.buy_in += parseFloat($tr.attr('data-buy-in')) || 0;
 			totals.cash_out += parseFloat($tr.attr('data-cash-out')) || 0;
 			totals.win_loss += parseFloat($tr.attr('data-win-loss')) || 0;
-			totals.rolling += parseFloat($tr.attr('data-rolling')) || 0;
+			totals.rolling += Number($tr.find('.cd-rolling-edit-input').data('rolling')) || 0;
 			totals.settlement += settlement;
 			totals.fnb += fnb;
 			totals.hotel += hotel;
@@ -5229,6 +5230,13 @@ $(document).ready(function () {
 		$modal.find('#cdEditTotalHotel').text(formatMergeNumeric(totals.hotel));
 		$modal.find('#cdEditTotalIncidental').text(formatMergeNumeric(totals.incidental));
 		$modal.find('#cdEditTotalActualSettlement').toggleClass('cd-cell-red', totals.actual_settlement > 0).text(formatMergeDueCellText(totals.actual_settlement));
+
+		$modal.data('mergeCommissionEditTotals', {
+			hasRows: $modal.find('#merge-commission-detail-edit-body tr').length > 0,
+			rolling: totals.rolling,
+			settlement: totals.settlement
+		});
+		$modal.trigger('merge-commission-edit:change');
 	}
 
 	function renderMergeCommissionDetailEditTable($modal, rows) {
@@ -5246,17 +5254,26 @@ $(document).ready(function () {
 				.attr('data-buy-in', Number(row.buy_in) || 0)
 				.attr('data-cash-out', Number(row.cash_out) || 0)
 				.attr('data-win-loss', Number(row.win_loss) || 0)
-				.attr('data-rolling', Number(row.rolling) || 0)
 				.attr('data-fnb', fnb)
 				.attr('data-hotel', hotel)
-				.attr('data-incidental', incidental);
+				.attr('data-incidental', incidental)
+				.data('commission', {
+					COMMISSION_TYPE: row.commission_type,
+					COMMISSION_PERCENTAGE: row.commission_percentage,
+					SHARE_PERCENTAGE: row.share_percentage,
+					ROLLING_PERCENTAGE: row.rolling_percentage
+				});
 
 			$tr.append($('<td></td>').text(row.account || 'N/A'));
 			$tr.append($('<td></td>').text(row.name || '-'));
 			$tr.append($('<td></td>').text(formatMergeNumeric(row.buy_in)));
 			$tr.append($('<td></td>').text(formatMergeNumeric(row.cash_out)));
 			$tr.append($('<td></td>').toggleClass('cd-cell-red', Number(row.win_loss) < 0).text(formatMergeSignedParen(row.win_loss)));
-			$tr.append($('<td></td>').text(formatMergeNumeric(row.rolling)));
+			var rolling = Number(row.rolling) || 0;
+			var $rollingInput = $('<input type="text" class="cd-rolling-edit-input" inputmode="decimal">')
+				.data('rolling', rolling) // signed amount; the text is display only
+				.val(formatMergeNumeric(rolling));
+			$tr.append($('<td></td>').append($rollingInput));
 
 			var $settlementInput = $('<input type="text" class="cd-settlement-edit-input" inputmode="decimal">')
 				.data('due', settlement) // signed amount (positive = paid out); the text is display only
@@ -5316,6 +5333,200 @@ $(document).ready(function () {
 		var val = Number($(this).data('due')) || 0;
 		$(this).val(formatMergeDueCellText(val)).toggleClass('cd-cell-red', val > 0);
 		recalcMergeCommissionEditTotals($('#modal-merge-settlement'));
+	});
+
+	// Rolling edit: re-run the game's commission formula for that row (same as the server's
+	// computeGameCommission) and push the result into the row's Settlement box.
+	function applyMergeRollingEdit($input) {
+		var $tr = $input.closest('tr');
+		var rolling = parseMergeNumeric($input.val(), { signed: true });
+		$input.data('rolling', rolling);
+
+		var meta = $tr.data('commission') || {};
+		var type = parseInt(meta.COMMISSION_TYPE, 10);
+		if (typeof window.computeGameCommission === 'function' && (type === 1 || type === 2 || type === 3)) {
+			var winLoss = parseFloat($tr.attr('data-win-loss')) || 0;
+			var settlement = window.computeGameCommission(meta, winLoss, rolling);
+			$tr.find('.cd-settlement-edit-input')
+				.data('due', settlement)
+				.val(formatMergeDueCellText(settlement))
+				.toggleClass('cd-cell-red', settlement > 0);
+		}
+		recalcMergeCommissionEditTotals($('#modal-merge-settlement'));
+	}
+
+	$(document).on('input', '#modal-merge-settlement .cd-rolling-edit-input', function () {
+		formatMergeSettlementInputLive($(this));
+		applyMergeRollingEdit($(this));
+	});
+
+	$(document).on('focus', '#modal-merge-settlement .cd-rolling-edit-input', function () {
+		var val = Number($(this).data('rolling')) || 0;
+		$(this).val(val === 0 ? '' : (val < 0 ? '-' : '') + formatMergeNumeric(Math.abs(val)));
+	});
+
+	$(document).on('blur', '#modal-merge-settlement .cd-rolling-edit-input', function () {
+		var val = Number($(this).data('rolling')) || 0;
+		$(this).val((val < 0 ? '-' : '') + formatMergeNumeric(Math.abs(val)));
+	});
+
+	/* --- Editable Commission Settlement (Detail): Copy Image / Export (the read-only twin has neither) --- */
+	var MERGE_CD_HEADERS = ['Account', 'Name', 'Buy In', 'Cash Out', 'W/L', 'Rolling', 'Settlement', 'F&B', 'Hotel', 'Incidental', 'Actual Settlement'];
+
+	// Rows as currently edited (signed numbers; Settlement positive = paid out)
+	function getMergeCommissionEditPayload($modal) {
+		var rows = [];
+		$modal.find('#merge-commission-detail-edit-body tr').each(function () {
+			var $tr = $(this);
+			var $td = $tr.children('td');
+			var settlement = Number($tr.find('.cd-settlement-edit-input').data('due')) || 0;
+			var fnb = parseFloat($tr.attr('data-fnb')) || 0;
+			var hotel = parseFloat($tr.attr('data-hotel')) || 0;
+			var incidental = parseFloat($tr.attr('data-incidental')) || 0;
+			rows.push({
+				account: $.trim($td.eq(0).text()),
+				name: $.trim($td.eq(1).text()),
+				buyIn: parseFloat($tr.attr('data-buy-in')) || 0,
+				cashOut: parseFloat($tr.attr('data-cash-out')) || 0,
+				winLoss: parseFloat($tr.attr('data-win-loss')) || 0,
+				rolling: Number($tr.find('.cd-rolling-edit-input').data('rolling')) || 0,
+				settlement: settlement,
+				fnb: fnb,
+				hotel: hotel,
+				incidental: incidental,
+				actual: settlement - fnb - hotel - incidental
+			});
+		});
+		return rows;
+	}
+
+	// Copy = a snapshot of the editable card exactly as shown (header + table), minus the buttons
+	// (data-html2canvas-ignore). In the clone the Rolling / Settlement boxes become plain text so the
+	// image matches the read-only table (no dashed lines / focus ring).
+	function buildMergeCommissionEditImageBlob() {
+		var card = document.querySelector('#merge-commission-detail-edit-panel .commission-detail-panel-card');
+		if (!card) return Promise.reject(new Error('Table not found.'));
+		return loadGameStartReceiptHtml2Canvas()
+			.then(function () {
+				return html2canvas(card, {
+					backgroundColor: '#ffffff',
+					scale: 2,
+					useCORS: true,
+					logging: false,
+					onclone: function (clonedDoc) {
+						var clonedCard = clonedDoc.querySelector('#merge-commission-detail-edit-panel .commission-detail-panel-card');
+						if (!clonedCard) return;
+						clonedCard.style.boxShadow = 'none';
+						Array.prototype.forEach.call(clonedCard.querySelectorAll('input.cd-rolling-edit-input, input.cd-settlement-edit-input'), function (input) {
+							var td = input.parentNode;
+							if (input.classList.contains('cd-cell-red')) td.classList.add('cd-cell-red');
+							td.textContent = input.value;
+						});
+					}
+				});
+			})
+			.then(function (canvas) {
+				return new Promise(function (resolve, reject) {
+					canvas.toBlob(function (blob) {
+						if (blob) resolve(blob);
+						else reject(new Error('Could not build the image.'));
+					}, 'image/png');
+				});
+			});
+	}
+
+	// File name = the account picked in the receipt (e.g. "GD036 - Juan Cruz" → GD036-Juan_Cruz.xlsx)
+	function getMergeCommissionEditFilename(ext) {
+		var account = $.trim($('#modal-merge-settlement #accNoMerge option:selected').text());
+		var base = account
+			.replace(/\s*-\s*/g, '-')
+			.replace(/\s+/g, '_')
+			.replace(/[^A-Za-z0-9._-]/g, '')
+			.replace(/^[-_.]+|[-_.]+$/g, '');
+		return (base || 'CommissionSettlementDetail') + '.' + ext;
+	}
+
+	function downloadMergeCdBlob(blob, filename) {
+		var link = document.createElement('a');
+		link.href = URL.createObjectURL(blob);
+		link.download = filename;
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		URL.revokeObjectURL(link.href);
+	}
+
+	function notifyMergeCd(icon, title, text) {
+		if (typeof Swal === 'undefined') return;
+		Swal.fire(icon === 'success'
+			? { icon: icon, title: title, text: text, timer: 1800, showConfirmButton: false }
+			: { icon: icon, title: title, text: text });
+	}
+
+	$(document).on('click', '#btn-merge-commission-edit-copy-image', function (e) {
+		e.preventDefault();
+		var btn = this;
+		if (btn.disabled) return;
+		if (!$('#modal-merge-settlement #merge-commission-detail-edit-body tr').length) {
+			notifyMergeCd('info', 'Copy', 'No rows to copy.');
+			return;
+		}
+		var originalHtml = btn.innerHTML;
+		btn.disabled = true;
+		btn.innerHTML = '<i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Copying...';
+		var restore = function () { btn.disabled = false; btn.innerHTML = originalHtml; };
+		var fail = function (err) { notifyMergeCd('error', 'Copy failed', (err && err.message) || 'Unable to copy the image.'); };
+
+		if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+			navigator.clipboard.write([new ClipboardItem({ 'image/png': buildMergeCommissionEditImageBlob() })])
+				.then(function () { notifyMergeCd('success', 'Copied', 'Table image copied to clipboard.'); })
+				.catch(fail)
+				.finally(restore);
+		} else {
+			buildMergeCommissionEditImageBlob()
+				.then(function (blob) {
+					downloadMergeCdBlob(blob, getMergeCommissionEditFilename('png'));
+					notifyMergeCd('success', 'Downloaded', 'Image downloaded.');
+				})
+				.catch(fail)
+				.finally(restore);
+		}
+	});
+
+	// Export (.xlsx) of the edited table. Settlement / Actual paid out are sent negative so Excel
+	// shows them as (x) red like on screen; the TOTAL row is added by the server.
+	$(document).on('click', '#btn-merge-commission-edit-export', function (e) {
+		e.preventDefault();
+		var $btn = $(this);
+		if ($btn.prop('disabled')) return;
+		var rows = getMergeCommissionEditPayload($('#modal-merge-settlement'));
+		if (!rows.length) {
+			notifyMergeCd('info', 'Export', 'No rows to export.');
+			return;
+		}
+		var filename = getMergeCommissionEditFilename('xlsx');
+		var data = rows.map(function (r) {
+			return [r.account || 'N/A', r.name || '-', r.buyIn, r.cashOut, r.winLoss, r.rolling,
+				-r.settlement, r.fnb, r.hotel, r.incidental, -r.actual];
+		});
+		$btn.prop('disabled', true);
+		fetch('/game_list/export_xlsx', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			credentials: 'same-origin',
+			body: JSON.stringify({ headers: MERGE_CD_HEADERS, rows: data, filename: filename, profileKey: 'commissionSettlementDetail' })
+		})
+			.then(function (res) {
+				if (!res.ok) {
+					return res.json().catch(function () { return {}; }).then(function (j) {
+						throw new Error((j && j.error) ? j.error : 'Export failed');
+					});
+				}
+				return res.blob();
+			})
+			.then(function (blob) { downloadMergeCdBlob(blob, filename); })
+			.catch(function (err) { notifyMergeCd('error', 'Error', err.message || 'Export failed'); })
+			.finally(function () { $btn.prop('disabled', false); });
 	});
 
 	function openMergeSettlementModal(selectedIds) {

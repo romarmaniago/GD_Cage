@@ -278,6 +278,17 @@ const PROFILES = {
 		centerAlignCols: [1],
 		amountNumFmt: ALIGNED_AMOUNT_FMT
 	},
+	commissionSettlementDetail: {
+		// Cols: 1 ACCOUNT, 2 NAME, 3 BUY IN, 4 CASH OUT, 5 W/L, 6 ROLLING, 7 SETTLEMENT, 8 F&B,
+		// 9 HOTEL, 10 INCIDENTAL, 11 ACTUAL SETTLEMENT — Multiple Settlement editable detail table.
+		// Client sends signed numbers (Settlement / Actual paid out negative → (x) red).
+		amountCols: [3, 4, 5, 6, 7, 8, 9, 10, 11],
+		signedCols: [5, 6, 7, 11],
+		labelCols: 2,
+		leftAlignCols: [1, 2],
+		grandTotalLabel: 'TOTAL',
+		amountNumFmt: ALIGNED_AMOUNT_FMT
+	},
 	categorizeGroupSummary: {
 		amountCols: [4, 5, 6, 7, 8, 9, 10],
 		outflowCols: [5, 8, 9, 10],
