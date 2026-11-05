@@ -3490,7 +3490,7 @@ router.post('/add_game_services', checkSession, commissionLock(gameFromBody), as
 			await pool.execute(
 				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, AUTO_REMARKS, ENCODED_BY, ENCODED_DT)
 				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?, ?, ?)`,
-				[accountId, gameId, chargeTotal, ledgerRemarks, svc, encodedBy, now]
+				[accountId, gameId, chargeTotal, ledgerRemarks, `${svc} - Cash`, encodedBy, now]
 			);
 
 			try {
@@ -3634,7 +3634,7 @@ router.put('/game_services/:id', checkSession, commissionLock(gameFromBody), asy
 				await pool.execute(
 					`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, AUTO_REMARKS, ENCODED_BY, ENCODED_DT)
 					 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?, ?, ?)`,
-					[accountId, gameId, chargeTotal, ledgerRemarks, svc, updatedBy, now]
+					[accountId, gameId, chargeTotal, ledgerRemarks, `${svc} - Cash`, updatedBy, now]
 				);
 			}
 		}

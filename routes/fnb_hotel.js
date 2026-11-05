@@ -55,6 +55,19 @@ async function getAccountDepositBalance(accountId) {
 }
 
 /**
+ * Ledger direction of a deposit-paid service: a + charge withdraws from the
+ * guest deposit (2 = WITHDRAW), a - charge (bawas, JUNKET) deposits back (1 = DEPOSIT).
+ */
+function serviceLedgerTransactionId(amount) {
+	return amount < 0 ? 1 : 2;
+}
+
+/** AUTO_REMARKS of a deposit-paid service ledger row: "<Type> - Cash" (e.g. "Hotel - Cash"). */
+function serviceLedgerAutoRemarks(serviceType) {
+	return `${String(serviceType || '').trim()} - Cash`;
+}
+
+/**
  * Soft-delete the account_ledger row(s) created by a F&B / Hotel deposit service.
  * Prefers the exact SERVICE_ID link; falls back to amount-match for legacy rows
  * that predate the SERVICE_ID column.
@@ -309,10 +322,11 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 
 		if (parsedTransactionId === 2 && parsedAccountId) {
 			const ledgerRemarks = (remarks || '').toString().trim() || null;
+			// + charge = WITHDRAW from the guest deposit, - charge (bawas) = DEPOSIT back into it
 			await pool.execute(
 				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, AUTO_REMARKS, SERVICE_ID, ENCODED_BY, ENCODED_DT)
-				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?, ?, ?, ?)`,
-				[parsedAccountId, resolvedGameId, absAmt, ledgerRemarks, resolvedCategory, insertResult.insertId, encodedBy, now]
+				 VALUES (?, ?, ?, 2, 'SERVICES', ?, ?, ?, ?, ?, ?)`,
+				[parsedAccountId, resolvedGameId, serviceLedgerTransactionId(amt), absAmt, ledgerRemarks, serviceLedgerAutoRemarks(resolvedCategory), insertResult.insertId, encodedBy, now]
 			);
 
 			if (sourceType === 'GUEST') {
@@ -508,8 +522,9 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 		// Add back this record's current charge — it is reversed by this update.
 		if (parsedTransactionId === 2 && sourceType === 'GUEST' && parsedAccountId) {
 			const currentBalance = await getAccountDepositBalance(parsedAccountId);
+			// Signed: an old + charge withdrew (add back), an old - charge deposited (take back out)
 			const oldCharge = existingService.TRANSACTION_ID === 2
-				? Math.abs(parseFloat(existingService.AMOUNT) || 0)
+				? (parseFloat(existingService.AMOUNT) || 0)
 				: 0;
 			const available = currentBalance + oldCharge;
 			if (absAmt > available + 0.009) {
@@ -566,8 +581,8 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 			const ledgerRemarks = (remarks || '').toString().trim() || null;
 			await pool.execute(
 				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, AUTO_REMARKS, SERVICE_ID, ENCODED_BY, ENCODED_DT)
-				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?, ?, ?, ?)`,
-				[parsedAccountId, null, absAmt, ledgerRemarks, resolvedCategory, serviceId, updatedBy, now]
+				 VALUES (?, ?, ?, 2, 'SERVICES', ?, ?, ?, ?, ?, ?)`,
+				[parsedAccountId, null, serviceLedgerTransactionId(amt), absAmt, ledgerRemarks, serviceLedgerAutoRemarks(resolvedCategory), serviceId, updatedBy, now]
 			);
 		}
 

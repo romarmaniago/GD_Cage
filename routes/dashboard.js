@@ -403,6 +403,7 @@ ON
 	  WHERE account_ledger.ACTIVE = 1 
 		AND account_ledger.TRANSACTION_TYPE = 2 
 		AND account_ledger.TRANSACTION_ID = 1 
+		AND COALESCE(account_ledger.TRANSACTION_DESC, '') <> 'SERVICES'
 		AND account.ACTIVE = 1 
 		AND agent.ACTIVE = 1
 	`;
@@ -414,7 +415,7 @@ ON
 	  WHERE account_ledger.ACTIVE = 1 
 		AND account_ledger.TRANSACTION_TYPE = 2 
 		AND account_ledger.TRANSACTION_ID = 1 
-		AND COALESCE(account_ledger.TRANSACTION_DESC, '') <> 'ADDITIONAL COMMISSION'
+		AND COALESCE(account_ledger.TRANSACTION_DESC, '') NOT IN ('ADDITIONAL COMMISSION', 'SERVICES')
 		AND ${SQL_EXCLUDE_HOUSE_BALANCE_LEDGER}
 		AND account.ACTIVE = 1 
 		AND agent.ACTIVE = 1
@@ -465,13 +466,17 @@ ON
 		AND agent.ACTIVE = 1
 	`;
 
+	// Deposit-paid service ledger rows, both directions: a + charge WITHDRAWs and a
+	// - charge (bawas) DEPOSITs, each mirrored by a game_services row (GUEST cash-in /
+	// signed JUNKET cash-out), so counting AMOUNT of both keeps the pair cash-neutral.
+	// SERVICES deposits are left out of the account-deposit cash-in for the same reason.
 	let sqlAccountServicesDeduct = `
 	  SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEDUCT_SERVICES
 	  FROM account_ledger
 	  JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID
 	  JOIN agent ON agent.IDNo = account.AGENT_ID
 	  WHERE account_ledger.ACTIVE = 1 
-		AND account_ledger.TRANSACTION_ID = 2 
+		AND account_ledger.TRANSACTION_ID IN (1, 2) 
 		AND account_ledger.TRANSACTION_DESC = "SERVICES" 
 		AND account.ACTIVE = 1 
 		AND agent.ACTIVE = 1
@@ -1744,6 +1749,7 @@ router.get('/cash_in_details', async (req, res) => {
 			WHERE al.ACTIVE = 1
 				AND al.TRANSACTION_TYPE = 2
 				AND al.TRANSACTION_ID = 1
+				AND COALESCE(al.TRANSACTION_DESC, '') <> 'SERVICES'
 				AND acc.ACTIVE = 1
 				AND ag.ACTIVE = 1
 				AND DATE(al.ENCODED_DT) BETWEEN ? AND ?

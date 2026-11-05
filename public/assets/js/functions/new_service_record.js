@@ -76,7 +76,7 @@ $(function () {
 		$gameInput.val('');
 		$serviceTypeValue.val('');
 		$serviceTypeList.html('<span class="new-services-type-placeholder text-muted small">' + escapeHtml(t.select_service || 'Select service') + '</span>');
-		$amountInput.val('');
+		setSignedAmountValue($amountInput, '');
 		$('#new-services-remarks').val('');
 		$('input[name="new-services-transaction"]').prop('checked', false);
 		$paymentMethods.show();
@@ -93,12 +93,12 @@ $(function () {
 	}
 
 	function formatSignedAmountInput(value) {
-		var raw = String(value == null ? '' : value);
-		var sign = '';
-		if (raw.charAt(0) === '+' || raw.charAt(0) === '-') {
-			sign = raw.charAt(0);
-			raw = raw.slice(1);
-		}
+		// Negatives show as "(1,000)" while typing. A leading "-" or "(" marks
+		// negative; deleting the "(" makes it positive again.
+		var raw = String(value == null ? '' : value).trim();
+		var first = raw.charAt(0);
+		var negative = first === '-' || first === '(';
+		var plus = first === '+';
 		raw = raw.replace(/[^\d.]/g, '');
 		var parts = raw.split('.');
 		if (parts.length > 2) {
@@ -109,15 +109,38 @@ $(function () {
 		var decPart = parts[1];
 		var formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 		var formatted = decPart !== undefined ? formattedInt + '.' + decPart : formattedInt;
-		if (!formatted && !sign) return '';
-		return sign + formatted;
+		if (negative) return formatted ? '(' + formatted + ')' : '-';
+		if (plus) return '+' + formatted;
+		return formatted;
 	}
 
 	function parseSignedAmount(value) {
 		var raw = String(value == null ? '' : value).replace(/,/g, '').trim();
+		var paren = raw.match(/^\(([^)]*)\)?$/);
+		if (paren) raw = '-' + paren[1];
 		if (!raw || raw === '+' || raw === '-') return NaN;
 		var n = parseFloat(raw);
 		return Number.isFinite(n) ? n : NaN;
+	}
+
+	// Sets the amount input value (formatted) and paints negatives red.
+	function setSignedAmountValue($input, value) {
+		$input.val(formatSignedAmountInput(value));
+		$input.toggleClass('text-danger', /^[-(]/.test($input.val()));
+	}
+
+	function bindSignedAmountInput($input) {
+		$input.on('input', function () {
+			var raw = this.value;
+			// Backspace on the closing ")" removes the last digit instead of getting stuck.
+			if (raw.charAt(0) === '(' && raw.indexOf(')') === -1) raw = raw.replace(/\d(?=\D*$)/, '');
+			setSignedAmountValue($input, raw);
+			// Keep the caret inside the parentheses so the next digit lands before ")".
+			if (this.value.slice(-1) === ')' && document.activeElement === this) {
+				var pos = this.value.length - 1;
+				this.setSelectionRange(pos, pos);
+			}
+		});
 	}
 
 	function initAccountSelect2() {
@@ -208,7 +231,7 @@ $(function () {
 			$accountSelect.append($('<option>').val('').text($accountSelect.attr('data-placeholder')));
 			accounts.forEach(function (acc) {
 				const label = acc.agent_name
-					? acc.agent_name + ' (' + (acc.agent_code || 'No code') + ')'
+					? (acc.agent_code || 'No code') + ' - ' + acc.agent_name
 					: 'Account #' + acc.account_id;
 				const $option = $('<option>')
 					.val(acc.account_id)
@@ -445,9 +468,7 @@ $(function () {
 
 	$('input[name="new-services-transaction"]').on('change', updateBalanceHint);
 
-	$amountInput.on('input', function () {
-		$(this).val(formatSignedAmountInput($(this).val()));
-	});
+	bindSignedAmountInput($amountInput);
 
 	$saveBtn.on('click', async function () {
 		const accountId = $accountSelect.val();

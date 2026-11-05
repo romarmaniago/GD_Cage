@@ -545,7 +545,8 @@ const guestPortalReceiptTitle = (transaction, transactionDesc, transferLabel, se
 	}
 
 	// WITHDRAW - SERVICES (Hotel, F & B, Incidental, …) → * Hotel * / * F & B * / …
-	if (trans === 'WITHDRAW' && desc === 'SERVICES' && serviceLabel && !transferLabel) {
+	// DEPOSIT - SERVICES is a - charge (bawas) returned to the deposit; same label.
+	if ((trans === 'WITHDRAW' || trans === 'DEPOSIT') && desc === 'SERVICES' && serviceLabel && !transferLabel) {
 		return serviceLabel;
 	}
 
@@ -4684,7 +4685,8 @@ async function resolveGuestPortalServiceType(ledgerRow) {
 	let best = null;
 	let bestScore = Infinity;
 	(svcRows || []).forEach((svc) => {
-		const charge = (parseFloat(svc.AMOUNT) || 0) + (parseFloat(svc.DELIVERY_FEE) || 0);
+		// A - charge (bawas) is stored negative but its DEPOSIT ledger row is positive
+		const charge = Math.abs((parseFloat(svc.AMOUNT) || 0) + (parseFloat(svc.DELIVERY_FEE) || 0));
 		if (Math.abs(charge - ledgerAmt) > 0.009) return;
 
 		const svcGameId = svc.GAME_ID != null && String(svc.GAME_ID).trim() !== ''
