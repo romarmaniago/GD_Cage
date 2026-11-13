@@ -830,7 +830,6 @@
         <span class="dash-rolling-body-cell is-col-casino${casinoCellClass}">${buyInCell}</span>
         <span class="dash-rolling-body-cell is-col-casino text-dash-neg${casinoCellClass}">${cashOutCell}</span>
         <span class="dash-rolling-body-cell is-col-casino${casinoCellClass}">${rollingCell}</span>
-        <span class="dash-rolling-body-cell is-col-gold js-beyond-chips-cell${totalNegClass(row.beyond_chips)}" data-date="${escapeAttr(row.date)}" title="Click to add Beyond Chips">${escapeHtml(formatCell(row.beyond_chips))}</span>
         <span class="dash-rolling-body-cell is-col-remarks js-rolling-remarks-cell" data-date="${escapeAttr(row.date)}" data-remarks-saved="${escapeAttr(row.remarks_saved || '')}" data-buy-in="${escapeAttr(row.buy_in ?? 0)}" data-cash-out="${escapeAttr(row.cash_out ?? 0)}" data-rolling-cc="${escapeAttr(row.rolling_cc ?? 0)}" title="Click to edit remarks">${escapeHtml(formatRollingRemarksDisplay(row))}</span>
       </div>`;
     }).join('');
@@ -839,7 +838,6 @@
       <div class="dash-rolling-head-excel">
         <div class="dash-rolling-head-cell is-date">Date</div>
         <div class="dash-rolling-head-cell is-casino-group">Casino</div>
-        <div class="dash-rolling-head-cell is-gold-group">Gold Dragon</div>
         <div class="dash-rolling-head-cell is-remarks">Remarks</div>
         <div class="dash-rolling-head-cell is-buyin">
           <a href="#" class="js-dash-chips-header dash-card-link" data-chips-mode="buyin">Buy In</a>
@@ -850,7 +848,6 @@
         <div class="dash-rolling-head-cell is-rolling">
           <a href="#" class="js-dash-chips-header dash-card-link" data-chips-mode="rolling">Rolling</a>
         </div>
-        <div class="dash-rolling-head-cell is-beyond-chips">Beyond Chips</div>
       </div>
       ${bodyHtml}`;
 
@@ -860,7 +857,6 @@
         <span class="dash-rolling-body-cell is-col-casino is-total-amt${totalNegClass(t.buy_in)}">${escapeHtml(formatTotalCell(t.buy_in))}</span>
         <span class="dash-rolling-body-cell is-col-casino is-total-amt text-dash-neg">${escapeHtml(formatCashOutTotal(t.cash_out))}</span>
         <span class="dash-rolling-body-cell is-col-casino is-total-amt${totalNegClass(t.rolling)}">${escapeHtml(formatTotalCell(t.rolling))}</span>
-        <span class="dash-rolling-body-cell is-col-gold is-total-amt${totalNegClass(t.beyond_chips)}">${escapeHtml(formatTotalCell(t.beyond_chips))}</span>
         <span class="dash-rolling-body-cell is-col-remarks is-total-remarks"></span>
       </div>`;
 
@@ -1061,7 +1057,6 @@
     // the Gamebook (game_list/game_record) automatically when no manual entry exists for a date.
     set('dash-actual-buyin', t.buy_in_auto);
     set('dash-actual-cashout', -Math.abs(t.cash_out_auto || 0));
-    setSigned('dash-actual-beyond-chips', t.beyond_chips);
     set('dash-actual-rolling', t.rolling_auto);
     // "Gaming Acc." W/L mirrors the GD Cage (Gold Dragon) column of the W/L Check table
     // for the selected program-date range — NOT the external casino's W/L. Fall back to
@@ -1129,12 +1124,11 @@
       || (lastGridPayload && lastGridPayload.totals ? lastGridPayload.totals : {});
     const buyIn = Number(t.buy_in_auto) || 0;
     const cashOut = Math.abs(Number(t.cash_out_auto) || 0);
-    const beyond = Number(t.beyond_chips) || 0;
     const nnChipsBalance = Number(panel.dataset.nnChipsBalance) || 0;
     const ccChipsBalance = Number(panel.dataset.ccChipsBalance) || 0;
     const rcChipsBalance = Number(panel.dataset.rcChipsBalance) || 0;
     const cageChips = nnChipsBalance + ccChipsBalance + rcChipsBalance;
-    const cageWl = buyIn - cashOut + beyond - cageChips;
+    const cageWl = buyIn - cashOut - cageChips;
     el.textContent = formatAmount(cageWl);
     el.classList.toggle('text-dash-neg', cageWl < 0);
 
@@ -1566,13 +1560,12 @@
   }
 
   function buildRollingSheetPayload(payload) {
-    const headers = ['Date', 'Buy In', 'Cash Out', 'Rolling', 'Beyond Chips', 'Remarks'];
+    const headers = ['Date', 'Buy In', 'Cash Out', 'Rolling', 'Remarks'];
     const rows = (payload.rolling_rows || []).map((row) => [
       toDisplayDate(row.date),
       formatCell(row.buy_in),
       formatCashOutCell(row.cash_out),
       formatCell(row.rolling),
-      formatCell(row.beyond_chips),
       formatRollingRemarksDisplay(row)
     ]);
     const t = payload.totals || {};
@@ -1581,7 +1574,6 @@
       formatTotalCell(t.buy_in),
       formatCashOutTotal(t.cash_out),
       formatTotalCell(t.rolling),
-      formatTotalCell(t.beyond_chips),
       ''
     ]);
     return { headers, rows };

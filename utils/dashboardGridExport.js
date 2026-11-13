@@ -115,30 +115,27 @@ async function buildDashboardRollingExportXlsx(rows, totals, opts = {}) {
 		{ width: 14 },
 		{ width: 14 },
 		{ width: 14 },
-		{ width: 14 },
 		{ width: 12 }
 	];
 
 	const titleRow = ws.addRow(['Main Cage Rolling Check']);
-	ws.mergeCells(1, 1, 1, 6);
+	ws.mergeCells(1, 1, 1, 5);
 	styleCell(titleRow.getCell(1), { fill: FILL.title, bold: true, align: 'center', border: BORDER });
 	titleRow.height = 22;
 
-	const headerRow2 = ws.addRow(['Date', 'Casino', '', '', 'Gold Dragon', 'Remarks']);
-	const headerRow3 = ws.addRow(['', 'Buy In', 'Cash Out', 'Rolling', 'Beyond Chips', '']);
+	const headerRow2 = ws.addRow(['Date', 'Casino', '', '', 'Remarks']);
+	const headerRow3 = ws.addRow(['', 'Buy In', 'Cash Out', 'Rolling', '']);
 
 	ws.mergeCells(2, 2, 2, 4);
 	ws.mergeCells(2, 1, 3, 1);
-	ws.mergeCells(2, 6, 3, 6);
+	ws.mergeCells(2, 5, 3, 5);
 
 	styleCell(headerRow2.getCell(1), { fill: FILL.date, bold: true, border: BORDER });
 	styleCell(headerRow2.getCell(2), { fill: FILL.casino, bold: true, border: BORDER });
-	styleCell(headerRow2.getCell(5), { fill: FILL.gold, bold: true, border: BORDER });
-	styleCell(headerRow2.getCell(6), { fill: FILL.remarks, bold: true, border: BORDER });
+	styleCell(headerRow2.getCell(5), { fill: FILL.remarks, bold: true, border: BORDER });
 	styleCell(headerRow3.getCell(2), { fill: FILL.casino, bold: true, border: BORDER });
 	styleCell(headerRow3.getCell(3), { fill: FILL.casino, bold: true, border: BORDER });
 	styleCell(headerRow3.getCell(4), { fill: FILL.casino, bold: true, border: BORDER });
-	styleCell(headerRow3.getCell(5), { fill: FILL.gold, bold: true, border: BORDER });
 	headerRow2.height = 18;
 	headerRow3.height = 18;
 
@@ -149,10 +146,9 @@ async function buildDashboardRollingExportXlsx(rows, totals, opts = {}) {
 			numOrBlank(row.buy_in),
 			numOrBlank(row.cash_out),
 			numOrBlank(row.rolling),
-			numOrBlank(row.beyond_chips),
 			formatRollingRemarks(row)
 		]);
-		applyDataRowStyle(dataRow, 6, todayDate);
+		applyDataRowStyle(dataRow, 5, todayDate);
 		dataRow.height = 15;
 	});
 
@@ -162,10 +158,9 @@ async function buildDashboardRollingExportXlsx(rows, totals, opts = {}) {
 		numOrZero(t.buy_in),
 		numOrZero(t.cash_out),
 		numOrZero(t.rolling),
-		numOrZero(t.beyond_chips),
 		''
 	]);
-	applyDataRowStyle(totalRow, 6, todayDate, true);
+	applyDataRowStyle(totalRow, 5, todayDate, true);
 	totalRow.height = 18;
 
 	const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
