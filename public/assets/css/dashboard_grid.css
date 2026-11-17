@@ -1948,7 +1948,7 @@ body {
 /* W/L Check — center-align header + cell text; keep "The difference" on one line; lock body row height */
 .dash-dual-matrix-col.is-wl .dash-wl-head-excel,
 .dash-dual-matrix-col.is-wl .dash-wl-row {
-  grid-template-columns: 4rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(6.75rem, 1.1fr) minmax(0, 0.7fr);
+  grid-template-columns: 4rem repeat(4, minmax(0, 1fr));
 }
 
 .dash-dual-matrix-col.is-wl .dash-wl-head-cell,
@@ -1966,7 +1966,6 @@ body {
 
 .dash-dual-matrix-col.is-wl .dash-wl-body-cell,
 .dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-date,
-.dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-remarks,
 .dash-dual-matrix-col.is-wl .dash-wl-row.is-total .dash-wl-body-cell.is-date.is-total-label {
   justify-content: center;
   text-align: center;
@@ -1985,10 +1984,11 @@ body {
   flex: 1 1 0;
 }
 
-/* W/L Check — right-align amount columns (Casino/Gold Dragon/The difference values only); headers stay centered */
+/* W/L Check — right-align amount columns (Casino/Gold Dragon/The difference/Remarks values only); headers stay centered */
 .dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-casino,
 .dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-gold,
-.dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-diff {
+.dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-diff,
+.dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-remarks {
   justify-content: flex-end;
   text-align: right;
   padding: 0.2rem 0.35rem;
@@ -2396,7 +2396,7 @@ body {
 .dash-rolling-head-excel,
 .dash-rolling-row {
   display: grid;
-  grid-template-columns: 4rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 0.7fr);
+  grid-template-columns: 4rem repeat(4, minmax(0, 1fr));
   gap: 0;
 }
 
@@ -2740,7 +2740,7 @@ body {
 .dash-wl-head-excel,
 .dash-wl-row {
   display: grid;
-  grid-template-columns: 4rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.7fr);
+  grid-template-columns: 4rem repeat(4, minmax(0, 1fr));
   gap: 0;
 }
 
