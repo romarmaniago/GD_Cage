@@ -853,6 +853,14 @@ router.get('/commission_data', async (req, res) => {
         return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
     }
 
+    // Commission / Settlement pages (default): settled games only, dated by PROGRAM_DATE (falls back to ENCODED_DT).
+    // Analytics (mode=analytics): every game, settled or not, dated strictly by PROGRAM_DATE.
+    const isAnalytics = String(req.query.mode || '') === 'analytics';
+    const settledFilter = isAnalytics ? '' : 'AND game_list.SETTLED = 1';
+    const dateExpr = isAnalytics
+        ? 'game_list.PROGRAM_DATE'
+        : 'COALESCE(game_list.PROGRAM_DATE, game_list.ENCODED_DT)';
+
     const query = `
         SELECT DISTINCT
             game_list.IDNo AS game_list_id,
@@ -889,10 +897,10 @@ router.get('/commission_data', async (req, res) => {
         JOIN agency ON agency.IDNo = agent.AGENCY
         LEFT JOIN guest g ON g.IDNo = game_list.GUEST_ID
         WHERE game_list.ACTIVE != 0
-          AND game_list.SETTLED = 1
-          AND DATE(COALESCE(game_list.PROGRAM_DATE, game_list.ENCODED_DT)) >= ?
-          AND DATE(COALESCE(game_list.PROGRAM_DATE, game_list.ENCODED_DT)) <= ?
-        ORDER BY COALESCE(game_list.PROGRAM_DATE, game_list.ENCODED_DT) DESC, game_list.IDNo DESC`;
+          ${settledFilter}
+          AND DATE(${dateExpr}) >= ?
+          AND DATE(${dateExpr}) <= ?
+        ORDER BY ${dateExpr} DESC, game_list.IDNo DESC`;
 
     try {
         const [rows] = await pool.execute(query, [start, end]);

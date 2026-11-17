@@ -3422,6 +3422,48 @@ router.get('/game_services/:gameId', checkSession, async (req, res) => {
 	}
 });
 
+// GET SERVICES FOR MANY GAMES AT ONCE (Commission Settlement) — one query instead of one /game_services/:id request per game
+router.post('/game_services_batch', checkSession, async (req, res) => {
+	const ids = [...new Set((Array.isArray(req.body.ids) ? req.body.ids : [])
+		.map((v) => parseInt(v, 10))
+		.filter((v) => Number.isInteger(v) && v > 0))];
+	const byGame = {};
+	ids.forEach((id) => { byGame[id] = []; });
+	if (!ids.length) return res.json(byGame);
+
+	try {
+		const CHUNK = 1000;
+		for (let i = 0; i < ids.length; i += CHUNK) {
+			const chunk = ids.slice(i, i + CHUNK);
+			const [rows] = await pool.query(
+				`SELECT
+					gs.IDNo,
+					gs.GAME_ID,
+					gs.SERVICE_TYPE,
+					gs.AMOUNT,
+					COALESCE(gs.DELIVERY_FEE, 0) AS DELIVERY_FEE,
+					gs.REMARKS,
+					gs.TRANSACTION_ID,
+					gs.AGENT_ID,
+					gs.ACTIVE,
+					gs.ENCODED_BY,
+					gs.ENCODED_DT,
+					COALESCE(ui.USERNAME, gs.ENCODED_BY) AS PROCESSED_BY
+				FROM game_services gs
+				LEFT JOIN user_info ui ON ui.IDNo = gs.ENCODED_BY
+				WHERE gs.ACTIVE = 1 AND gs.GAME_ID IN (?)
+				ORDER BY gs.ENCODED_DT DESC, gs.IDNo DESC`,
+				[chunk]
+			);
+			rows.forEach((r) => { byGame[r.GAME_ID].push(r); });
+		}
+		return res.json(byGame);
+	} catch (err) {
+		console.error('Error fetching batch game services:', err);
+		return res.status(500).json({ error: 'Error fetching game services' });
+	}
+});
+
 // Add a service to a game (use /add_game_services to avoid confusion with GET)
 router.post('/add_game_services', checkSession, commissionLock(gameFromBody), async (req, res) => {
 	try {

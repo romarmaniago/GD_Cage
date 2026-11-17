@@ -885,18 +885,26 @@ $(document).ready(function () {
 			data: { start: start, end: end },
 			success: function (data) {
 				settlementRows = [];
-				var ajaxCalls = [];
 
-				data.forEach(function (row) {
-					if (row.SETTLED !== 1) return;
-					ajaxCalls.push(
-						$.when(
-							$.ajax({ url: '/game_list/' + row.game_list_id + '/record', method: 'GET' }),
-							$.ajax({ url: '/game_services/' + row.game_list_id, method: 'GET' })
-						).done(function (recordRes, servicesRes) {
-							var response = recordRes[0];
-							var services = servicesRes[0];
-							if (!Array.isArray(response)) return;
+				// Two batch requests for all games — per-game /record + /game_services requests
+				// exhausted the browser's connections on wide ranges (net::ERR_INSUFFICIENT_RESOURCES)
+				var settledGames = (data || []).filter(function (row) { return row.SETTLED === 1; });
+				if (!settledGames.length) {
+					afterSettlementDataLoaded();
+					return;
+				}
+				var idsPayload = JSON.stringify({ ids: settledGames.map(function (row) { return row.game_list_id; }) });
+
+				$.when(
+					$.ajax({ url: '/game_list/records_batch', method: 'POST', contentType: 'application/json', data: idsPayload }),
+					$.ajax({ url: '/game_services_batch', method: 'POST', contentType: 'application/json', data: idsPayload })
+				).done(function (recordRes, servicesRes) {
+					var recordsByGame = recordRes[0] || {};
+					var servicesByGame = servicesRes[0] || {};
+
+					settledGames.forEach(function (row) {
+							var response = recordsByGame[row.game_list_id] || [];
+							var services = servicesByGame[row.game_list_id] || [];
 
 							var metrics = computeRollingFromRecords(response);
 							var pct = getShareRollingPct(row.COMMISSION_TYPE, row.COMMISSION_PERCENTAGE, row);
@@ -934,12 +942,11 @@ $(document).ready(function () {
 								incidental: svc.incidental,
 								actualSettlement: amounts.actualSettlement
 							});
-						})
-					);
-				});
+					});
 
-				$.when.apply($, ajaxCalls).done(function () {
 					afterSettlementDataLoaded();
+				}).fail(function (xhr, status, error) {
+					console.error('Error fetching settlement game records:', error);
 				});
 			},
 			error: function (xhr, status, error) {

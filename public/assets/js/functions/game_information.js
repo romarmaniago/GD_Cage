@@ -251,7 +251,12 @@
 		return String(row.SOURCE || '') === 'gamebook' || !row.manual_id;
 	}
 
-	function addRowToTable(row) {
+	/**
+	 * Builds one table row (cell array) without touching the DOM. Totals / receipt / export
+	 * values ride along on cells._gi so they can be read from row data — with deferRender
+	 * the <tr> only exists once the row is actually drawn (createdRow copies them onto it).
+	 */
+	function buildRowData(row) {
 		var gamebookRow = isGamebookRow(row);
 		if (row.manual_id) manualGamesById[row.manual_id] = row;
 		var addChg = parseFloat(row.ADD_CHARGE) || 0;
@@ -292,8 +297,8 @@
 			var actionCell = buildManualActionCell(row.manual_id);
 			if (actionCell !== '') cells.push(actionCell);
 		}
-		var rowNode = dataTable.row.add(cells).node();
-		$(rowNode).data('giTotals', {
+		var gi = {};
+		gi.totals = {
 			buyin: parseFloat(row.BUY_IN) || 0,
 			cashout: parseFloat(row.CASH_OUT) || 0,
 			winloss: parseFloat(row.WIN_LOSS) || 0,
@@ -301,10 +306,10 @@
 			commission: displayCommission,
 			addChg: addChg,
 			settle: displaySettle
-		});
+		};
 
 		// Receipt card (game_information_receipt.js): same values as the row, settlement-receipt layout
-		$(rowNode).data('giReceipt', {
+		gi.receipt = {
 			program_date: ymd(row.PROGRAM_DATE) || '',
 			agent_code: row.AGENT_CODE || '',
 			guest_name: row.GUEST_NAME && row.GUEST_NAME !== '-' ? row.GUEST_NAME : '',
@@ -317,11 +322,11 @@
 			settlement: displayCommission,
 			add_charge: addChg,
 			payment: displaySettle
-		});
+		};
 
 		var settlementValue = displayCommission;
 		var totalSettleValue = displaySettle;
-		$(rowNode).data('giExport', {
+		gi.exp = {
 			program_date: ymd(row.PROGRAM_DATE) || '',
 			game_start: formatGameStart(row.GAME_START),
 			acc: row.AGENT_CODE || '',
@@ -339,7 +344,15 @@
 			total_settle: totalSettleValue,
 			program_end: row.GAME_ENDED ? (ymd(row.GAME_ENDED) || '') : '',
 			game_end: formatManualGameEnd(row)
-		});
+		};
+
+		cells._gi = gi;
+		return cells;
+	}
+
+	/** Row meta (totals / receipt / export) from a DataTables row's data array. */
+	function giRowMeta(data) {
+		return (data && data._gi) || null;
 	}
 
 	function localYmd(d) {
@@ -450,7 +463,8 @@
 		}
 		var grand = emptyGrandTotals();
 		dt.rows({ search: 'applied' }).every(function () {
-			var amt = $(this.node()).data('giTotals');
+			var meta = giRowMeta(this.data());
+			var amt = meta && meta.totals;
 			if (!amt) return;
 			grand.buyin += amt.buyin || 0;
 			grand.cashout += amt.cashout || 0;
@@ -491,9 +505,8 @@
 			success: function (rows) {
 				if (gen !== reloadGeneration) return;
 				rows = Array.isArray(rows) ? rows : [];
-				rows.forEach(function (row) {
-					addRowToTable(row);
-				});
+				// One bulk add + one draw (was row.add().node() per row — built every <tr> up front)
+				dataTable.rows.add(rows.map(buildRowData));
 				dataTable.draw();
 			},
 			error: function (xhr) {
@@ -519,6 +532,15 @@
 			ordering: true,
 			order: [[0, 'desc']],
 			autoWidth: false,
+			// Only build <tr> for rows being shown; meta lives on the row data (see buildRowData)
+			deferRender: true,
+			createdRow: function (tr, data) {
+				var meta = giRowMeta(data);
+				if (!meta) return;
+				$(tr).data('giTotals', meta.totals);
+				$(tr).data('giReceipt', meta.receipt);
+				$(tr).data('giExport', meta.exp);
+			},
 			columnDefs: [
 				// Program Date, then Game Start, then Game # as tie-breakers.
 				{ targets: 0, orderData: [0, 1, 7] },
@@ -1081,12 +1103,16 @@
 		});
 
 		var rows = [];
+		// Read from row data, not <td>s — with deferRender rows not yet drawn have no <tr>
+		var textEl = document.createElement('div');
 		dataTable.rows({ search: 'applied', order: 'applied' }).every(function () {
+			var data = this.data() || [];
 			var cells = [];
-			$(this.node()).find('td').each(function (i) {
-				if (i === actionColIndex) return;
-				cells.push($(this).text().trim());
-			});
+			for (var i = 0; i < data.length; i++) {
+				if (i === actionColIndex) continue;
+				textEl.innerHTML = data[i] == null ? '' : String(data[i]);
+				cells.push((textEl.textContent || '').trim());
+			}
 			if (cells.length) rows.push(cells);
 		});
 
@@ -1163,7 +1189,8 @@
 		if (!dataTable) return [];
 		var rows = [];
 		dataTable.rows({ search: 'applied' }).every(function () {
-			var exportRow = $(this.node()).data('giExport');
+			var meta = giRowMeta(this.data());
+			var exportRow = meta && meta.exp;
 			if (exportRow) rows.push(exportRow);
 		});
 		return rows;

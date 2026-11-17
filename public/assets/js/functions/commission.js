@@ -1152,6 +1152,21 @@ $(document).ready(function() {
 
                 commissionGameMeta.clear();
 
+                // One batch request for every settled game — one /record request per game
+                // exhausted the browser's connections on wide ranges (net::ERR_INSUFFICIENT_RESOURCES)
+                var settledIds = (data || []).filter(function (r) { return r.SETTLED === 1; })
+                    .map(function (r) { return r.game_list_id; });
+                var recordsBatch = settledIds.length
+                    ? $.ajax({
+                        url: '/game_list/records_batch',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ ids: settledIds })
+                    }).fail(function (xhr, status, error) {
+                        console.error('Error fetching game records:', error);
+                    })
+                    : $.Deferred().resolve({}).promise();
+
                 data.forEach(function(row) {
                     // Only process records that are settled
                     if (row.SETTLED === 1) {
@@ -1166,10 +1181,8 @@ $(document).ready(function() {
                         var payment = row.payment || 0; // Use the PAYMENT value from the row
 
                         ajaxCalls.push(
-                            $.ajax({
-                                url: '/game_list/' + row.game_list_id + '/record',
-                                method: 'GET',
-                                success: function(response) {
+                            recordsBatch.then(function(recordsByGame) {
+                                    var response = (recordsByGame || {})[row.game_list_id] || [];
                                     var total_buy_in = 0;
                                     var total_cash_out = 0;
                                     var total_rolling = 0;
@@ -1324,10 +1337,6 @@ $(document).ready(function() {
                                         total_settle: paymentValue,
                                         game_end: formattedGameEnd
                                     });
-                                },
-                                error: function(xhr, status, error) {
-                                    console.error('Error fetching options:', error);
-                                }
                             })
                         );
                     }

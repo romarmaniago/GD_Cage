@@ -12,28 +12,54 @@
 	'use strict';
 
 	var measureCtx = null;
+	var parenWidthByFont = {};
 
-	// Width of ")" in the font the value is drawn with
+	// Width of ")" in the font the value is drawn with (cached per font)
 	function closingParenWidth(el) {
-		if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
 		var cs = window.getComputedStyle(el.lastElementChild || el);
-		measureCtx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
-		return measureCtx.measureText(')').width;
+		var font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+		if (parenWidthByFont[font] === undefined) {
+			if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
+			measureCtx.font = font;
+			parenWidthByFont[font] = measureCtx.measureText(')').width;
+		}
+		return parenWidthByFont[font];
 	}
 
+	// Write → read → write in three passes. Interleaving a style write with a
+	// getComputedStyle read per cell forced a full layout for EVERY cell, which
+	// froze big tables (thousands of rows on "Show All").
 	function alignParenNumbers(root, targets) {
-		Array.prototype.forEach.call(root.querySelectorAll(targets), function (el) {
-			el.style.paddingRight = '';
-			el.style.marginRight = '';
-			if (!/\d\)$/.test((el.textContent || '').trim())) return;
+		var els = root.querySelectorAll(targets);
+		var i;
+		var el;
 
-			var w = closingParenWidth(el);
-			var padRight = parseFloat(window.getComputedStyle(el).paddingRight) || 0;
-			// Cells with their own padding: the ")" moves into the padding;
-			// values without any slide into their row's padding instead.
-			if (padRight > 0) el.style.setProperty('padding-right', Math.max(0, padRight - w) + 'px', 'important');
-			else el.style.marginRight = -w + 'px';
-		});
+		// 1) Clear previous nudges (writes only)
+		for (i = 0; i < els.length; i++) {
+			el = els[i];
+			if (el.style.paddingRight) el.style.paddingRight = '';
+			if (el.style.marginRight) el.style.marginRight = '';
+		}
+
+		// 2) Measure the negatives (reads only — one layout for the whole pass)
+		var jobs = [];
+		for (i = 0; i < els.length; i++) {
+			el = els[i];
+			if (!/\d\)$/.test((el.textContent || '').trim())) continue;
+			jobs.push({
+				el: el,
+				w: closingParenWidth(el),
+				padRight: parseFloat(window.getComputedStyle(el).paddingRight) || 0
+			});
+		}
+
+		// 3) Apply (writes only). Cells with their own padding: the ")" moves into
+		// the padding; values without any slide into their row's padding instead.
+		for (i = 0; i < jobs.length; i++) {
+			var job = jobs[i];
+			if (job.padRight > 0) job.el.style.setProperty('padding-right', Math.max(0, job.padRight - job.w) + 'px', 'important');
+			else job.el.style.marginRight = -job.w + 'px';
+		}
 	}
 
 	function watch(rootSelector, targets) {

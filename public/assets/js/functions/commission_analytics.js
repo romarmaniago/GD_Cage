@@ -1601,20 +1601,27 @@ $(document).ready(function () {
         $.ajax({
             url: '/commission_data',
             method: 'GET',
-            data: { start: start, end: end }
+            // Analytics ranks every game in range (settled or not), filtered by Program Date only
+            data: { start: start, end: end, mode: 'analytics' }
         }).done(function (games) {
-            var settledGames = (games || []).filter(function (g) { return Number(g.SETTLED) === 1; });
-            if (settledGames.length === 0) {
+            var rankGames = games || [];
+            if (rankGames.length === 0) {
                 drilldownState.agents = {};
                 renderRankTable([]);
                 return;
             }
 
-            var requests = settledGames.map(function (game) {
-                return $.ajax({
-                    url: '/game_list/' + game.game_list_id + '/record',
-                    method: 'GET'
-                }).then(function (records) {
+            // One batch request for all games — one /record request per game blew past the
+            // browser's connection limit on wide ranges (All) → net::ERR_INSUFFICIENT_RESOURCES
+            $.ajax({
+                url: '/game_list/records_batch',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ ids: rankGames.map(function (g) { return g.game_list_id; }) })
+            }).done(function (recordsByGame) {
+                recordsByGame = recordsByGame || {};
+                var rows = rankGames.map(function (game) {
+                    var records = recordsByGame[game.game_list_id] || [];
                     var totals = computeGameTotals(records);
                     var rollingRate = Number(game.COMMISSION_PERCENTAGE) || 0;
                     var settlement = createSettlement(Number(game.COMMISSION_TYPE), rollingRate, totals, game);
@@ -1636,13 +1643,12 @@ $(document).ready(function () {
                             settlement: settlement,
                             fnb: fnb,
                             payment: payment,
-                            dateTime: moment.utc(game.GAME_ENDED).utcOffset(8).format('YYYY-MM-DD HH:mm')
+                            // Program Date (date only) — same date the range filter uses
+                            dateTime: game.PROGRAM_DATE ? moment.utc(game.PROGRAM_DATE).utcOffset(8).format('YYYY-MM-DD') : '-'
                         }
                     };
                 });
-            });
 
-            Promise.all(requests).then(function (rows) {
                 var agentMap = {};
                 rows.forEach(function (r) {
                     if (!agentMap[r.key]) {
@@ -1673,6 +1679,10 @@ $(document).ready(function () {
                 drilldownState.agents = agentMap;
                 updateCompareModeBanner();
                 renderRankTable(buildSortedAgentRowsFromState());
+            }).fail(function () {
+                drilldownState.agents = {};
+                updateCompareModeBanner();
+                renderRankTable([]);
             });
         }).fail(function () {
             drilldownState.agents = {};
