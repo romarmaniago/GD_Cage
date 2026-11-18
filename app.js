@@ -126,7 +126,7 @@ sessionStore.onReady().then(async () => {
 });
 
 app.use(session({
-  name: 'connect.sid', // Standard session cookie name (compatible with most apps)
+  name: 'gdcage.sid', // per-app name: cookies are shared across ports, so GD_Cage / Jupiter / Infinity must differ
   secret: process.env.SESSION_SECRET,
   store: sessionStore,
   resave: false,
