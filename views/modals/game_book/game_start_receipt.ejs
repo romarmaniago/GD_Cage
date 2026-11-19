@@ -369,6 +369,113 @@
     box-shadow: none !important;
 }
 
+/* Complete / Simple dropdown (ADD receipts only) — custom menu so the option list matches the card */
+#modal-game-start-receipt .gsr-mode-dropdown {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+}
+
+#modal-game-start-receipt .gsr-mode-toggle {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.5;
+    padding: 0.35rem 0.5rem;
+    color: #3f3f46;
+    background: #fff;
+    border: 1px solid #a1a1aa;
+    border-radius: var(--bs-border-radius-sm, 0.25rem);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+#modal-game-start-receipt .gsr-mode-toggle:hover,
+#modal-game-start-receipt .gsr-mode-dropdown.is-open .gsr-mode-toggle {
+    border-color: #52525b;
+    background: #f4f4f5;
+}
+
+#modal-game-start-receipt .gsr-mode-caret {
+    font-size: 0.55rem;
+    color: #71717a;
+    transition: transform 0.15s ease;
+}
+
+#modal-game-start-receipt .gsr-mode-dropdown.is-open .gsr-mode-caret {
+    transform: rotate(180deg);
+}
+
+#modal-game-start-receipt .gsr-mode-menu {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 4px);
+    z-index: 20;
+    padding: 0.25rem;
+    background: #fff;
+    border: 1px solid #d4d4d8;
+    border-radius: 0.375rem;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+}
+
+#modal-game-start-receipt .gsr-mode-dropdown.is-open .gsr-mode-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+#modal-game-start-receipt .gsr-mode-option {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.35rem 0.5rem;
+    color: #3f3f46;
+    background: transparent;
+    border: none;
+    border-radius: 0.25rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+#modal-game-start-receipt .gsr-mode-option + .gsr-mode-option {
+    margin-top: 2px;
+}
+
+#modal-game-start-receipt .gsr-mode-option:hover {
+    background: #f4f4f5;
+}
+
+#modal-game-start-receipt .gsr-mode-option.is-active {
+    color: #fff;
+    background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+}
+
+#modal-game-start-receipt .gsr-mode-check {
+    font-size: 0.6rem;
+    visibility: hidden;
+}
+
+#modal-game-start-receipt .gsr-mode-option.is-active .gsr-mode-check {
+    visibility: visible;
+}
+
 /* Blurred backdrop — hides gamelist table detail while keeping faded receipts readable */
 body.game-start-receipt-open .modal-backdrop.show,
 .modal-backdrop.game-start-receipt-backdrop.show {

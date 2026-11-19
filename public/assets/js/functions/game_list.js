@@ -3231,13 +3231,12 @@ function receiptRow(label, value, options) {
 /** Sections shown on a receipt card (and its copy text), per receipt type */
 function getGameReceiptSections(data) {
 	var neg = function (v) { return -Math.abs(Number(v || 0)); };
-	var summary = {
-		cls: 'gsr-section-summary',
-		rows: [
-			receiptRow('* WIN/LOSS', data.win_loss, { textLabel: '* WIN / LOSS', total: true }),
-			receiptRow('* ROLLING', data.rolling, { total: true })
-		]
-	};
+	var summaryRows = [receiptRow('* WIN/LOSS', data.win_loss, { textLabel: '* WIN / LOSS', total: true })];
+	// SIMPLE view (ADD receipts only): no ROLLING row
+	if (!(isGameReceiptModeSelectable(data) && data.receipt_mode === 'simple')) {
+		summaryRows.push(receiptRow('* ROLLING', data.rolling, { total: true }));
+	}
+	var summary = { cls: 'gsr-section-summary', rows: summaryRows };
 
 	switch (data.type) {
 		case 'game_start':
@@ -3399,12 +3398,39 @@ function buildGameReceiptSlipBodyHtml(data) {
 	);
 }
 
+/** START = simple only, SETTLEMENT = complete only; ADD (buy in / cash out) can switch, default complete */
+function isGameReceiptModeSelectable(data) {
+	return !!data && (data.type === 'add_buyin' || data.type === 'cashout');
+}
+
+function buildGameReceiptModeSelectHtml(data) {
+	if (!isGameReceiptModeSelectable(data)) return '';
+	var mode = data.receipt_mode === 'simple' ? 'simple' : 'complete';
+	var option = function (value, label) {
+		return '<button type="button" class="gsr-mode-option js-game-receipt-mode-option' + (mode === value ? ' is-active' : '') + '" data-mode="' + value + '">' +
+			'<span>' + label + '</span><i class="fa fa-check gsr-mode-check" aria-hidden="true"></i></button>';
+	};
+	// Custom dropdown (native <select> option list can't be styled); opens upward over the card
+	return '<div class="gsr-mode-dropdown">' +
+		'<button type="button" class="gsr-mode-toggle js-game-receipt-mode-toggle" aria-haspopup="true" aria-expanded="false" aria-label="Receipt view">' +
+		'<span class="gsr-mode-label">' + (mode === 'simple' ? 'Simple' : 'Complete') + '</span>' +
+		'<i class="fa fa-chevron-down gsr-mode-caret" aria-hidden="true"></i></button>' +
+		'<div class="gsr-mode-menu" role="menu">' + option('complete', 'Complete') + option('simple', 'Simple') + '</div>' +
+		'</div>';
+}
+
+function closeGameReceiptModeMenus($except) {
+	$('.gsr-mode-dropdown.is-open').not($except || []).removeClass('is-open')
+		.find('.js-game-receipt-mode-toggle').attr('aria-expanded', 'false');
+}
+
 function buildGameReceiptSlipHtml(data, isLatest) {
 	return (
 		'<div class="game-start-receipt-slip' + (isLatest ? ' game-start-receipt-slip--latest' : ' game-start-receipt-slip--past') + '"' +
 		' data-receipt-text="' + escapeGameReceiptHtml(encodeURIComponent(buildGameReceiptText(data))) + '">' +
 		buildGameReceiptSlipBodyHtml(data) +
 		'<div class="game-start-receipt-slip-actions">' +
+		buildGameReceiptModeSelectHtml(data) +
 		'<button type="button" class="btn btn-sm game-receipt-copy-btn js-copy-game-receipt-slip-image">' +
 		'Copy image</button>' +
 		'<button type="button" class="btn btn-sm game-receipt-copy-btn js-copy-game-receipt-slip-text">' +
@@ -3466,7 +3492,11 @@ function populateAllGameReceipts(receipts, gameStatus) {
 	var html = list.map(function (r, i) {
 		return buildGameReceiptSlipHtml(r, list.length === 1 || i === latestIndex);
 	}).join('');
-	getGameReceiptsTrack($container).html(html);
+	var $track = getGameReceiptsTrack($container).html(html);
+	// Keep each receipt's data on its card so the Complete / Simple dropdown can re-render it
+	$track.children('.game-start-receipt-slip').each(function (i) {
+		$(this).data('receipt', list[i]);
+	});
 	beginGameReceiptsSettling();
 	requestAnimationFrame(function () {
 		scrollGameReceiptLatestIntoView(true);
@@ -3799,6 +3829,46 @@ function copyGameReceiptSlipTextButton(slipBodyEl, $btn) {
 		.finally(ui.restoreBtn);
 }
 window.copyGameReceiptSlipTextButton = copyGameReceiptSlipTextButton;
+
+$(document).off('click', '.js-game-receipt-mode-toggle').on('click', '.js-game-receipt-mode-toggle', function (e) {
+	e.preventDefault();
+	e.stopPropagation();
+	var $dd = $(this).closest('.gsr-mode-dropdown');
+	closeGameReceiptModeMenus($dd);
+	var open = !$dd.hasClass('is-open');
+	$dd.toggleClass('is-open', open);
+	$(this).attr('aria-expanded', open ? 'true' : 'false');
+});
+
+$(document).off('click', '.js-game-receipt-mode-option').on('click', '.js-game-receipt-mode-option', function (e) {
+	e.preventDefault();
+	e.stopPropagation();
+	var mode = $(this).data('mode') === 'simple' ? 'simple' : 'complete';
+	var $dd = $(this).closest('.gsr-mode-dropdown');
+	var $slip = $dd.closest('.game-start-receipt-slip');
+	closeGameReceiptModeMenus();
+	$dd.find('.js-game-receipt-mode-option').removeClass('is-active').filter('[data-mode="' + mode + '"]').addClass('is-active');
+	$dd.find('.gsr-mode-label').text(mode === 'simple' ? 'Simple' : 'Complete');
+	var data = $slip.data('receipt');
+	if (!data || data.receipt_mode === mode || (!data.receipt_mode && mode === 'complete')) return;
+	data = $.extend({}, data, { receipt_mode: mode });
+	$slip.data('receipt', data);
+	$slip.attr('data-receipt-text', encodeURIComponent(buildGameReceiptText(data)));
+	$slip.find('.game-start-receipt-slip-body').replaceWith(buildGameReceiptSlipBodyHtml(data));
+});
+
+$(document).off('click.gsrModeMenu').on('click.gsrModeMenu', function (e) {
+	if (!$(e.target).closest('.gsr-mode-dropdown').length) closeGameReceiptModeMenus();
+});
+$(document).off('keydown.gsrModeMenu').on('keydown.gsrModeMenu', function (e) {
+	if (e.key === 'Escape' && $('.gsr-mode-dropdown.is-open').length) {
+		e.stopPropagation();
+		closeGameReceiptModeMenus();
+	}
+});
+$(document).off('hidden.bs.modal.gsrModeMenu').on('hidden.bs.modal.gsrModeMenu', '#modal-game-start-receipt', function () {
+	closeGameReceiptModeMenus();
+});
 
 $(document).off('click', '.js-copy-game-receipt-slip-image').on('click', '.js-copy-game-receipt-slip-image', function (e) {
 	e.preventDefault();
