@@ -1804,13 +1804,13 @@ function computeGuestPortalBalanceAfterMap(rows) {
 /**
  * Agent Portal TRANSACTION text from AUTO_REMARKS (upper-cased) — shared by the ledger table and the receipt:
  *   "TRANSFER - FROM/TO COMPANY"                 → "COMPANY - CASH"
- *   "TRANSFER - FROM/TO HJ015" (another account)   → "TRANSFER - CASH"
+ *   "TRANSFER - FROM/TO HJ015" (another account)   → "TRANSFER - FROM/TO HJ015" (kept as is)
  *   "WITHDRAW - LOSS AMOUNT / EXPENSES / ADD CHARGE" → "LOSS AMOUNT - CASH" / …
  */
 function formatAgentPortalTransactionText(autoRemarks) {
 	var text = String(autoRemarks || '').trim().toUpperCase();
 	if (/^TRANSFER - (FROM|TO) COMPANY$/.test(text)) return 'COMPANY - CASH';
-	if (/^TRANSFER - (FROM|TO)\b/.test(text)) return 'TRANSFER - CASH';
+	if (/^TRANSFER - (FROM|TO)\b/.test(text)) return text;
 	var portalCategory = /^(?:DEPOSIT|WITHDRAW) - (EXPENSES|LOSS AMOUNT|ADD CHARGE)$/.exec(text);
 	if (portalCategory) return portalCategory[1] + ' - CASH';
 	return text;
