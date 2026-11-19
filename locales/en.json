@@ -1707,6 +1707,7 @@
 		"settlement": "Tip Settlement",
 		"settlement_help": "Settle roller tips for employee payout. Amount cannot exceed available roller tip balance.",
 		"available_balance": "Roller Tip Balance",
+		"dealer_tip": "Dealer Tip",
 		"settlement_amount": "Settlement Amount",
 		"settle": "Out",
 		"in": "In",

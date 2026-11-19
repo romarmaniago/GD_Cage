@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/ExcelExportService');
+const { getMonthEndCutoffRange } = require('../utils/monthEndCutoffRange');
 
 const TIP_TYPE = {
 	ROLLER: 1,
@@ -154,6 +155,45 @@ async function getRollerTipAvailableBalance(db) {
 	};
 }
 
+/** Dealer tips whose program date falls in the current month-end cut-off period
+ *  (e.g. Oct 31 – Nov 29), same program-date resolution as /tip_data. */
+async function sumDealerTipBetween(conn, startDate, endDate) {
+	const [[row]] = await conn.execute(
+		`SELECT COALESCE(SUM(t.AMOUNT), 0) AS TOTAL
+		 FROM tip t
+		 LEFT JOIN game_list gl ON gl.IDNo = t.GAME_ID
+		 WHERE t.ACTIVE = 1 AND t.TIP_TYPE = ?
+		   AND COALESCE(DATE(t.PROGRAM_DATE), DATE(gl.PROGRAM_DATE), DATE(t.ENCODED_DT)) BETWEEN ? AND ?`,
+		[TIP_TYPE.DEALER, startDate, endDate]
+	);
+	return parseFloat(row && row.TOTAL) || 0;
+}
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** Dealer tips for a month-end cut-off period: offset 0 = current period
+ *  (e.g. Oct 31 – Nov 29, labelled "Nov 2026"), -1 = the one before, etc. Never in the future. */
+async function getDealerTipForPeriod(db, offset) {
+	const conn = db || pool;
+	let steps = parseInt(offset, 10);
+	if (!Number.isFinite(steps) || steps > 0) steps = 0;
+	if (steps < -240) steps = -240;
+	let range = getMonthEndCutoffRange();
+	for (let i = 0; i > steps; i--) {
+		const s = range.startAt;
+		range = getMonthEndCutoffRange(new Date(s.getFullYear(), s.getMonth(), s.getDate() - 1));
+	}
+	const total = await sumDealerTipBetween(conn, range.startDate, range.endDate);
+	return {
+		dealerTip: total,
+		dealerOffset: steps,
+		dealerStart: range.startDate,
+		dealerEnd: range.endDate,
+		dealerLabel: MONTH_NAMES[range.endAt.getMonth()] + ' ' + range.endAt.getFullYear(),
+		dealerRangeDisplay: range.start + ' – ' + range.end
+	};
+}
+
 /** Roller tip balance right after an entry: roller tips minus tip settlements encoded up to `asOf`
  *  (same sources as getRollerTipAvailableBalance, not clamped so the receipt shows the real figure). */
 async function getRollerTipBalanceAsOf(db, asOf) {
@@ -200,8 +240,11 @@ router.post('/tip/export_xlsx', checkSession, async function (req, res) {
 
 router.get('/tip_roller_balance', checkSession, async (req, res) => {
 	try {
-		const balance = await getRollerTipAvailableBalance(pool);
-		res.json(balance);
+		const [balance, dealer] = await Promise.all([
+			getRollerTipAvailableBalance(pool),
+			getDealerTipForPeriod(pool, req.query.dealerOffset)
+		]);
+		res.json(Object.assign({}, balance, dealer));
 	} catch (err) {
 		console.error('tip_roller_balance:', err);
 		res.status(500).json({ message: 'Failed to load roller tip balance.' });

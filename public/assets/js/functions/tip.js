@@ -538,14 +538,20 @@ function applyTipPageDateFilterDraw() {
 	}
 }
 
-function updateTipAmountTotals(api) {
-	const rollerTotal = api
-		.column(7, { search: 'applied' })
-		.data()
-		.reduce(function (sum, val) {
-			return sum + (Number(val) || 0);
-		}, 0);
+// Roller footer TOTAL shows the Roller Tip Balance (same value as the header card),
+// not the sum of the filtered rows.
+let tipRollerBalanceValue = null;
 
+function renderTipRollerFooterTotal(api) {
+	if (!api && $.fn.DataTable.isDataTable('#tip-tbl')) api = $('#tip-tbl').DataTable();
+	if (!api) return;
+	const rollerTotal = Number(tipRollerBalanceValue) || 0;
+	$(api.column(7).footer()).html(
+		'<span class="' + (rollerTotal < 0 ? 'tip-amount-negative tip-roller-total' : 'tip-roller-total') + '">' + formatSignedMoney(rollerTotal) + '</span>'
+	);
+}
+
+function updateTipAmountTotals(api) {
 	const dealerTotal = api
 		.column(11, { search: 'applied' })
 		.data()
@@ -553,9 +559,7 @@ function updateTipAmountTotals(api) {
 			return sum + (Number(val) || 0);
 		}, 0);
 
-	$(api.column(7).footer()).html(
-		'<span class="' + (rollerTotal < 0 ? 'tip-amount-negative tip-roller-total' : 'tip-roller-total') + '">' + formatSignedMoney(rollerTotal) + '</span>'
-	);
+	renderTipRollerFooterTotal(api);
 	$(api.column(11).footer()).html(
 		'<span class="tip-dealer-total">' + formatMoney(dealerTotal) + '</span>'
 	);
@@ -564,15 +568,38 @@ function updateTipAmountTotals(api) {
 function updateRollerAvailableBalance(amount) {
 	$('#tip-roller-available-balance').text(formatMoney(amount));
 	$('#tip-settlement-modal-balance').text(formatMoney(amount));
+	tipRollerBalanceValue = amount;
+	renderTipRollerFooterTotal();
+}
+
+// Dealer Tip header: 0 = current month-end cut-off period, -1 = previous, etc.
+let tipDealerOffset = 0;
+
+function renderTipDealerPeriod(data) {
+	if (!data) return;
+	$('#tip-dealer-period-label')
+		.text(data.dealerLabel || '')
+		.attr('title', data.dealerRangeDisplay || '');
+	$('#tip-dealer-period-amount').text(formatMoney(data.dealerTip != null ? data.dealerTip : 0));
+	$('#tip-dealer-next').prop('disabled', !(Number(data.dealerOffset) < 0));
 }
 
 function fetchRollerBalance() {
-	return $.get('/tip_roller_balance')
+	return $.get('/tip_roller_balance', { dealerOffset: tipDealerOffset })
 		.then(function (data) {
 			updateRollerAvailableBalance(data && data.available != null ? data.available : 0);
+			renderTipDealerPeriod(data);
 			return data;
 		});
 }
+
+$(document).on('click', '#tip-dealer-prev, #tip-dealer-next', function () {
+	const step = this.id === 'tip-dealer-prev' ? -1 : 1;
+	const next = Math.min(0, tipDealerOffset + step);
+	if (next === tipDealerOffset) return;
+	tipDealerOffset = next;
+	fetchRollerBalance();
+});
 
 function fetchTipData() {
 	return $.get('/tip_data')

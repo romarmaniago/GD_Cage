@@ -252,7 +252,8 @@
 		"export": "tip.export",
 		"no_data_print": "tip.no_data_print",
 		"no_data_export": "tip.no_data_export",
-		"export_error": "tip.export_error"
+		"export_error": "tip.export_error",
+		"dealer_tip": "tip.dealer_tip"
 	},
 	"footer": {
 		"privacy_policy": "개인정보 보호정책",

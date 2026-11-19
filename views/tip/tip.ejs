@@ -42,6 +42,15 @@
                 <%= __('tip.available_balance') %>:
                 <strong id="tip-roller-available-balance">0</strong>
               </div>
+              <div class="tip-settlement-balance tip-dealer-period">
+                <span><%= __('tip.dealer_tip') %></span>
+                <span class="tip-dealer-switch">
+                  <button type="button" class="tip-dealer-nav" id="tip-dealer-prev" aria-label="Previous month"><i class="fa fa-chevron-left" aria-hidden="true"></i></button>
+                  <span id="tip-dealer-period-label" class="tip-dealer-period-label"></span>
+                  <button type="button" class="tip-dealer-nav" id="tip-dealer-next" aria-label="Next month" disabled><i class="fa fa-chevron-right" aria-hidden="true"></i></button>
+                </span><span>:</span>
+                <strong id="tip-dealer-period-amount">0</strong>
+              </div>
             </div>
             <div class="tip-settlement-actions">
               <div class="tip-daterange-group">
@@ -217,7 +226,7 @@
   }
 }) %></script>
 <script src="/assets/js/functions/credit_guarantor_autocomplete.js"></script>
-<script src="/assets/js/functions/tip.js?v=3"></script>
+<script src="/assets/js/functions/tip.js?v=8"></script>
 
 
 
@@ -256,10 +265,70 @@
     background: linear-gradient(180deg, #fafbfc 0%, #ffffff 100%);
   }
 
+  .tip-settlement-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 2rem;
+    row-gap: 0.25rem;
+  }
+
   .tip-settlement-balance {
     font-weight: 600;
     color: #555;
     font-size: 1.05rem;
+  }
+
+  .tip-dealer-period {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .tip-dealer-period strong {
+    margin-left: 0.35rem;
+  }
+
+  .tip-dealer-switch {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.5rem;
+    border: 1px solid #d6cfbf;
+    border-radius: 999px;
+    background: #fff;
+    overflow: hidden;
+    height: 26px;
+  }
+
+  .tip-dealer-nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #555;
+    font-size: 0.7rem;
+    cursor: pointer;
+  }
+
+  .tip-dealer-nav:hover:not(:disabled) {
+    background: #f1ece0;
+    color: #333;
+  }
+
+  .tip-dealer-nav:disabled {
+    color: #c9c2b3;
+    cursor: default;
+  }
+
+  .tip-dealer-period-label {
+    min-width: 72px;
+    padding: 0 2px;
+    text-align: center;
+    font-size: 0.9rem;
+    line-height: 1;
   }
 
   .tip-settlement-actions {
