@@ -12969,6 +12969,9 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
     $settlementModal.data('settlementPrimaryGameId', record_id);
     $('#settlement-agent-code').text('');
     $settlementModal.find('#submit-settlement-btn').prop('disabled', false).text('Settle').show();
+    $settlementModal.find('#undo-settlement-btn').addClass('d-none');
+    $settlementModal.data('commissionSettled', 0);
+    var settlementUserPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
     if (typeof window.updateSettlementCopyButtons === 'function') {
         window.updateSettlementCopyButtons($settlementModal);
     }
@@ -13036,6 +13039,9 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
             $btn.prop('disabled', false).text('Settle').show();
             $settlementModal.find('.deposit-cashout-row').show();
         }
+        // Undo: Super Admin only, never for a game whose commission is settled (Commission → Settle)
+        var canUndo = isSettled && settlementUserPermissions === 0 && Number($settlementModal.data('commissionSettled')) !== 1;
+        $settlementModal.find('#undo-settlement-btn').toggleClass('d-none', !canUndo).prop('disabled', false);
         if (typeof window.updateSettlementCopyButtons === 'function') {
             window.updateSettlementCopyButtons($settlementModal);
         }
@@ -13109,6 +13115,7 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
                     window.setSettlementReceiptDate($settlementModal);
                 }
                 setGameListModalAccountLabel('#settlement-agent-code', data[0].agent_code, data[0].agent_name);
+                $settlementModal.data('commissionSettled', data[0].COMMISSION_SETTLEMENT_ID != null ? 1 : 0);
                 $('input[name="game_id_settle"]').val(record_id);
                 $('input[name="txtAccountIDSettle"]').val(account_id);
                 $settlementModal.data('settlementGameAccountId', account_id);
@@ -13432,6 +13439,88 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
                 $btn.prop('disabled', false).text(defaultSettleLabel);
             }
         });
+    });
+
+    // UNDO SETTLEMENT (Super Admin): preview what gets reverted → remarks + Super Admin password → undo
+    $settlementModal.find('#undo-settlement-btn').off('click.undoSettlement').on('click.undoSettlement', function (e) {
+        e.preventDefault();
+        var $undoBtn = $(this);
+        if (!isSettled || $undoBtn.prop('disabled')) return;
+        var esc = function (s) { return $('<div>').text(s == null ? '' : String(s)).html(); };
+        var fmt = function (n) {
+            var v = Math.round((parseFloat(n) || 0) * 100) / 100;
+            return v < 0 ? '(' + Math.abs(v).toLocaleString('en-US') + ')' : v.toLocaleString('en-US');
+        };
+        var swalError = function (xhr, fallback) {
+            var msg = (xhr && xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.message)) || fallback;
+            Swal.fire({ icon: 'warning', title: 'Cannot Undo', text: msg, confirmButtonText: 'OK' });
+        };
+
+        $undoBtn.prop('disabled', true);
+        $.ajax({ url: '/game_list/' + record_id + '/undo_settlement_preview', method: 'GET' })
+            .done(function (p) {
+                var typeLabel = p.type === 'cash' ? 'Cash' : (p.type === 'loss' ? 'Loss Amount' : 'Deposit');
+                var games = (p.game_ids || [record_id]).join(', ');
+                var rows = '';
+                if (p.allocations && p.allocations.length > 1) {
+                    rows = p.allocations.map(function (a) {
+                        return '<div class="d-flex justify-content-between"><span>' + esc(a.agent_code || a.account_id) + '</span><span>' + fmt(a.amount) + '</span></div>';
+                    }).join('');
+                }
+                var linkedNote = (p.game_ids || []).length > 1
+                    ? '<div class="text-danger small mb-2">Games settled together will all be un-settled: <b>' + esc(games) + '</b></div>'
+                    : '';
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Undo Settlement?',
+                    html:
+                        '<div class="text-start small">' +
+                            '<div class="d-flex justify-content-between"><span>Game #</span><b>' + esc(games) + '</b></div>' +
+                            '<div class="d-flex justify-content-between"><span>Payment (' + esc(typeLabel) + ')</span><b>' + fmt(p.payment) + '</b></div>' +
+                            rows +
+                            '<hr class="my-2">' + linkedNote +
+                            '<div class="text-muted mb-2">The commission ledger and cash entries of this settlement will be removed and the game becomes Unsettled.</div>' +
+                            '<label class="form-label mb-1" for="swal-undo-settle-password">Super Admin Password <span class="text-danger">*</span></label>' +
+                            '<input id="swal-undo-settle-password" type="password" class="form-control form-control-sm" autocomplete="new-password">' +
+                        '</div>',
+                    showCancelButton: true,
+                    confirmButtonText: 'Undo Settlement',
+                    confirmButtonColor: '#d33',
+                    cancelButtonText: 'Cancel',
+                    focusConfirm: false,
+                    allowOutsideClick: false,
+                    showLoaderOnConfirm: true,
+                    didOpen: function () { $('#swal-undo-settle-password').trigger('focus'); },
+                    preConfirm: function () {
+                        var password = String($('#swal-undo-settle-password').val() || '');
+                        if (!password) { Swal.showValidationMessage('Super Admin password is required.'); return false; }
+                        return $.ajax({
+                            url: '/game_list/' + record_id + '/undo_settlement',
+                            method: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify({ superAdminPassword: password })
+                        }).then(function (res) { return res; }, function (xhr) {
+                            var msg = (xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.message)) || 'Failed to undo the settlement.';
+                            Swal.showValidationMessage(msg);
+                            return false;
+                        });
+                    }
+                }).then(function (result) {
+                    if (!result.isConfirmed || !result.value) return;
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Settlement undone.',
+                        confirmButtonText: 'OK',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false
+                    }).then(function () {
+                        $('#modal-settlement').modal('hide');
+                        window.location.reload();
+                    });
+                });
+            })
+            .fail(function (xhr) { swalError(xhr, 'Failed to load the settlement.'); })
+            .always(function () { $undoBtn.prop('disabled', false); });
     });
 
     reloadDataRecord(); // Call data loading function

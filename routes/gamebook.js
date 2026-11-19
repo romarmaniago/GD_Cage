@@ -15,6 +15,7 @@ const { insertCreditRecord, creditWaterfallDisplaySql, getCreditHistorySql, soft
 const { resolveActiveServiceCategory } = require('../utils/serviceCategoryHelpers');
 const { COMMISSION_TYPE, computeGameCommission, getShareRollingSplit, isRollingBasedType, commissionTypeLabel, parseShareRollingInput } = require('../utils/commissionCalc');
 const { DEFAULT_ROLLING_RATE_PERCENT } = require('../utils/commissionSettlementCalc');
+const { requireSuperAdminPassword } = require('../utils/superAdminPassword');
 
 /**
  * Build a Telegram send options bag for gamebook events.
@@ -6456,6 +6457,358 @@ router.put('/game_list/:gameId/settlement_fake_settle', checkSession, commission
 		return res.status(500).json({ success: false, message: 'Error updating settlement flag' });
 	}
 });
+
+/* ------------------------------------------------------------------------------------------------
+ * UNDO SETTLEMENT (Settlement modal → Undo) — Super Admin + Super Admin password.
+ * Reverses what POST /add_settlement wrote: COMMISSION account_ledger row(s), the Commission cash
+ * entries, the "Loss Amount" recovery row, and SETTLED / FNB / PAYMENT on the game and on every game
+ * settled together with it (cut-off pair / Multiple Settle). The game keeps its status (Finished).
+ * Blocked: commission already settled (Commission → Settle), Loss Amount already settled,
+ * In-Game Settlement (its deposit funded the new game's buy-in), old settlements with no linked ledger.
+ * ---------------------------------------------------------------------------------------------- */
+const SETTLEMENT_UNDO_CASH_CATEGORIES = ['Commission Cash-out', 'Commission Deposit', 'Commission'];
+
+function settlementUndoError(statusCode, message) {
+	const err = new Error(message);
+	err.statusCode = statusCode;
+	return err;
+}
+
+function requireSuperAdminSession(req, res, next) {
+	const p = req.session?.permissions;
+	if (p !== 0 && p !== '0') {
+		return res.status(403).json({ success: false, error: 'Only Super Admin can undo a settlement.' });
+	}
+	next();
+}
+
+/** Works out what one Undo has to revert, starting from any game of the settled group. */
+async function resolveSettlementUndoPlan(db, gameId) {
+	const [gameRows] = await db.execute(
+		`SELECT IDNo, ACCOUNT_ID, SETTLED, PAYMENT, FNB, GAME_ENDED, COMMISSION_SETTLEMENT_ID
+		 FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
+		[gameId]
+	);
+	if (!gameRows.length) throw settlementUndoError(404, 'Game not found.');
+	const game = gameRows[0];
+	if (Number(game.SETTLED) !== 1) throw settlementUndoError(409, 'This game is not settled.');
+
+	const [inGameRows] = await db.execute(
+		`SELECT IDNo FROM account_ledger WHERE ACTIVE = 1 AND GAME_ID = ? AND AUTO_REMARKS LIKE 'In-Game Settlement - In #%' LIMIT 1`,
+		[gameId]
+	);
+	if (inGameRows.length) {
+		throw settlementUndoError(409, 'This game was settled by In-Game Settlement (its payment funded the new game), so the settlement cannot be undone.');
+	}
+
+	// COMMISSION rows written for this game, or for a group this game was settled in
+	const [commRows] = await db.execute(
+		`SELECT IDNo, ACCOUNT_ID, GAME_ID, TRANSACTION_ID, AMOUNT, LINKED_GAME_IDS, AUTO_REMARKS, ENCODED_DT
+		 FROM account_ledger
+		 WHERE ACTIVE = 1 AND TRANSACTION_TYPE = 5 AND TRANSACTION_DESC = 'COMMISSION'
+		   AND (GAME_ID = ? OR FIND_IN_SET(?, REPLACE(COALESCE(LINKED_GAME_IDS, ''), ' ', '')) > 0)
+		 ORDER BY IDNo ASC`,
+		[gameId, String(gameId)]
+	);
+
+	if (commRows.length) {
+		const primaryIds = [...new Set(commRows.map((r) => parseInt(r.GAME_ID, 10)).filter((n) => n > 0))];
+		if (primaryIds.length !== 1) {
+			throw settlementUndoError(409, 'This game appears in more than one settlement, so it cannot be undone automatically.');
+		}
+		const primaryId = primaryIds[0];
+		const [ledgerRows] = await db.execute(
+			`SELECT IDNo, ACCOUNT_ID, GAME_ID, TRANSACTION_ID, AMOUNT, LINKED_GAME_IDS, AUTO_REMARKS, ENCODED_DT
+			 FROM account_ledger
+			 WHERE ACTIVE = 1 AND TRANSACTION_TYPE = 5 AND TRANSACTION_DESC = 'COMMISSION' AND GAME_ID = ?
+			 ORDER BY IDNo ASC`,
+			[primaryId]
+		);
+
+		// In-Game Settlement writes its COMMISSION row without AUTO_REMARKS, at the same moment the game ended
+		const [primaryRows] = primaryId === gameId
+			? [[game]]
+			: await db.execute('SELECT IDNo, ACCOUNT_ID, PAYMENT, FNB, GAME_ENDED FROM game_list WHERE IDNo = ? LIMIT 1', [primaryId]);
+		const primary = primaryRows[0] || game;
+		const endedMs = primary.GAME_ENDED ? new Date(primary.GAME_ENDED).getTime() : null;
+		const looksInGame = ledgerRows.some((r) => !r.AUTO_REMARKS && endedMs != null && new Date(r.ENCODED_DT).getTime() === endedMs);
+		if (looksInGame) {
+			throw settlementUndoError(409, 'This game was settled by In-Game Settlement (its payment funded the new game), so the settlement cannot be undone.');
+		}
+
+		const gameIds = new Set([primaryId]);
+		for (const r of ledgerRows) {
+			String(r.LINKED_GAME_IDS || '').split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => n > 0).forEach((n) => gameIds.add(n));
+		}
+		const transId = parseInt(ledgerRows[0].TRANSACTION_ID, 10);
+		return {
+			type: transId === 5 ? 'cash' : 'deposit',
+			primaryId,
+			accountId: parseInt(primary.ACCOUNT_ID, 10) || null,
+			gameIds: [...gameIds],
+			ledgerRows,
+			payment: parseFloat(primary.PAYMENT) || 0,
+			fnb: parseFloat(primary.FNB) || 0,
+			settledDt: ledgerRows[0].ENCODED_DT || null
+		};
+	}
+
+	// "Loss Amount" option: no ledger row, a junket_loss recovery row on the game instead
+	const [lossRows] = await db.execute(
+		`SELECT IDNo, ENCODED_DT FROM junket_loss
+		 WHERE GAME_ID = ? AND ACTIVE = 1 AND TRANSACTION = 2 AND DESCRIPTION LIKE 'Commission to Loss%'
+		 LIMIT 1`,
+		[gameId]
+	);
+	const payment = parseFloat(game.PAYMENT) || 0;
+	if (lossRows.length || payment === 0) {
+		return {
+			type: lossRows.length ? 'loss' : 'deposit',
+			primaryId: gameId,
+			accountId: parseInt(game.ACCOUNT_ID, 10) || null,
+			gameIds: [gameId],
+			ledgerRows: [],
+			payment,
+			fnb: parseFloat(game.FNB) || 0,
+			settledDt: lossRows.length ? lossRows[0].ENCODED_DT : null
+		};
+	}
+
+	throw settlementUndoError(409, 'No settlement record is linked to this game (old settlement), so it cannot be undone automatically.');
+}
+
+async function sendSettlementUndoTelegrams({ plan, gameRemark }) {
+	const agentQuery = `
+		SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID,
+		       COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
+		FROM agent
+		JOIN account ON account.AGENT_ID = agent.IDNo
+		WHERE account.IDNo = ?
+		LIMIT 1
+	`;
+	const fmt = (n) => {
+		const v = Math.round((parseFloat(n) || 0) * 100) / 100;
+		return v < 0 ? `(${Math.abs(v).toLocaleString('en-US')})` : v.toLocaleString('en-US');
+	};
+	const typeLabel = plan.type === 'cash' ? 'Cash' : plan.type === 'loss' ? 'Loss Amount' : 'Deposit';
+	const now = new Date();
+	const dateLine = `Date: ${now.toLocaleDateString()}\nTime: ${now.toLocaleTimeString()}`;
+
+	// One entry per account the payment went to (Choose Account split), else the game account
+	const byAccount = new Map();
+	for (const r of plan.ledgerRows) {
+		const key = String(r.ACCOUNT_ID);
+		byAccount.set(key, (byAccount.get(key) || 0) + (parseFloat(r.AMOUNT) || 0));
+	}
+	if (!byAccount.size && plan.accountId) byAccount.set(String(plan.accountId), plan.payment);
+
+	const entries = [];
+	for (const [accountId, amount] of byAccount) {
+		const [rows] = await pool.query(agentQuery, [accountId]);
+		entries.push({ agent: rows[0] || null, amount });
+	}
+	const [mainRows] = await pool.query(agentQuery, [plan.accountId]);
+	const mainAgent = mainRows[0] || (entries[0] && entries[0].agent) || null;
+	const mainCode = mainAgent ? mainAgent.AGENT_CODE : '';
+	const mainName = mainAgent ? mainAgent.NAME : '';
+	const opts = gamebookTelegramOpts('Settlement Undone', mainCode, mainName, plan.payment, gameRemark);
+
+	for (const entry of entries) {
+		if (!entry.agent) continue;
+		const text = `GD Cage\n\n* Settlement Undone *\n\nAccount: ${entry.agent.AGENT_CODE} - ${entry.agent.NAME}\nGame #: ${gameRemark}\nCommission: ${fmt(entry.amount)} - ${typeLabel} (reversed)\n\n${dateLine}`;
+		const telegramId = getAgentTelegramChatId(entry.agent);
+		if (telegramId) {
+			try {
+				await sendTelegramMessage(text, telegramId, opts);
+			} catch (e) {
+				console.error('Undo settlement Telegram (agent):', e.message || e);
+			}
+		}
+	}
+
+	const accountLines = entries.length > 1
+		? '\n' + entries.map((e) => `  ${e.agent ? e.agent.AGENT_CODE : '-'}: ${fmt(e.amount)}`).join('\n')
+		: '';
+	const mgmtText = `GD Cage\n\n* Settlement Undone *\n\nAccount: ${mainCode} - ${mainName}\nGame #: ${gameRemark}\nCommission: ${fmt(plan.payment)} - ${typeLabel} (reversed)${accountLines}\n\n${dateLine}`;
+	try {
+		await sendTelegramToAdditionalChats(mgmtText, opts);
+	} catch (e) {
+		console.error('Undo settlement Telegram (additional chats):', e.message || e);
+	}
+	try {
+		await sendTelegramToManagement(mgmtText, opts);
+	} catch (e) {
+		console.error('Undo settlement Telegram (management):', e.message || e);
+	}
+}
+
+// Preview for the confirm dialog: which games and amounts the undo will revert (no DB write)
+router.get('/game_list/:id/undo_settlement_preview', checkSession, requireSuperAdminSession, async (req, res) => {
+	const gameId = parseInt(req.params.id, 10);
+	if (!gameId) return res.status(400).json({ success: false, error: 'Invalid game ID.' });
+	try {
+		const plan = await resolveSettlementUndoPlan(pool, gameId);
+		const [locked] = await pool.query(
+			'SELECT IDNo FROM game_list WHERE IDNo IN (?) AND COMMISSION_SETTLEMENT_ID IS NOT NULL LIMIT 1',
+			[plan.gameIds]
+		);
+		if (locked.length) return res.status(409).json({ success: false, error: COMMISSION_SETTLED_GAME_MSG });
+		const [accRows] = plan.ledgerRows.length
+			? await pool.query(
+				`SELECT account.IDNo AS account_id, agent.AGENT_CODE AS agent_code
+				 FROM account JOIN agent ON agent.IDNo = account.AGENT_ID
+				 WHERE account.IDNo IN (?)`,
+				[[...new Set(plan.ledgerRows.map((r) => r.ACCOUNT_ID))]]
+			)
+			: [[]];
+		const codeById = new Map(accRows.map((a) => [String(a.account_id), a.agent_code]));
+		res.json({
+			success: true,
+			type: plan.type,
+			primary_game_id: plan.primaryId,
+			game_ids: plan.gameIds,
+			payment: plan.payment,
+			allocations: plan.ledgerRows.map((r) => ({
+				account_id: r.ACCOUNT_ID,
+				agent_code: codeById.get(String(r.ACCOUNT_ID)) || '',
+				amount: parseFloat(r.AMOUNT) || 0
+			}))
+		});
+	} catch (err) {
+		if (err.statusCode) return res.status(err.statusCode).json({ success: false, error: err.message });
+		console.error('undo_settlement_preview:', err);
+		res.status(500).json({ success: false, error: 'Failed to load the settlement.' });
+	}
+});
+
+router.post(
+	'/game_list/:id/undo_settlement',
+	checkSession,
+	requireSuperAdminSession,
+	commissionLock(gameFromParamId),
+	requireSuperAdminPassword,
+	async (req, res) => {
+		const gameId = parseInt(req.params.id, 10);
+		const userId = req.session.user_id;
+		if (!gameId) return res.status(400).json({ success: false, error: 'Invalid game ID.' });
+
+		let connection = null;
+		let plan;
+		try {
+			plan = await resolveSettlementUndoPlan(pool, gameId);
+			if (plan.type === 'loss' && await gameHasSettledJunketLoss(pool, [plan.primaryId])) {
+				return res.status(409).json({ success: false, error: JUNKET_LOSS_SETTLED_GAME_MSG });
+			}
+
+			const dateNow = new Date();
+			connection = await pool.getConnection();
+			await connection.beginTransaction();
+
+			// Re-check the commission lock with the group rows locked, so a Commission → Settle
+			// running at the same moment cannot pick up a game that is being un-settled.
+			const [groupRows] = await connection.query(
+				'SELECT IDNo, COMMISSION_SETTLEMENT_ID FROM game_list WHERE IDNo IN (?) FOR UPDATE',
+				[plan.gameIds]
+			);
+			if (groupRows.some((r) => r.COMMISSION_SETTLEMENT_ID != null)) {
+				await connection.rollback();
+				return res.status(409).json({ success: false, error: COMMISSION_SETTLED_GAME_MSG });
+			}
+
+			// Claim: only one request can flip the primary game SETTLED 1 → 0
+			const [claim] = await connection.execute(
+				`UPDATE game_list SET SETTLED = 0, FNB = 0, PAYMENT = 0, FAKE_SETTLE = 0, EDITED_BY = ?, EDITED_DT = ?
+				 WHERE IDNo = ? AND SETTLED = 1`,
+				[userId, dateNow, plan.primaryId]
+			);
+			if (claim.affectedRows === 0) {
+				await connection.rollback();
+				return res.status(409).json({ success: false, error: 'This game is not settled.' });
+			}
+			const partnerIds = plan.gameIds.filter((id) => id !== plan.primaryId);
+			if (partnerIds.length) {
+				await connection.query(
+					`UPDATE game_list SET SETTLED = 0, FNB = 0, PAYMENT = 0, FAKE_SETTLE = 0, EDITED_BY = ?, EDITED_DT = ?
+					 WHERE IDNo IN (?) AND ACTIVE != 0`,
+					[userId, dateNow, partnerIds]
+				);
+			}
+
+			const ledgerIds = plan.ledgerRows.map((r) => r.IDNo);
+			if (ledgerIds.length) {
+				await connection.query(
+					`UPDATE credit_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ?
+					 WHERE LEDGER_ID IN (?) AND ACTIVE = 1`,
+					[userId, dateNow, ledgerIds]
+				);
+				await connection.query(
+					`UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ?
+					 WHERE IDNo IN (?) AND ACTIVE = 1`,
+					[userId, dateNow, ledgerIds]
+				);
+			}
+
+			// Settlement cash entries: TRANSACTION_ID = primary game id, remark "Game - <game #>"
+			await connection.query(
+				`UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ?
+				 WHERE TRANSACTION_ID = ? AND ACTIVE = 1 AND CATEGORY IN (?) AND REMARKS LIKE 'Game - %'`,
+				[userId, dateNow, plan.primaryId, SETTLEMENT_UNDO_CASH_CATEGORIES]
+			);
+
+			if (plan.type === 'loss') {
+				await connection.execute(
+					`UPDATE junket_loss SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ?
+					 WHERE GAME_ID = ? AND ACTIVE = 1 AND TRANSACTION = 2 AND DESCRIPTION LIKE 'Commission to Loss%'`,
+					[userId, dateNow, plan.primaryId]
+				);
+			}
+
+			await connection.execute(
+				`INSERT INTO game_settlement_undo
+				 (GAME_ID, LINKED_GAME_IDS, SETTLE_TYPE, PAYMENT, FNB, ALLOCATIONS, SETTLED_DT, ENCODED_BY, ENCODED_DT)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				[
+					plan.primaryId,
+					plan.gameIds.length > 1 ? plan.gameIds.join(',') : null,
+					plan.type,
+					plan.payment,
+					plan.fnb,
+					plan.ledgerRows.length
+						? JSON.stringify(plan.ledgerRows.map((r) => ({ account_id: r.ACCOUNT_ID, amount: parseFloat(r.AMOUNT) || 0, ledger_id: r.IDNo })))
+						: null,
+					plan.settledDt,
+					userId,
+					dateNow
+				]
+			);
+
+			await connection.commit();
+			connection.release();
+			connection = null;
+		} catch (err) {
+			if (connection) {
+				try { await connection.rollback(); } catch (_) { /* ignore */ }
+				connection.release();
+				connection = null;
+			}
+			if (err.statusCode) return res.status(err.statusCode).json({ success: false, error: err.message });
+			console.error('Error undoing settlement:', err);
+			return res.status(500).json({ success: false, error: 'Failed to undo the settlement.' });
+		}
+
+		// Respond before Telegram so a slow send cannot time out the request
+		res.json({ success: true, game_ids: plan.gameIds });
+
+		try {
+			const gameRemark = plan.gameIds.length > 1
+				? [plan.primaryId, ...plan.gameIds.filter((id) => id !== plan.primaryId)].join(' / ')
+				: String(plan.primaryId);
+			await sendSettlementUndoTelegrams({ plan, gameRemark });
+		} catch (tgErr) {
+			console.error('Undo settlement Telegram:', tgErr.message || tgErr);
+		}
+	}
+);
 
 // Update commission / game rate (Rolling, Shared, Share + Rolling) for ACTIVE 1/2/3
 router.put('/game_list/:id/commission_percentage', commissionLock(gameFromParamId), async (req, res) => {
