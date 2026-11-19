@@ -164,7 +164,7 @@
 													<%= __('gamelist.type') %>
 												</th>
 												<th class="d-none d-sm-table-cell text-center col-game-rate">
-													<%= __('gamelist.game_rate') %>
+													<%= __('gamelist.rate_col') %>
 												</th>
 												<th class="d-none d-sm-table-cell text-center">
 													<%= __('gamelist.game#') %>
@@ -182,7 +182,7 @@
 												<%= __('gamelist.real_rolling') %>
 											</th>
 												<th class="d-none d-sm-table-cell text-center col-commission">
-													<%= __('gamelist.commission') %>
+													<%= __('gamelist.settlement_col') %>
 												</th>
 												<th class="d-none d-sm-table-cell text-center">
 													Add Chg
@@ -1358,7 +1358,6 @@ th.col-winloss {
 }
 
 /* Numeric columns (buy-in through total settle): right-aligned — 18-column layout */
-#game_list-tbl thead th:nth-child(7),
 #game_list-tbl thead th:nth-child(9),
 #game_list-tbl thead th:nth-child(10),
 #game_list-tbl thead th:nth-child(11),
@@ -1366,7 +1365,6 @@ th.col-winloss {
 #game_list-tbl thead th:nth-child(13),
 #game_list-tbl thead th:nth-child(14),
 #game_list-tbl thead th:nth-child(15),
-#game_list-tbl tbody td:nth-child(7),
 #game_list-tbl tbody td:nth-child(9),
 #game_list-tbl tbody td:nth-child(10),
 #game_list-tbl tbody td:nth-child(11),
@@ -1386,6 +1384,12 @@ th.col-winloss {
 #game_list-tbl tfoot th:nth-child(12) {
 	text-align: right !important;
 	padding-right: 20px;
+}
+
+/* Rate column: centered (header and values) */
+#game_list-tbl thead th:nth-child(7),
+#game_list-tbl tbody td:nth-child(7) {
+	text-align: center !important;
 }
 
 #game_list-tbl thead th.col-roller-chips,

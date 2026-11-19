@@ -401,6 +401,8 @@
 		"real_rolling": "구르는",
 		"total_rolling": "토탈 롤링",
 		"game_rate": "게임 속도",
+		"rate_col": "Rate",
+		"settlement_col": "Settlement",
 		"commission": "위원회",
 		"win_loss": "승/패",
 		"game_source": "게임 소스",

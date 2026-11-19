@@ -399,6 +399,8 @@
 		"real_rolling": "ローリング",
 		"total_rolling": "トータルロール",
 		"game_rate": "ゲームレート",
+		"rate_col": "Rate",
+		"settlement_col": "Settlement",
 		"commission": "委員会",
 		"win_loss": "勝利/敗北",
 		"game_source": "ゲームソース",

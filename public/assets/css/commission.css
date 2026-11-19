@@ -626,7 +626,6 @@
 #commission-tbl tbody td.col-cashout,
 #commission-tbl tbody td.col-winloss,
 #commission-tbl tbody td.col-total-rolling,
-#commission-tbl tbody td.col-game-rate,
 #commission-tbl tbody td.col-commission,
 #commission-tbl tbody td.col-fb,
 #commission-tbl tbody td.col-payment {
@@ -1889,4 +1888,9 @@
 #commission-settlement-tbl.commission-fit-table tfoot th[class*="col-"],
 #commission-settlement-detail-tbl.commission-fit-table tfoot th[class*="col-"] {
   padding-right: 8px !important;
+}
+
+/* Rate column: centered (header and values) */
+#commission-tbl tbody td.col-game-rate {
+    text-align: center !important;
 }

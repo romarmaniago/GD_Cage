@@ -400,6 +400,8 @@
 		"real_rolling": "滚动",
 		"total_rolling": "总滚动",
 		"game_rate": "游戏速率",
+		"rate_col": "Rate",
+		"settlement_col": "Settlement",
 		"commission": "委员会",
 		"win_loss": "赢/输",
 		"game_source": "游戏来源",
