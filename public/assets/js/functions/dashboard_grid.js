@@ -722,6 +722,10 @@
     return String(row.remarks_saved || '').trim();
   }
 
+  function isWlRemarksNegative(text) {
+    return /^[-(−]/.test(String(text || '').trim());
+  }
+
   function openWlRemarksModal(cell) {
     const { modal, dateLabel, dateIso, text } = wlRemarksEls;
     if (!modal || !dateLabel || !dateIso || !text || typeof bootstrap === 'undefined') return;
@@ -981,12 +985,13 @@
       const casino = formatWlAmountCell(row.casino);
       const gold = formatWlAmountCell(row.gold_dragon);
       const diffCell = formatWlDiffCell(row.casino, row.gold_dragon);
+      const remarksText = formatWlRemarksDisplay(row);
       return `<div class="${cls}" data-date="${escapeAttr(row.date)}">
         <span class="dash-wl-body-cell is-date">${toDisplayDate(row.date)}</span>
         <span class="dash-wl-body-cell is-col-casino${casino.neg ? ' text-dash-neg' : ''}">${escapeHtml(casino.text)}</span>
         <span class="dash-wl-body-cell is-col-gold${gold.neg ? ' text-dash-neg' : ''}">${escapeHtml(gold.text)}</span>
         <span class="dash-wl-body-cell is-col-diff${diffCell.neg ? ' text-dash-neg' : ''}">${escapeHtml(diffCell.text)}</span>
-        <span class="dash-wl-body-cell is-col-remarks js-wl-remarks-cell" data-date="${escapeAttr(row.date)}" data-remarks-saved="${escapeAttr(row.remarks_saved || '')}" title="Click to edit remarks">${escapeHtml(formatWlRemarksDisplay(row))}</span>
+        <span class="dash-wl-body-cell is-col-remarks js-wl-remarks-cell${isWlRemarksNegative(remarksText) ? ' text-dash-neg' : ''}" data-date="${escapeAttr(row.date)}" data-remarks-saved="${escapeAttr(row.remarks_saved || '')}" title="Click to edit remarks">${escapeHtml(remarksText)}</span>
       </div>`;
     }).join('');
 
