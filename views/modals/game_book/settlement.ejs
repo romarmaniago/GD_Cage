@@ -269,6 +269,81 @@
         z-index: 1065;
     }
 
+    /* Choose Account open: slip + calculators (Edit mode) on the right, Choose Account top-left,
+       no backdrop so the calculators stay usable while picking accounts */
+    /* room on the left for Choose Account; slip + Choose Account are centred together */
+    #modal-settlement.settlement-choose-calc.show {
+        padding-left: 25.5rem;
+    }
+
+    #modal-settlement.settlement-choose-calc .settlement-receipt-dialog,
+    #modal-settlement.settlement-choose-calc .settlement-modal-cluster.is-edit-mode {
+        max-width: calc(100vw - 26.25rem);
+    }
+
+    #modal-settlement-choose-account.settlement-choose-calc {
+        pointer-events: none;
+    }
+
+    #modal-settlement-choose-account.settlement-choose-calc .modal-dialog {
+        position: fixed;
+        top: 0.75rem;
+        left: 0.75rem;
+        width: 24rem;
+        max-width: calc(100vw - 1.5rem);
+        min-height: 0;
+        display: block;
+        margin: 0;
+    }
+
+    /* open together: Choose Account only fades (no slide-down), panels fade in with it */
+    #modal-settlement-choose-account.settlement-choose-calc.fade .modal-dialog {
+        transform: none;
+        transition: none;
+    }
+
+    @keyframes settlementChooseCalcFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    #modal-settlement.settlement-choose-calc .settlement-modal-cluster > * {
+        animation: settlementChooseCalcFadeIn 0.15s linear;
+    }
+
+    /* account clear "x" on the right, just before the dropdown arrow */
+    #modal-settlement-choose-account .select2-selection--single {
+        position: relative;
+    }
+
+    #modal-settlement-choose-account .select2-selection--single .select2-selection__rendered {
+        padding-right: 2.75rem;
+    }
+
+    #modal-settlement-choose-account .select2-selection--single .select2-selection__clear {
+        position: absolute;
+        top: 50%;
+        right: 1.6rem;
+        transform: translateY(-50%);
+        float: none;
+        margin: 0;
+        padding: 0 0.15rem;
+        line-height: 1;
+        font-size: 1.1rem;
+        color: #dc3545;
+        z-index: 1;
+    }
+
+    /* select2's account dropdown is attached to the modal wrapper (dropdownParent), outside .modal-content */
+    #modal-settlement-choose-account.settlement-choose-calc .select2-container {
+        pointer-events: auto;
+    }
+
+    #modal-settlement-choose-account.settlement-choose-calc .modal-content {
+        pointer-events: auto;
+        box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.18);
+    }
+
     #modal-settlement .modal-footer {
         align-items: center !important;
         justify-content: center !important;
@@ -602,7 +677,7 @@
     </div>
 </div>
 
-<div class="modal fade" id="modal-settlement-choose-account" tabindex="-1" aria-labelledby="modal-settlement-choose-account-label" aria-hidden="true" data-bs-backdrop="static">
+<div class="modal fade" id="modal-settlement-choose-account" tabindex="-1" aria-labelledby="modal-settlement-choose-account-label" aria-hidden="true" data-bs-backdrop="false" data-bs-focus="false">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-primary">
@@ -1616,14 +1691,97 @@ $(document).ready(function() {
         $(this).removeClass('settlement-view-only');
     });
 
+    // Closing the calculators / the slip also closes Choose Account
+    function hideSettlementChooseAccountModal() {
+        var el = document.getElementById('modal-settlement-choose-account');
+        if (!el || !$(el).hasClass('show')) return;
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance(el).hide();
+        } else {
+            $(el).modal('hide');
+        }
+    }
+
+    $('#modal-settlement').on('hide.bs.modal', function(e) {
+        if (e.target !== this) return;
+        hideSettlementChooseAccountModal();
+    });
+
     $('#edit-settlement-btn').on('click', function() {
         var $modal = $('#modal-settlement');
         var inEditMode = Number($modal.data('settlement-edit-mode')) === 1;
         setSettlementEditMode($modal, !inEditMode);
+        if (inEditMode) hideSettlementChooseAccountModal();
     });
 
     $('#modal-settlement').on('click', '.js-settlement-edit-panel-close', function() {
         setSettlementEditMode($('#modal-settlement'), false);
+        hideSettlementChooseAccountModal();
+    });
+
+    // Choose Account opens the calculators (Edit mode panels) beside it for computing the split;
+    // closing Choose Account (Confirm / Close) puts the slip back unless Edit was already on.
+    $(document).on('show.bs.modal', '#modal-settlement-choose-account', function(e) {
+        if (e.target !== this) return;
+        var $modal = $('#modal-settlement');
+        if (!$modal.hasClass('show')) return;
+        $(this).addClass('settlement-choose-calc');
+        $modal.addClass('settlement-choose-calc');
+        if (Number($modal.data('settlement-edit-mode')) !== 1) {
+            setSettlementEditMode($modal, true);
+            $modal.data('settlement-edit-from-choose', 1);
+        }
+        positionSettlementChooseAccountDialog();
+    });
+
+    // Choose Account sits just left of the slip panels, top edges lined up
+    function positionSettlementChooseAccountDialog() {
+        var chooseEl = document.getElementById('modal-settlement-choose-account');
+        var clusterEl = document.getElementById('settlement-modal-cluster');
+        if (!chooseEl || !clusterEl || !$(chooseEl).hasClass('settlement-choose-calc')) return;
+        var dialog = chooseEl.querySelector('.modal-dialog');
+        var rect = clusterEl.getBoundingClientRect();
+        var gap = 12;
+        // on show.bs.modal the dialog is still display:none (offsetWidth 0) — use its CSS width
+        var width = dialog.offsetWidth || parseFloat(window.getComputedStyle(dialog).width) || 384;
+        var left = Math.max(gap, rect.left - width - gap);
+        var top = Math.max(gap, rect.top);
+        dialog.style.left = left + 'px';
+        dialog.style.top = top + 'px';
+    }
+
+    $(document).on('shown.bs.modal', '#modal-settlement-choose-account', function(e) {
+        if (e.target !== this) return;
+        positionSettlementChooseAccountDialog();
+    });
+
+    $(window).on('resize.settlementChooseCalc', positionSettlementChooseAccountDialog);
+
+    // Closing: panels go back at the same moment Choose Account starts fading out
+    $(document).on('hide.bs.modal', '#modal-settlement-choose-account', function(e) {
+        if (e.target !== this) return;
+        var $modal = $('#modal-settlement');
+        $modal.removeClass('settlement-choose-calc');
+        if (Number($modal.data('settlement-edit-from-choose')) === 1) {
+            $modal.removeData('settlement-edit-from-choose');
+            if (Number($modal.data('settlement-edit-mode')) === 1) {
+                setSettlementEditMode($modal, false);
+            }
+        }
+    });
+
+    $(document).on('hidden.bs.modal', '#modal-settlement-choose-account', function(e) {
+        if (e.target !== this) return;
+        var $modal = $('#modal-settlement');
+        $(this).removeClass('settlement-choose-calc');
+        $(this).find('.modal-dialog').css({ left: '', top: '' });
+        $modal.removeClass('settlement-choose-calc');
+        if (Number($modal.data('settlement-edit-from-choose')) === 1) {
+            $modal.removeData('settlement-edit-from-choose');
+            if (Number($modal.data('settlement-edit-mode')) === 1) {
+                setSettlementEditMode($modal, false);
+            }
+        }
     });
 
     $('#modal-settlement').on('input', '.settlement-edit-panel [data-field="rolling"], .settlement-edit-panel [data-field="rollingRate"]', function() {

@@ -13149,7 +13149,7 @@ function addSettlementSplitRow(accountId, amount) {
 	if (typeof $sel.select2 === 'function') {
 		$sel.select2({
 			placeholder: 'Select an account',
-			allowClear: false,
+			allowClear: true,
 			dropdownParent: $('#modal-settlement-choose-account'),
 			width: '100%',
 			// Shows agent code only, but searching by the agent name still works
