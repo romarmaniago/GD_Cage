@@ -3822,11 +3822,82 @@ router.delete('/game_services/:id', checkSession, commissionLock(gameFromBody), 
 });
 
 // GET GAME LIST — filtered by PROGRAM_DATE (daily_settlement tables no longer used)
+/**
+ * Essentially the Same Game (Game Book): adds the games linked by a cut-off to the loaded rows
+ * (original <-> continuations, whole chain) even when their program date is outside the range.
+ * Added rows carry CUTOFF_CHAIN_EXTRA = 1.
+ */
+async function appendCutoffChainRows(rows, baseSelect) {
+	const have = new Set(rows.map((r) => parseInt(r.game_list_id, 10)));
+	let added = rows;
+	try {
+		for (let pass = 0; pass < 20; pass++) {
+			const want = new Set();
+			added.forEach((r) => {
+				[r.CUTOFF_PARENT_GAME_ID, r.CUTOFF_CONTINUED_GAME_ID].forEach((v) => {
+					const n = parseInt(v, 10);
+					if (n && !have.has(n)) want.add(n);
+				});
+			});
+			if (!want.size) break;
+			const ids = [...want];
+			const [more] = await pool.query(
+				baseSelect + ` WHERE game_list.ACTIVE != 0 AND game_list.IDNo IN (?) ORDER BY game_list.IDNo ASC`,
+				[ids]
+			);
+			if (!more.length) break;
+			more.forEach((r) => {
+				r.is_pending = 0;
+				r.CUTOFF_CHAIN_EXTRA = 1;
+				have.add(parseInt(r.game_list_id, 10));
+			});
+			rows = rows.concat(more);
+			added = more;
+		}
+	} catch (e) {
+		// CUTOFF_* columns may be missing — return what we have
+		console.error('[Game List Backend] cut-off chain lookup failed:', e.message);
+	}
+	// CUTOFF_CARRY_OUT: chips cashed out of a cut-off game at the cut-off and carried into the continuation as its
+	// buy-in — used by the combined row so carried chips are not counted twice. The cut-off cash-out is written at the
+	// moment the continuation game is created (its ENCODED_DT; GAME_ENDED may be edited later). Tips taken at the
+	// cut-off are cash-outs too (TRANSACTION 5 roller tip / 6 dealer tip) but are not carried, so they are excluded.
+	try {
+		const cutIds = rows
+			.filter((r) => parseInt(r.CUTOFF_CONTINUED_GAME_ID, 10))
+			.map((r) => parseInt(r.game_list_id, 10));
+		if (cutIds.length) {
+			const [carry] = await pool.query(
+				`SELECT gr.GAME_ID, SUM(COALESCE(gr.NN_CHIPS, 0) + COALESCE(gr.CC_CHIPS, 0)) AS CARRY
+				 FROM game_record gr
+				 JOIN game_list gl ON gl.IDNo = gr.GAME_ID
+				 JOIN game_list cont ON cont.IDNo = gl.CUTOFF_CONTINUED_GAME_ID
+				 WHERE gr.GAME_ID IN (?) AND gr.CAGE_TYPE = 2 AND gr.ACTIVE = 1
+				   AND gr.ENCODED_DT = cont.ENCODED_DT
+				   AND COALESCE(gr.TRANSACTION, '') NOT IN ('5', '6')
+				 GROUP BY gr.GAME_ID`,
+				[cutIds]
+			);
+			const byId = {};
+			carry.forEach((c) => { byId[c.GAME_ID] = parseFloat(c.CARRY) || 0; });
+			rows.forEach((r) => {
+				const id = parseInt(r.game_list_id, 10);
+				// No cut-off cash-out found (deleted / done by hand) → nothing was carried over automatically
+				if (cutIds.includes(id)) r.CUTOFF_CARRY_OUT = byId[id] || 0;
+			});
+		}
+	} catch (e) {
+		console.error('[Game List Backend] cut-off carry lookup failed:', e.message);
+	}
+	return rows;
+}
+
 router.get('/game_list_data', async (req, res) => {
     let { start, end, id, date, fromDate, toDate } = req.query;
     const isValidYmd = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || '').slice(0, 10));
 
     const gameId = id ? parseInt(id, 10) : null;
+    const withCutoffChain = ['1', 'true', 'yes'].includes(String(req.query.cutoffChain || '').toLowerCase());
 
     const baseSelect = `
         SELECT 
@@ -4000,8 +4071,9 @@ router.get('/game_list_data', async (req, res) => {
             ORDER BY game_list.IDNo ASC
         `;
         try {
-            const [rows] = await pool.execute(query, [fromS, toS]);
+            let [rows] = await pool.execute(query, [fromS, toS]);
             rows.forEach((row) => { row.is_pending = 0; });
+            if (withCutoffChain) rows = await appendCutoffChainRows(rows, baseSelect);
             return res.json(rows);
         } catch (error) {
             console.error('[Game List Backend] Error fetching data by program date range:', error);
@@ -4020,8 +4092,9 @@ router.get('/game_list_data', async (req, res) => {
             ORDER BY game_list.IDNo ASC
         `;
         try {
-            const [rows] = await pool.execute(query, [fromDate, toDate]);
+            let [rows] = await pool.execute(query, [fromDate, toDate]);
             rows.forEach((row) => { row.is_pending = 0; });
+            if (withCutoffChain) rows = await appendCutoffChainRows(rows, baseSelect);
             return res.json(rows);
         } catch (error) {
             console.error('[Game List Backend] Error fetching data by game start date range:', error);
@@ -4040,8 +4113,9 @@ router.get('/game_list_data', async (req, res) => {
             ORDER BY game_list.IDNo ASC
         `;
         try {
-            const [rows] = await pool.execute(query, [dateS]);
+            let [rows] = await pool.execute(query, [dateS]);
             rows.forEach((row) => { row.is_pending = 0; });
+            if (withCutoffChain) rows = await appendCutoffChainRows(rows, baseSelect);
             return res.json(rows);
         } catch (error) {
             console.error('[Game List Backend] Error fetching data by program date:', error);
@@ -4069,8 +4143,9 @@ router.get('/game_list_data', async (req, res) => {
     `;
 
     try {
-        const [rows] = await pool.execute(query, [start, end]);
+        let [rows] = await pool.execute(query, [start, end]);
         rows.forEach((row) => { row.is_pending = 0; });
+        if (withCutoffChain) rows = await appendCutoffChainRows(rows, baseSelect);
         res.json(rows);
     } catch (error) {
         console.error('Error fetching data:', error);

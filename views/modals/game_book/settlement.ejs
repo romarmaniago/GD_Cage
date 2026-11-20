@@ -1,4 +1,12 @@
 <style>
+    /* Essentially the Same Game combined slip: view only (no Settle / Undo / Edit / Deposit) */
+    #modal-settlement.settlement-view-only #submit-settlement-btn,
+    #modal-settlement.settlement-view-only #undo-settlement-btn,
+    #modal-settlement.settlement-view-only #edit-settlement-btn,
+    #modal-settlement.settlement-view-only .deposit-cashout-row {
+        display: none !important;
+    }
+
     #modal-settlement.show,
     #modal-settlement.showing {
         display: flex !important;
@@ -1604,6 +1612,8 @@ $(document).ready(function() {
 
     $('#modal-settlement').on('hidden.bs.modal', function() {
         resetSettlementModalView($(this));
+        // Essentially the Same Game combined slip (view only) — back to the normal slip
+        $(this).removeClass('settlement-view-only');
     });
 
     $('#edit-settlement-btn').on('click', function() {

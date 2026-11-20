@@ -117,9 +117,10 @@
 												</div>
 											</div>
 
-											<!-- Frequent Recently: finished games, latest first, cut-off pairs together (toggle; logic in game_list.js) -->
+											<!-- Frequent Recently / Essentially the Same Game: toggles (one at a time), logic in game_list.js -->
 											<div id="game-frequent-filter-wrapper" class="game-list-status-filter-wrap">
-												<button type="button" class="game-frequent-tab" aria-pressed="false" title="Finished games, most recently finished first — cut-off games kept next to each other">Frequent Recently</button>
+												<button type="button" class="game-frequent-tab" data-mode="frequent" aria-pressed="false" title="Finished games, most recently finished first — cut-off games kept next to each other">Frequent Recently</button>
+												<button type="button" class="game-frequent-tab" data-mode="same" aria-pressed="false" title="Cut-off games and their continued games only — each chain kept together">Essentially the Same Game</button>
 											</div>
 
 											<!-- Game Status Filter: All / On Game / Finished (+ Settled / Unsettled) -->
@@ -752,6 +753,7 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	position: static;
 	display: inline-flex;
 	align-items: center;
+	gap: 6px;
 	vertical-align: middle;
 }
 #game-frequent-filter-wrapper .game-frequent-tab {
@@ -780,6 +782,47 @@ body.open-pool-select-mode .game-list-select-all-slot {
 }
 #game-frequent-filter-wrapper .game-frequent-tab:focus {
 	outline: none;
+}
+/* Essentially the Same Game — link icon on the line between two games of the same cut-off chain */
+#game_list-tbl td.same-game-chain-cell {
+	position: relative;
+	overflow: visible;
+}
+#game_list-tbl .same-game-chain-link {
+	position: absolute;
+	top: 0;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	z-index: 2;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	font-size: 13px;
+	color: #fff;
+	background: #c8a24c;
+	border: 2px solid #fff;
+	border-radius: 50%;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+	cursor: pointer;
+	transition: transform 0.15s ease, background 0.15s ease;
+}
+#game_list-tbl .same-game-chain-link:hover {
+	transform: translate(-50%, -50%) scale(1.12);
+}
+#game_list-tbl .same-game-chain-link.is-open {
+	background: #8a6d2b;
+}
+/* Combined row shown under a cut-off chain */
+#game_list-tbl tr.same-game-combined-row > td {
+	background: #fdf8c9 !important;
+	border-top: 2px solid #c8a24c;
+	border-bottom: 2px solid #c8a24c;
+	vertical-align: middle;
+}
+#game_list-tbl tr.same-game-combined-row > td.same-game-combined-copy * {
+	pointer-events: none;
 }
 
 .daily-settle-checkbox,
@@ -972,6 +1015,11 @@ th.col-winloss {
 #game_list-tbl td.col-roller-chips .btn,
 #game_list-tbl td.col-game-end a.status-date-link {
 	font-size: 15px !important;
+}
+/* Essentially the Same Game combined row: Game End looks like the link above but is plain text */
+#game_list-tbl tr.same-game-combined-row td.col-game-end .status-date-link {
+	font-size: 15px !important;
+	color: var(--bs-link-color, #0665d0);
 }
 
 /* TYPE — compact column */
@@ -1969,7 +2017,7 @@ table.dataTable tbody tr.highlight-row {
 
 
 												<script src="/assets/js/functions/num_paren_align.js?v=2"></script>
-												<script src="/assets/js/functions/game_list.js?v=37"></script>
+												<script src="/assets/js/functions/game_list.js?v=50"></script>
 												<script src="/assets/js/functions/game_group.js"></script>
 												<script src="/assets/js/functions/account.js?v=10"></script>
 												<script src="/assets/js/functions/agent_portal_panels.js?v=13"></script>

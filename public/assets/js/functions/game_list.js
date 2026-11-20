@@ -3024,6 +3024,8 @@ function buildProgramDateCell(row, userPermissions, isSettled) {
 
 function updateProgramDateCellDisplay(gameId, ymd, display) {
 	var label = display || formatProgramDateLabel(ymd);
+	var gameMeta = (window._gameListMetaMap || {})[gameId];
+	if (gameMeta) gameMeta.pdate = ymd;
 	$('.js-program-date-btn[data-game-id="' + gameId + '"]').each(function () {
 		var $btn = $(this);
 		$btn.attr('data-program-date', ymd);
@@ -3546,6 +3548,39 @@ function showGameReceipts(gameId) {
 	});
 }
 window.showGameReceipts = showGameReceipts;
+
+/** Essentially the Same Game combined row: receipts of every game in a cut-off chain, in chain order, in one modal. */
+function showChainGameReceipts(gameIds) {
+	var ids = (gameIds || []).map(function (id) { return parseInt(id, 10); }).filter(Boolean);
+	if (!ids.length) return;
+	var requests = ids.map(function (id) {
+		return $.ajax({ url: '/game_list/' + id + '/receipts', method: 'GET' });
+	});
+	$.when.apply($, requests).done(function () {
+		var results = ids.length === 1 ? [arguments] : Array.prototype.slice.call(arguments);
+		var receipts = [];
+		var lastStatus = null;
+		results.forEach(function (res) {
+			var data = res && res[0];
+			if (data && Array.isArray(data.receipts)) receipts = receipts.concat(data.receipts);
+			if (data) lastStatus = data.game_status;
+		});
+		if (!receipts.length) {
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'info', title: 'No receipts', text: 'No receipts available for these games.', confirmButtonText: 'OK' });
+			}
+			return;
+		}
+		populateAllGameReceipts(receipts, lastStatus);
+		showGameStartReceiptModal();
+	}).fail(function (xhr) {
+		var msg = (xhr && xhr.responseJSON && xhr.responseJSON.error) || 'Unable to load receipts.';
+		if (typeof Swal !== 'undefined') {
+			Swal.fire({ icon: 'error', title: 'Error', text: msg, confirmButtonText: 'OK' });
+		}
+	});
+}
+window.showChainGameReceipts = showChainGameReceipts;
 
 function showGameReceiptByType(gameId, type) {
 	if (!gameId || !type) return;
@@ -5077,7 +5112,19 @@ $(document).ready(function () {
 				ymd = m ? m[0] : '';
 			}
 			if (!ymd) return true; // rows without a program date (e.g. account summary) always show
-			return (!!f.today && ymd === getClientTodayYmd()) || (!!f.yesterday && ymd === getClientYesterdayYmd());
+			var todayYmd = getClientTodayYmd();
+			var yesterdayYmd = getClientYesterdayYmd();
+			function dayMatches(d) {
+				return (!!f.today && d === todayYmd) || (!!f.yesterday && d === yesterdayYmd);
+			}
+			if (dayMatches(ymd)) return true;
+			// Essentially the Same Game: show the whole cut-off chain when any game in it is on the chosen day
+			if (window.gameListSameGame && typeof window.gameListCutoffChainDates === 'function') {
+				var rowData = settings.aoData[index] && settings.aoData[index]._aData;
+				var gid = parseInt(String(rowData ? rowData[7] : searchData[7] || '').replace(/<[^>]*>/g, ' ').replace(/[^0-9]/g, ' ').trim().split(' ')[0], 10) || 0;
+				return window.gameListCutoffChainDates(gid).some(dayMatches);
+			}
+			return false;
 		});
 	}
 
@@ -5972,32 +6019,278 @@ $(document).ready(function () {
 		});
 	}
 
-	var frequentColumnBackup = null;
-	function setGameListFrequent(on) {
-		window.gameListFrequent = on;
-		$('#game-frequent-filter-wrapper .game-frequent-tab').toggleClass('active', on).attr('aria-pressed', on ? 'true' : 'false');
+	// ── Essentially the Same Game ──
+	// Only games linked by a cut-off (original + its continuations), any status, each chain kept together:
+	// chains by original Game # ascending (oldest first), and inside a chain the original first, then 1st, 2nd... continuation.
+	window.gameListSameGame = false;
+
+	function gameCutoffChainInfo(gameId) {
+		var meta = window._gameListMetaMap || {};
+		var root = gameId;
+		var depth = 0;
+		var seen = {};
+		while (meta[root] && meta[root].parent && !seen[root] && depth < 50) {
+			seen[root] = true;
+			root = parseInt(meta[root].parent, 10) || root;
+			depth++;
+		}
+		return { root: root, depth: depth };
+	}
+
+	function isCutoffLinkedGame(gameId) {
+		var m = (window._gameListMetaMap || {})[gameId];
+		return !!(m && (m.parent || m.continued));
+	}
+
+	/** Program dates of every loaded game in the same cut-off chain as gameId (empty if not linked). */
+	window.gameListCutoffChainDates = function (gameId) {
+		if (!isCutoffLinkedGame(gameId)) return [];
+		var meta = window._gameListMetaMap || {};
+		var root = gameCutoffChainInfo(gameId).root;
+		var dates = [];
+		Object.keys(meta).forEach(function (id) {
+			var m = meta[id];
+			if ((m.parent || m.continued) && gameCutoffChainInfo(parseInt(id, 10)).root === root && m.pdate) dates.push(m.pdate);
+		});
+		return dates;
+	};
+
+	function sameGameSortKey(gameId) {
+		if (!isCutoffLinkedGame(gameId)) return 0;
+		var c = gameCutoffChainInfo(gameId);
+		// Sorted desc: lowest original Game # first, then each chain original → continuations
+		return (1e9 - c.root) * 1000 + (999 - Math.min(c.depth, 999));
+	}
+
+	$.fn.dataTable.ext.order['game-list-same-game'] = function (settings, col) {
+		return this.api().column(col, { order: 'index' }).data().map(function (cell) {
+			return sameGameSortKey(gameIdFromCell(cell));
+		});
+	};
+
+	if (!window._gameListSameGameFilterRegistered) {
+		window._gameListSameGameFilterRegistered = true;
+		$.fn.dataTable.ext.search.push(function (settings, searchData, index) {
+			if (settings.nTable.id !== 'game_list-tbl' || !window.gameListSameGame) return true;
+			var row = settings.aoData[index];
+			return isCutoffLinkedGame(gameIdFromCell(row && row._aData ? row._aData[GAME_NO_COL] : searchData[GAME_NO_COL]));
+		});
+	}
+
+	// Essentially the Same Game: a link icon on the line between two games of the same chain (in the Game # cell).
+	// Clicking it shows / hides a combined row under the chain: first game's details, last game's end,
+	// W/L, rolling, settlement, add chg and total settle added up; buy-in and cash-out added up less the chips
+	// carried over at each cut-off (CUTOFF_CARRY_OUT from the server).
+	window._sameGameOpenChains = window._sameGameOpenChains || {};
+
+	/** Game End of the combined row: same look (class / font size / colour) as the last game's Game End link, not clickable. */
+	function sameGameEndCellHtml(lastCell, fallbackText) {
+		var $a = lastCell ? $(lastCell).find('a').first() : $();
+		var text = $a.length ? $.trim($a.text()) : String(fallbackText || '');
+		var $span = $('<span></span>').text(text);
+		if ($a.length) {
+			$span.attr('class', $a.attr('class') || '').attr('style', $a.attr('style') || '');
+		} else {
+			$span.attr('style', 'font-size:15px !important;');
+		}
+		return $span.prop('outerHTML');
+	}
+
+	function buildSameGameCombinedRow(dt, members) {
+		var data = window._gameListExportRows || {};
+		var first = members[0];
+		var last = members[members.length - 1];
+		var meta = window._gameListMetaMap || {};
+		var buyin = 0, cashout = 0, winloss = 0, rolling = 0, settlement = 0, addChg = 0, totalSettle = 0;
+		members.forEach(function (m, i) {
+			var d = data[m.gid] || {};
+			buyin += parseFloat(d.buyin) || 0;
+			cashout += parseFloat(d.cashout) || 0;
+			if (i < members.length - 1) {
+				// Chips cashed out at the cut-off and bought back in on the next game are not new money / not a real cash-out
+				var carried = meta[m.gid] && meta[m.gid].carry != null
+					? meta[m.gid].carry
+					: Math.min(parseFloat(d.cashout) || 0, parseFloat((data[members[i + 1].gid] || {}).buyin) || 0);
+				buyin -= carried;
+				cashout -= carried;
+			}
+			winloss += parseFloat(d.winloss) || 0;
+			rolling += parseFloat(d.rolling) || 0;
+			settlement += parseFloat(d.settlement) || 0;
+			addChg += (parseFloat(d.fnb) || 0) + (parseFloat(d.hotel) || 0) + (parseFloat(d.incidental) || 0);
+			totalSettle += parseFloat(d.total_settle) || 0;
+		});
+		var lastData = data[last.gid] || {};
+		var dates = [];
+		members.forEach(function (m) {
+			var pd = (data[m.gid] || {}).program_date;
+			if (pd && dates.indexOf(pd) === -1) dates.push(pd);
+		});
+		var content = {
+			0: dates.map(escapeHtmlText).join('<br>'),
+			1: escapeHtmlText((data[first.gid] || {}).game_start || ''),
+			7: escapeHtmlText($(dt.cell(first.node, 7).node()).text().trim()),
+			8: '<b>' + formatListAmount(buyin) + '</b>',
+			9: '<b>' + formatListAmount(cashout) + '</b>',
+			10: '<b>' + formatListAmount(winloss, 'signed') + '</b>',
+			11: '<b>' + formatListAmount(rolling) + '</b>',
+			12: '<b>' + formatListAmount(settlement, 'signed') + '</b>',
+			13: '<b>' + formatListAmount(addChg) + '</b>',
+			14: '<b>' + formatListAmount(totalSettle, 'signed') + '</b>',
+			15: sameGameEndCellHtml(dt.cell(last.node, 15).node(), lastData.game_end),
+			16: formatListAmount(parseFloat(lastData.roller_chips) || 0),
+			17: '<div class="game-list-action-btns"><div class="btn-group" role="group">' +
+				'<button type="button" class="btn btn-sm btn-success-subtle action-btn-square action-btn-square-lg js-same-game-receipts"' +
+				' data-game-ids="' + members.map(function (m) { return m.gid; }).join(',') + '"' +
+				' aria-label="Receipts" title="Receipts (all games in this chain)" style="font-size:24px !important; margin-right: 0;">' +
+				'<i class="fa fa-receipt"></i></button></div>' +
+				'<div class="btn-group" role="group">' +
+				'<button type="button" class="btn btn-sm btn-success-subtle action-btn-square action-btn-square-lg js-same-game-settlement"' +
+				' data-chain-root="' + (gameCutoffChainInfo(first.gid).root || '') + '"' +
+				' aria-label="Settlement" title="Settlement slip (all games in this chain) — view only" style="font-size:24px !important; margin-right: 0;">' +
+				'<i class="fa fa-clipboard-check"></i></button></div></div>'
+		};
+		var $acctLink = $(dt.cell(first.node, 2).node()).find('.game-list-acct-link').first();
+		var firstData = data[first.gid] || {};
+		var rateNum = parseFloat($.trim($(dt.cell(first.node, 6).node()).text()).replace(/S\+R|\b[RSL]\b/g, '').replace(/%/g, '').trim());
+		window._sameGameChainSlips = window._sameGameChainSlips || {};
+		window._sameGameChainSlips[gameCutoffChainInfo(first.gid).root] = {
+			ids: members.map(function (m) { return m.gid; }),
+			gameNoText: $(dt.cell(first.node, GAME_NO_COL).node()).text().replace(/\s+/g, ' ').trim(),
+			agentCode: $.trim($acctLink.text()) || firstData.agent_code || '',
+			agentName: $.trim($acctLink.attr('data-agent-name') || ''),
+			groupName: firstData.group_name || '',
+			guestName: firstData.guest_name || '',
+			gameType: firstData.game_type || '',
+			rate: isNaN(rateNum) ? null : rateNum.toFixed(2),
+			buyIn: buyin,
+			cashOut: cashout,
+			winLoss: winloss,
+			rolling: rolling,
+			net: -settlement // list column is house side ((x) = paid out); the slip wants the payout positive
+		};
+		var $tr = $('<tr class="same-game-combined-row"></tr>');
+		dt.columns().indexes().each(function (i) {
+			if (!dt.column(i).visible()) return;
+			var src = dt.cell(last.node, i).node();
+			var $td = $('<td></td>').attr('class', src ? src.className : '');
+			if (Object.prototype.hasOwnProperty.call(content, i)) {
+				$td.html(content[i]);
+			} else {
+				// Acc & Group, Guest, Membership, Type, Rate: same as the first game (display only)
+				var firstTd = dt.cell(first.node, i).node();
+				$td.html(firstTd ? firstTd.innerHTML : '').addClass('same-game-combined-copy');
+			}
+			$tr.append($td);
+		});
+		return $tr;
+	}
+
+	function markSameGameChainLinks() {
+		var $tbl = $('#game_list-tbl');
+		$tbl.find('.same-game-chain-link').remove();
+		$tbl.find('td.same-game-chain-cell').removeClass('same-game-chain-cell');
+		if (!$.fn.DataTable.isDataTable('#game_list-tbl')) return;
+		var dt = $tbl.DataTable();
+		dt.rows().every(function () {
+			var child = this.child();
+			if (child && $(child).hasClass('same-game-combined-row')) this.child.remove();
+		});
+		if (!window.gameListSameGame) return;
+		var groups = [];
+		dt.rows({ page: 'current', search: 'applied', order: 'applied' }).every(function () {
+			var data = this.data();
+			var node = this.node();
+			var gid = gameIdFromCell(data ? data[GAME_NO_COL] : '');
+			var root = isCutoffLinkedGame(gid) ? gameCutoffChainInfo(gid).root : null;
+			var g = groups[groups.length - 1];
+			if (root && g && g.root === root) g.members.push({ gid: gid, node: node });
+			else groups.push({ root: root, members: [{ gid: gid, node: node }] });
+		});
+		groups.forEach(function (g) {
+			if (!g.root || g.members.length < 2) return;
+			var open = !!window._sameGameOpenChains[g.root];
+			g.members.forEach(function (m, i) {
+				if (i === 0 || !m.node || !m.node.cells[GAME_NO_COL]) return;
+				$(m.node.cells[GAME_NO_COL]).addClass('same-game-chain-cell')
+					.append('<span class="same-game-chain-link' + (open ? ' is-open' : '') + '" data-chain-root="' + g.root + '" title="' + (open ? 'Hide' : 'Show') + ' combined game" data-html2canvas-ignore><i class="fa fa-link"></i></span>');
+			});
+			if (open) {
+				var lastNode = g.members[g.members.length - 1].node;
+				// Totals use every loaded game of the chain (original → continuations), even one hidden by a status tab
+				var allMembers = [];
+				dt.rows().every(function () {
+					var gid = gameIdFromCell(this.data() ? this.data()[GAME_NO_COL] : '');
+					if (gid && isCutoffLinkedGame(gid) && gameCutoffChainInfo(gid).root === g.root) {
+						allMembers.push({ gid: gid, node: this.node(), depth: gameCutoffChainInfo(gid).depth });
+					}
+				});
+				allMembers.sort(function (a, b) { return a.depth - b.depth; });
+				dt.row(lastNode).child(buildSameGameCombinedRow(dt, allMembers.length >= g.members.length ? allMembers : g.members)).show();
+			}
+		});
+	}
+	$(document).off('click.sameGameSettlement').on('click.sameGameSettlement', '#game_list-tbl .js-same-game-settlement', function (e) {
+		e.preventDefault();
+		e.stopPropagation();
+		var slip = (window._sameGameChainSlips || {})[parseInt($(this).attr('data-chain-root'), 10)];
+		if (slip) openChainSettlementSlip(slip);
+	});
+	$(document).off('click.sameGameReceipts').on('click.sameGameReceipts', '#game_list-tbl .js-same-game-receipts', function (e) {
+		e.preventDefault();
+		e.stopPropagation();
+		showChainGameReceipts(String($(this).attr('data-game-ids') || '').split(','));
+	});
+	$(document).off('click.sameGameChain').on('click.sameGameChain', '#game_list-tbl .same-game-chain-link', function (e) {
+		e.preventDefault();
+		e.stopPropagation();
+		var root = parseInt($(this).attr('data-chain-root'), 10);
+		if (!root) return;
+		window._sameGameOpenChains[root] = !window._sameGameOpenChains[root];
+		markSameGameChainLinks();
+	});
+	$(document).off('draw.dt.sameGameChain').on('draw.dt.sameGameChain', '#game_list-tbl', markSameGameChainLinks);
+
+	// Frequent Recently / Essentially the Same Game share the Game # column sort; only one is on at a time.
+	var gameNoColumnBackup = null;
+	function setGameListSortMode(mode) {
+		window.gameListFrequent = mode === 'frequent';
+		window.gameListSameGame = mode === 'same';
+		$('#game-frequent-filter-wrapper .game-frequent-tab').each(function () {
+			var on = $(this).data('mode') === mode;
+			$(this).toggleClass('active', on).attr('aria-pressed', on ? 'true' : 'false');
+		});
 		if (!$.fn.DataTable.isDataTable('#game_list-tbl')) return;
 		var dt = $('#game_list-tbl').DataTable();
 		var settings = dt.settings()[0];
 		var column = settings.aoColumns[GAME_NO_COL];
-		if (on && !frequentColumnBackup) {
-			frequentColumnBackup = { sSortDataType: column.sSortDataType, sType: column.sType };
-			column.sSortDataType = 'game-list-frequent';
+		if (mode && !gameNoColumnBackup) {
+			gameNoColumnBackup = { sSortDataType: column.sSortDataType, sType: column.sType };
+		}
+		if (mode) {
+			column.sSortDataType = mode === 'same' ? 'game-list-same-game' : 'game-list-frequent';
 			column.sType = 'num';
-		} else if (!on && frequentColumnBackup) {
-			column.sSortDataType = frequentColumnBackup.sSortDataType;
-			column.sType = frequentColumnBackup.sType;
-			frequentColumnBackup = null;
+		} else if (gameNoColumnBackup) {
+			column.sSortDataType = gameNoColumnBackup.sSortDataType;
+			column.sType = gameNoColumnBackup.sType;
+			gameNoColumnBackup = null;
 		}
 		// Drop the cached sort values of the Game # column so it re-sorts with the current mode.
 		settings.aoData.forEach(function (r) {
 			if (r && r._aSortData) r._aSortData[GAME_NO_COL] = undefined;
 		});
-		dt.order(on ? [[GAME_NO_COL, 'desc']] : [[0, 'desc']]).draw();
+		dt.order(mode ? [[GAME_NO_COL, 'desc']] : [[0, 'desc']]).draw();
 	}
 
 	$(document).off('click.gameListFrequent').on('click.gameListFrequent', '#game-frequent-filter-wrapper .game-frequent-tab', function () {
-		setGameListFrequent(!window.gameListFrequent);
+		var mode = $(this).data('mode') === 'same' ? 'same' : 'frequent';
+		var current = window.gameListSameGame ? 'same' : (window.gameListFrequent ? 'frequent' : null);
+		var next = current === mode ? null : mode;
+		setGameListSortMode(next);
+		// Reload when the cut-off-linked games outside the date range must be added (Same Game on) or dropped (off)
+		if (!!window._gameListChainRequested !== (next === 'same') && typeof window.reloadData === 'function') {
+			window.reloadData();
+		}
 	});
 
 	function layoutGameListControls() {
@@ -6629,6 +6922,9 @@ $(document).ready(function () {
 				params.toDate = toDate;
 			}
 		}
+		// Essentially the Same Game: also load the cut-off-linked games outside the date range
+		if (!params.id && !params.unreturned_roller && window.gameListSameGame) params.cutoffChain = 1;
+		window._gameListChainRequested = !!params.cutoffChain;
         syncProgramDateMultiDayChrome();
         $.ajax({
             url: '/game_list_data', // Endpoint to fetch data
@@ -6663,7 +6959,7 @@ $(document).ready(function () {
                 window._gameListExportRows = {}; // reset each load; keyed by game_list_id for the detailed export
                 // When in account mode we don't add game rows; we add account rows when all record APIs are done
                 var pendingAccountMode = hasAccountSearch ? data.length : 0;
-                if (!hasAccountSearch) dataTable.order([[0, 'desc']]); // Game view: Program Date → Game Start → Game #
+                if (!hasAccountSearch) dataTable.order((window.gameListFrequent || window.gameListSameGame) ? [[7, 'desc']] : [[0, 'desc']]); // Game view: Program Date → Game Start → Game # (Game # when Frequent / Same Game is on)
 
                 function addAccountRows() {
                     var parts = accountSearchVal.split(/[\s\-–—]+/).map(function (p) { return p.trim(); }).filter(Boolean);
@@ -7012,7 +7308,7 @@ $(document).ready(function () {
 
                                 var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name) + buildGameGroupBadge(row) + buildGameRowNoteButton(row) + buildGameAccountChangeButton(row);
                                 var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
-                                (window._gameListStatusMap || (window._gameListStatusMap = {}))[row.game_list_id] = 'ongame';
+                                (window._gameListStatusMap || (window._gameListStatusMap = {}))[row.game_list_id] = 'ongame'; (window._gameListMetaMap || (window._gameListMetaMap = {}))[row.game_list_id] = { ended: 0, pdate: getProgramDateYmd(row) || '', carry: (row.CUTOFF_CARRY_OUT != null ? parseFloat(row.CUTOFF_CARRY_OUT) || 0 : null), parent: row.CUTOFF_PARENT_GAME_ID || null, continued: row.CUTOFF_CONTINUED_GAME_ID || null };
                                 (window._gameListSettledMap || (window._gameListSettledMap = {}))[row.game_list_id] = isSettled;
                                 captureGameListExportRow(row, { buyin: total_amount, cashout: total_cash_out_chips, winloss: WinLoss, rolling: total_rolling_chips, settlement: net, totalSettle: totalSettleValue, rollerChips: total_roller_chips });
                                 let rowNode = dataTable.row.add([
@@ -7135,7 +7431,7 @@ $(document).ready(function () {
 								var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name) + buildGameGroupBadge(row) + buildGameRowNoteButton(row);
 								var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
 
-								(window._gameListStatusMap || (window._gameListStatusMap = {}))[row.game_list_id] = 'pending';
+								(window._gameListStatusMap || (window._gameListStatusMap = {}))[row.game_list_id] = 'pending'; (window._gameListMetaMap || (window._gameListMetaMap = {}))[row.game_list_id] = { ended: 0, pdate: getProgramDateYmd(row) || '', carry: (row.CUTOFF_CARRY_OUT != null ? parseFloat(row.CUTOFF_CARRY_OUT) || 0 : null), parent: row.CUTOFF_PARENT_GAME_ID || null, continued: row.CUTOFF_CONTINUED_GAME_ID || null };
 								(window._gameListSettledMap || (window._gameListSettledMap = {}))[row.game_list_id] = isSettled;
 								captureGameListExportRow(row, { buyin: total_amount, cashout: total_cash_out_chips, winloss: WinLoss, rolling: total_rolling_chips, settlement: net, totalSettle: totalSettleValue, rollerChips: total_roller_chips });
 								let rowNode = dataTable.row.add([
@@ -7256,7 +7552,7 @@ $(document).ready(function () {
 						   (window._gameListSettledMap || (window._gameListSettledMap = {}))[row.game_list_id] = isSettled;
 						   (window._gameListMetaMap || (window._gameListMetaMap = {}))[row.game_list_id] = {
 							   ended: row.GAME_ENDED ? (new Date(row.GAME_ENDED).getTime() || 0) : 0,
-							   parent: row.CUTOFF_PARENT_GAME_ID || null,
+							   pdate: getProgramDateYmd(row) || '', carry: (row.CUTOFF_CARRY_OUT != null ? parseFloat(row.CUTOFF_CARRY_OUT) || 0 : null), parent: row.CUTOFF_PARENT_GAME_ID || null,
 							   continued: row.CUTOFF_CONTINUED_GAME_ID || null
 						   };
 						   captureGameListExportRow(row, { buyin: total_amount, cashout: total_cash_out_chips, winloss: WinLoss, rolling: total_rolling_chips, settlement: net, totalSettle: totalSettleValue, rollerChips: total_roller_chips });
@@ -12946,8 +13242,69 @@ $(document).off('input.settlementSplitAmt', '.settlement-split-amount')
 		refreshSettlementSplitSummary();
 	});
 
+/**
+ * Essentially the Same Game combined row: the normal Settlement slip filled with the chain's combined totals,
+ * view only (.settlement-view-only hides Settle / Undo / Edit and the Deposit / Choose Account row).
+ * Nothing is saved — each game is still settled from its own Settlement button.
+ */
+function openChainSettlementSlip(slip) {
+	var $modal = $('#modal-settlement');
+	if (!$modal.length || !slip) return;
+	$modal.addClass('settlement-view-only');
+	$modal.find('.settlement-cutoff-tags').html('');
+	$modal.find('.settlement-receipt-row--cutoff').css('display', 'none');
+	$modal.data('is-settled', 0);
+	$modal.data('settlementSettledDt', null);
+	$modal.data('settlementPrimaryGameId', null);
+	$modal.data('commissionSettled', 0);
+	$modal.find('#undo-settlement-btn').addClass('d-none');
+	$modal.data('commissionRow', typeof window.mergeShareRollingRow === 'function'
+		? window.mergeShareRollingRow(slip.ids.map(function (id) {
+			var split = (window._gameListCommissionSplit || {})[id];
+			return split ? { COMMISSION_TYPE: 3, SHARE_PERCENTAGE: split.sharePct, ROLLING_PERCENTAGE: split.rollingPct } : null;
+		}))
+		: null);
+	setGameListModalAccountLabel('#settlement-agent-code', slip.agentCode, slip.agentName);
+	if (typeof window.setSettlementAccountDisplay === 'function') {
+		window.setSettlementAccountDisplay($modal, slip.agentCode, slip.agentName, slip.groupName, slip.guestName);
+	}
+	if (typeof window.setSettlementGameDisplay === 'function') {
+		window.setSettlementGameDisplay($modal, slip.gameType, null);
+	}
+	applySettlementMetricsToForm({
+		total_amount: slip.buyIn,
+		cashout_td: slip.cashOut,
+		winloss: slip.winLoss,
+		total_rolling_chips: slip.rolling,
+		net: slip.net,
+		meta: $modal.data('commissionRow')
+	}, slip.gameNoText, slip.rate);
+
+	function applyServices(entries) {
+		renderSettlementServiceRows(entries);
+		var fb = entries.reduce(function (sum, entry) { return sum + entry.amount; }, 0);
+		$('#fb').val(fb.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
+		$('#payment').val((slip.net - fb).toLocaleString('en-US'));
+		if (typeof window.refreshSettlementReceiptDisplay === 'function') {
+			window.refreshSettlementReceiptDisplay($modal);
+		}
+	}
+	applyServices([]);
+	$modal.modal('show');
+	$.when.apply($, slip.ids.map(function (id) {
+		return $.ajax({ url: '/game_services/' + id, method: 'GET' });
+	})).done(function () {
+		var results = slip.ids.length === 1 ? [arguments] : Array.prototype.slice.call(arguments);
+		var totalsMap = {};
+		results.forEach(function (res) { accumulateSettlementServiceTotals(totalsMap, res && res[0]); });
+		applyServices(buildSettlementServiceEntries(totalsMap));
+	});
+}
+window.openChainSettlementSlip = openChainSettlementSlip;
+
 function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinuedGameId) {
     var $settlementModal = $('#modal-settlement');
+    $settlementModal.removeClass('settlement-view-only');
     // Game No. display matches the Game # column, e.g. "90053 (90052)"
     var settlementGameNoText = buildCutoffGameIdPlainLabel({
         game_list_id: record_id,
